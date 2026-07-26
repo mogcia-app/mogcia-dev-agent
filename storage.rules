@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isIshida() {
+      return isSignedIn() && request.auth.token.email == 'marina.ishida@mogcia.com';
+    }
+
+    match /mogcia-dev-agent/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isIshida();
+    }
+  }
+}

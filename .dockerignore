@@ -1,0 +1,7 @@
+.next
+node_modules
+.env.local
+.git
+*.log
+public/generated-demos
+.mogcia

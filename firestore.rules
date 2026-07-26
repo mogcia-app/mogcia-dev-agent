@@ -1,0 +1,194 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isIshida() {
+      return isSignedIn() && request.auth.token.email == 'marina.ishida@mogcia.com';
+    }
+
+    match /clients/{clientId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isIshida()
+        || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'requirementDraftId',
+          'nextAction',
+          'updatedAt'
+        ]));
+      allow delete: if isIshida();
+    }
+
+    match /ruleLayers/{ruleLayerId} {
+      allow read: if isSignedIn();
+      allow write: if isIshida();
+    }
+
+    match /timelineEvents/{timelineEventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /emailTemplates/{emailTemplateId} {
+      allow read: if isSignedIn();
+      allow write: if isIshida();
+    }
+
+    match /demoGuideDrafts/{demoGuideDraftId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /agentConfigs/{agentConfigId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /localDemoRuns/{localDemoRunId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /websiteAnalyses/{websiteAnalysisId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /monthlyReports/{monthlyReportId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /storageAssets/{storageAssetId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /openAiReviews/{openAiReviewId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /codexCliRuns/{codexCliRunId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /cliEvents/{cliEventId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /codexRuns/{codexRunId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /codexResults/{codexResultId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /developmentProgressItems/{developmentProgressItemId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+
+    match /snsOperationPlans/{snsOperationPlanId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isIshida();
+    }
+
+    match /snsPostTasks/{snsPostTaskId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isIshida();
+    }
+
+    match /quickCaptures/{quickCaptureId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /companyTimelineEvents/{companyTimelineEventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /salesActionTasks/{salesActionTaskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /companyContacts/{companyContactId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /salesActivities/{salesActivityId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /meetings/{meetingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /meetingAssets/{meetingAssetId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /meetingAnalyses/{meetingAnalysisId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /minutes/{minutesId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /requirementDrafts/{requirementDraftId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isIshida();
+    }
+
+    match /workTasks/{workTaskId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isIshida();
+    }
+  }
+}

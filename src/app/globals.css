@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --mogcia-primary: #d5b5b2;
+  --mogcia-primary-light: #e9cbc8;
+  --mogcia-primary-dark: #c79a98;
+  --mogcia-bg: #f8f4f3;
+  --mogcia-surface: #f7f3f2;
+  --mogcia-face: #1f1f22;
+  --mogcia-eye: #f3b8c0;
+  --mogcia-blush: #b97b80;
+  --mogcia-icon-bg: #f8f2f2;
+  --background: var(--mogcia-bg);
+  --foreground: var(--mogcia-face);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(233, 203, 200, 0.58), transparent 30rem),
+    radial-gradient(circle at top right, rgba(213, 181, 178, 0.24), transparent 26rem),
+    linear-gradient(180deg, #fffafa 0%, var(--background) 44%, #f3eceb 100%);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.agent-grid {
+  background-image:
+    linear-gradient(rgba(199, 154, 152, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(199, 154, 152, 0.14) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
