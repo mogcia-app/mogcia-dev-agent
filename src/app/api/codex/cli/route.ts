@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as CodexCliRequest;
   const taskTitle = body.taskTitle?.trim() || "MOGCIA Dev Agent Task";
-  const taskBody = body.taskBody?.trim() || "ローカルDemoまたは開発補助タスクを確認してください。";
+  const taskBody = body.taskBody?.trim() || "開発補助タスクを確認してください。";
   const outputDir = path.join(process.cwd(), ".mogcia");
   const outputPath = path.join(outputDir, "codex-task.md");
   const codexVersion = spawnSync("codex", ["--version"], { encoding: "utf8" });

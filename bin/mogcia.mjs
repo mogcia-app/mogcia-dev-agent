@@ -39,7 +39,7 @@ const sampleProjects = [
     progress: 72,
     branch: "feature/demo",
     previewUrl: "http://localhost:3000",
-    nextAction: "Demo確認",
+    nextAction: "Preview確認",
     tasks: {
       analyze: "completed",
       plan: "completed",
@@ -56,7 +56,7 @@ const sampleProjects = [
     progress: 45,
     branch: "feature/golf-line-mini-page",
     previewUrl: "http://localhost:3000",
-    nextAction: "ローカルDemo生成",
+    nextAction: "開発タスク確認",
     tasks: {
       analyze: "completed",
       plan: "completed",
@@ -209,7 +209,7 @@ function printHelp() {
   printAgentHeader("CLI操作卓 / Webはモニター表示");
   box("基本コマンド", [
     `${green}$ mogcia status${reset}              現在の進行状況を表示`,
-    `${green}$ mogcia run <project>${reset}       ローカルDemo実行ログを作成`,
+    `${green}$ mogcia run <project>${reset}       開発タスクの実行ログを作成`,
     `${green}$ mogcia list${reset}                プロジェクト一覧を表示`,
     `${green}$ mogcia preview <project>${reset}   プレビューURLを表示`,
     `${green}$ mogcia logs [project]${reset}      実行ログを表示`,
@@ -254,7 +254,7 @@ async function status() {
   box("進行状況", [
     `${taskIcon(tasks.analyze)} Analyze   要件定義の解析        ${statusText(tasks.analyze)}   ${tasks.analyze === "completed" ? "100%" : "0%"}`,
     `${taskIcon(tasks.plan)} Plan      設計・タスク分解      ${statusText(tasks.plan)}   ${tasks.plan === "completed" ? "100%" : "0%"}`,
-    `${taskIcon(tasks.code)} Code      実装 / Demo生成       ${statusText(tasks.code)}   ${progressBar(project?.progress ?? 0, 16)}`,
+    `${taskIcon(tasks.code)} Code      実装                  ${statusText(tasks.code)}   ${progressBar(project?.progress ?? 0, 16)}`,
     `${taskIcon(tasks.review)} Review    レビュー待ち          ${statusText(tasks.review)}   0%`,
     `${taskIcon(tasks.deploy)} Deploy    本番化判断            ${statusText(tasks.deploy)}   0%`
   ]);
@@ -314,7 +314,7 @@ async function preview(projectId = args[0]) {
     `Network Preview   ${green}${getLocalNetworkUrl(3000) ?? "同一ネットワークURL未検出"}${reset}`,
     `Vercel Preview    ${cyan}${process.env.MOGCIA_VERCEL_URL ?? "未設定"}${reset}`
   ]);
-  console.log(`${muted}デモ確認で気になるところがあれば、CLIかWebの案件画面から続けて確認できます。${reset}`);
+  console.log(`${muted}Preview確認で気になるところがあれば、CLIかWebの案件画面から続けて確認できます。${reset}`);
   await syncHome({
     command: "mogcia preview",
     projectId: project.id,
@@ -339,7 +339,7 @@ async function runProject(projectId = args[0]) {
   const runId = `${project.id}-${startedAt.replace(/[:.]/g, "-")}`;
   const steps = [
     ["analyze", "議事録・要件を確認中"],
-    ["plan", "Demo範囲とタスクを整理中"],
+    ["plan", "確認範囲とタスクを整理中"],
     ["code", "Codex向け実装タスクを生成中"],
     ["safety", "外部サービスを作らない安全確認"],
     ["preview", "Preview URLを記録中"]
@@ -380,7 +380,7 @@ async function runProject(projectId = args[0]) {
     client: project.client,
     status: "completed",
     executor: "mogcia-cli",
-    summary: `${project.name} のローカルDemo実行ログを作成しました。`,
+    summary: `${project.name} の開発タスク実行ログを作成しました。`,
     completedItems,
     remainingItems: ["人間レビュー", "UI確認", "クライアント確認"],
     changedFiles: [],
@@ -528,24 +528,12 @@ async function doctor() {
   });
 }
 
-function demo() {
-  printAgentHeader("ローカルDemo生成");
-  const outputDir = path.join(root, "public", "generated-demos", "cli-demo");
-  mkdirSync(outputDir, { recursive: true });
-  writeFileSync(
-    path.join(outputDir, "index.html"),
-    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MOGCIA CLI Demo</title><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F8F4F3;color:#1F1F22;margin:0;padding:56px"><h1>MOGCIA Local Demo</h1><p>CLIから生成したローカル確認用Demoです。</p><a href="/" style="display:inline-flex;background:#1F1F22;color:white;padding:12px 16px;border-radius:8px;text-decoration:none">Dashboardへ戻る</a></body></html>`
-  );
-  console.log(`Generated: ${path.join(outputDir, "index.html")}`);
-  console.log("URL: /generated-demos/cli-demo/index.html");
-}
-
 function codex() {
   printAgentHeader("Codexタスク作成");
   const taskTitle = args[0] ?? "MOGCIA Codex Task";
   const outputPath = path.join(mogciaDir, "codex-task.md");
   mkdirSync(mogciaDir, { recursive: true });
-  writeFileSync(outputPath, [`# ${taskTitle}`, "", "Codex CLI連携用のタスクです。", "ローカルDemo、レビュー、修正内容を確認してください。"].join("\n"));
+  writeFileSync(outputPath, [`# ${taskTitle}`, "", "Codex CLI連携用のタスクです。", "レビュー、修正内容、開発タスクを確認してください。"].join("\n"));
   const version = spawnSync("codex", ["--version"], { encoding: "utf8" });
   console.log(`Task: ${outputPath}`);
   console.log(version.status === 0 ? `Codex CLI: ${version.stdout.trim()}` : "Codex CLI: unavailable");
@@ -614,17 +602,17 @@ const minutesPatterns = [
   {
     label: "要望が明確な議事録",
     content:
-      "ゴルフ場の公式LINEから見られるミニページを作りたい。Demo範囲はTOP、イベント一覧、イベント詳細。イベント情報がLINE配信内だけで流れてしまうため、後から見返せる導線が必要。LINE連携、予約機能、顧客DBは本番対象外。"
+      "ゴルフ場の公式LINEから見られるミニページを作りたい。確認範囲はTOP、イベント一覧、イベント詳細。イベント情報がLINE配信内だけで流れてしまうため、後から見返せる導線が必要。LINE連携、予約機能、顧客DBは初期対象外。"
   },
   {
     label: "話が散らかっている議事録",
     content:
-      "LINEでイベントを流しているが見逃される。予約も将来的には欲しいかも。写真はまだない。コンペ情報、レッスン、キャンペーン、料金も見せたい。まずDemoではTOP、イベント一覧、イベント詳細で確認。予約、LINE API、顧客DBは入れない。"
+      "LINEでイベントを流しているが見逃される。予約も将来的には欲しいかも。写真はまだない。コンペ情報、レッスン、キャンペーン、料金も見せたい。まずTOP、イベント一覧、イベント詳細で確認。予約、LINE API、顧客DBは入れない。"
   },
   {
     label: "要望とMOGCIA提案が混ざっている議事録",
     content:
-      "クライアント要望はLINE配信後に残るイベントページが欲しいこと。MOGCIA提案として、TOPに今月のイベント、イベント一覧、イベント詳細を作り、公式LINEへの戻り導線を置く。Demoでは連携なし、予約なし、顧客DBなし。"
+      "クライアント要望はLINE配信後に残るイベントページが欲しいこと。MOGCIA提案として、TOPに今月のイベント、イベント一覧、イベント詳細を作り、公式LINEへの戻り導線を置く。初期範囲では連携なし、予約なし、顧客DBなし。"
   }
 ];
 
@@ -675,9 +663,9 @@ function validateRequirementDraft(draft) {
 
   return [
     { label: "TOP / イベント一覧 / イベント詳細を含む", passed: ["TOP", "イベント一覧", "イベント詳細"].some((item) => text.includes(item)) },
-    { label: "LINE連携をDemo外または本番対象として分離", passed: text.includes("LINE") },
-    { label: "予約機能を勝手にDemo実装しない前提", passed: text.includes("予約") },
-    { label: "顧客DBを勝手にDemo実装しない前提", passed: text.includes("DB") || text.includes("データ") }
+    { label: "LINE連携を初期範囲外として分離", passed: text.includes("LINE") },
+    { label: "予約機能を勝手に実装しない前提", passed: text.includes("予約") },
+    { label: "顧客DBを勝手に実装しない前提", passed: text.includes("DB") || text.includes("データ") }
   ];
 }
 
@@ -721,40 +709,6 @@ async function flowTest() {
     }
   }
 
-  try {
-    const demoData = await postJson(`${baseUrl}/api/demo/local`, {
-      client: golfClient,
-      project: golfProject,
-      draft: {
-        id: "flow-draft",
-        clientId: golfClient.id,
-        projectId: golfProject.id,
-        minutesId: "flow-minutes-1",
-        summary: "ゴルフ場の公式LINEミニページDemo。TOP、イベント一覧、イベント詳細を確認する。",
-        requirements: ["LINE連携、予約機能、顧客DBは本番対象外"],
-        missingQuestions: [],
-        demoScope: ["TOP", "イベント一覧", "イベント詳細"],
-        screens: ["TOP", "イベント一覧", "イベント詳細"],
-        features: ["外部APIなし", "認証なし", "Placeholder表示"],
-        productionTasks: [],
-        aiRoutes: [],
-        generatedBy: "local-rule-engine",
-        generatedAt: nowIso()
-      },
-      createdBy: "flow-test@mogcia.com"
-    });
-    const checks = demoData.run?.safetyChecks ?? [];
-    results.push({ label: "Demo生成: 外部サービスを作らない", passed: checks.length > 0 && checks.every((check) => check.passed), checks });
-    console.log(`- Demo生成: ${demoData.run?.demoUrl ?? "unknown"}`);
-  } catch (error) {
-    results.push({
-      label: "Demo生成: 外部サービスを作らない",
-      passed: false,
-      checks: [{ label: error instanceof Error ? error.message : "API呼び出し失敗", passed: false }]
-    });
-    console.log("- Demo生成: failed");
-  }
-
   results.push({ label: "権限rules確認", passed: checkRules().every((check) => check.passed), checks: checkRules() });
 
   for (const result of results) {
@@ -783,7 +737,6 @@ else if (command === "run") await runProject();
 else if (command === "preview") await preview();
 else if (command === "logs") await latestLogs();
 else if (command === "doctor") await doctor();
-else if (command === "demo") demo();
 else if (command === "codex") codex();
 else if (command === "codex-results") codexResults();
 else if (command === "flow-test") await flowTest();

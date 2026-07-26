@@ -5,16 +5,16 @@ export const defaultAgentConfigs: AgentConfig[] = [
     id: "requirements-agent",
     name: "Requirements Agent",
     provider: "claude",
-    role: "議事録から要件定義、未確認事項、Demo範囲、本番化タスクを整理する。",
-    prompt: "MOGCIAのRuleを最優先し、営業議事録を要件定義ドラフトへ変換する。Demoと本番化の範囲を必ず分離する。",
+    role: "議事録から要件定義、未確認事項、確認範囲、本番化タスクを整理する。",
+    prompt: "MOGCIAのRuleを最優先し、営業議事録を要件定義ドラフトへ変換する。初期確認範囲と本番化の範囲を必ず分離する。",
     enabled: true
   },
   {
     id: "dev-agent",
     name: "Dev Agent",
     provider: "codex",
-    role: "ローカルDemo生成、実装、レビュー、CLIを担当する。",
-    prompt: "Demoモードでは外部リソースを作らず、ローカルで動くNext.js Demoだけを生成する。",
+    role: "実装、レビュー、CLI、Codex進捗連携を担当する。",
+    prompt: "外部リソース作成や本番反映は石田承認後に進め、開発進捗をJSONで報告する。",
     enabled: true
   },
   {

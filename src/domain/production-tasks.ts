@@ -4,7 +4,7 @@ import type { Project, RequirementDraft, WorkTask } from "./types";
 const productionTaskDetails: Record<string, { assignee: string; description: string }> = {
   "GitHub Repository": {
     assignee: "Dev Agent",
-    description: "本番管理用Repositoryを作成し、Demoとの差分と本番ブランチ運用を定義する。"
+    description: "本番管理用Repositoryを作成し、開発環境との差分と本番ブランチ運用を定義する。"
   },
   "Firebase Project": {
     assignee: "Dev Agent",
@@ -95,7 +95,7 @@ export function createProductionWorkTasks({
       due: "契約後",
       safety: "approval-required",
       assignee: detail.assignee,
-      description: `${detail.description} Demoモードでは作成禁止。本番契約後、石田承認を得て実行する。`,
+      description: `${detail.description} 本番契約後、石田承認を得て実行する。`,
       order: index + 1,
       group: "production-readiness",
       status: "todo",

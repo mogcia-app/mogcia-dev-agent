@@ -23,14 +23,14 @@ export function createMonthlyReport({
     nextActions: [
       "最も成果に近いCTAを1つ決め、ファーストビューに固定する",
       "LINE、予約、問い合わせの導線をスマホ基準で再確認する",
-      "来月の改善Demoを1本作成し、商談または運用提案に使う"
+      "来月の改善案を1本作成し、商談または運用提案に使う"
     ],
     improvements: [
       "数値レポートだけで終わらせず、次に変える画面・導線まで明示する",
       "顧客に送る文章は下書きまでに留め、送信は人が確認する",
-      "改善案はMOGCIAトンマナに合わせたDemoとして見せる"
+      "改善案はMOGCIAトンマナに合わせた画面構成として見せる"
     ],
-    demoSuggestion: "来月は、CTA改善版のLP/HPセクションDemoを作成し、予約導線とLINE導線のBefore/Afterを比較する。",
+    demoSuggestion: "来月は、CTA改善版のLP/HPセクションを作成し、予約導線とLINE導線のBefore/Afterを比較する。",
     createdAt: new Date().toISOString(),
     createdBy
   };

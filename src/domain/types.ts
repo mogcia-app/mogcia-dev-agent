@@ -37,7 +37,7 @@ export type SalesActivityKind =
   | "Zoom"
   | "その他オンライン会議"
   | "資料送付"
-  | "Demo送付"
+  | "Preview送付"
   | "チャット"
   | "社内メモ"
   | "ステータス変更"
@@ -108,11 +108,8 @@ export type WorkflowStage =
   | "ヒアリング完了"
   | "要件整理中"
   | "承認待ち"
-  | "デモ作成中"
-  | "デモ完成"
-  | "Demo確認待ち"
-  | "デモ案内待ち"
-  | "デモ確認中"
+  | "制作中"
+  | "確認待ち"
   | "クライアント確認中"
   | "本番化判断待ち"
   | "見積提出"
@@ -585,44 +582,12 @@ export interface NotificationItem {
   id: string;
   title: string;
   body: string;
-  kind: "approval" | "demo" | "report" | "system";
+  kind: "approval" | "preview" | "report" | "system";
   safety: AutomationSafety;
   targetProjectId?: string;
   read: boolean;
   createdAt: string;
   createdBy: string;
-}
-
-export interface DemoGuideDraft {
-  id: string;
-  projectId: string;
-  clientId: string;
-  taskId: string;
-  subject: string;
-  body: string;
-  generatedBy: "local-sales-agent";
-  generatedAt: string;
-  updatedBy?: string;
-  updatedAt?: string;
-}
-
-export interface LocalDemoRun {
-  id: string;
-  projectId: string;
-  clientId: string;
-  status: "generated" | "failed";
-  demoUrl: string;
-  outputPath: string;
-  logs: string[];
-  safetyChecks?: DemoSafetyCheck[];
-  generatedAt: string;
-  generatedBy: string;
-}
-
-export interface DemoSafetyCheck {
-  id: string;
-  label: string;
-  passed: boolean;
 }
 
 export interface WebsiteAnalysis {

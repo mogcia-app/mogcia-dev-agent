@@ -59,7 +59,6 @@ export const dashboardSections: DashboardNavSection[] = [
     items: [
       { id: "projects", label: "案件一覧", href: "/projects" },
       { id: "projects", label: "要件定義", href: "/requirements" },
-      { id: "tasks", label: "Demo・本番化", href: "/delivery" },
       { id: "tasks", label: "Codex進捗", href: "/codex" }
     ]
   },

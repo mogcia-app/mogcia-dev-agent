@@ -25,7 +25,7 @@ function localReview({ title, input, projectId, createdBy }: Required<ReviewRequ
     input,
     summary: "ローカルfallbackで、導線・CTA・情報整理を中心に改善案を作成しました。",
     findings: ["主要CTAの優先度を明確にする必要があります。", "スマホ表示で、予約・LINE・問い合わせ導線を近接配置すると確認しやすくなります。"],
-    improvements: ["ファーストビューに主CTAを1つ固定する", "SNS流入後の遷移先をキャンペーンまたは予約導線へ絞る", "本番化前に計測イベントと改善Demoを分けて管理する"],
+    improvements: ["ファーストビューに主CTAを1つ固定する", "SNS流入後の遷移先をキャンペーンまたは予約導線へ絞る", "本番化前に計測イベントと改善案を分けて管理する"],
     createdAt: new Date().toISOString(),
     createdBy,
     generatedBy: "local-fallback"

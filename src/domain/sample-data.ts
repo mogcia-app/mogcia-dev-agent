@@ -27,16 +27,15 @@ export const clients: Client[] = [
 
 export const projects: Project[] = [
   {
-    id: "project-nagisa-demo",
+    id: "project-nagisa-site",
     clientId: "client-nagisa",
     name: "夏季宿泊キャンペーン導線改善",
     source: "direct-client",
-    mode: "demo",
+    mode: "production",
     status: "承認待ち",
     services: ["HP制作", "公式LINE運用"],
     owner: "営業: 石田",
-    nextAction: "不足確認後、石田承認でDemo生成",
-    demoUrl: "http://localhost:3001"
+    nextAction: "不足確認後、石田承認へ進行"
   },
   {
     id: "project-kissa-sns",
@@ -50,12 +49,12 @@ export const projects: Project[] = [
     nextAction: "月初に投稿企画と承認依頼を作成"
   },
   {
-    id: "project-agency-demo",
+    id: "project-agency-lp",
     clientId: "client-agency",
-    name: "美容クリニック予約LPデモ",
+    name: "美容クリニック予約LP",
     source: "agency",
-    mode: "demo",
-    status: "デモ完成",
+    mode: "production",
+    status: "確認待ち",
     services: ["LP制作", "commo."],
     owner: "Sales Agent",
     nextAction: "代理店経由の送付前に石田承認"
@@ -108,10 +107,10 @@ export const timeline: TimelineEvent[] = [
   {
     id: "tl-2",
     clientId: "client-nagisa",
-    kind: "demo",
-    title: "Demo要件整理",
+    kind: "task",
+    title: "確認範囲整理",
     date: "7月5日",
-    summary: "トップ、客室、キャンペーン、LINE登録導線をDemo範囲に設定"
+    summary: "トップ、客室、キャンペーン、LINE登録導線を確認範囲に設定"
   },
   {
     id: "tl-3",
@@ -119,7 +118,7 @@ export const timeline: TimelineEvent[] = [
     kind: "task",
     title: "石田承認待ち",
     date: "7月6日",
-    summary: "直案件のためDemo作成前に承認を要求"
+    summary: "直案件のため開発着手前に承認を要求"
   },
   {
     id: "tl-4",
@@ -135,6 +134,6 @@ export const timeline: TimelineEvent[] = [
     kind: "report",
     title: "月次レポート送信準備",
     date: "9月1日",
-    summary: "来月やるべきこと、改善提案、改善Demo作成ボタンを表示"
+    summary: "来月やるべきこと、改善提案、改善案作成ボタンを表示"
   }
 ];

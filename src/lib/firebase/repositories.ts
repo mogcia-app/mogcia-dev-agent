@@ -10,7 +10,6 @@ import {
 } from "firebase/firestore";
 import { emailTemplates } from "@/domain/automation";
 import { defaultAgentConfigs } from "@/domain/agent-configs";
-import { createDemoWorkTasks } from "@/domain/demo-tasks";
 import { createProductionWorkTasks } from "@/domain/production-tasks";
 import { generateRequirementDraft } from "@/domain/requirements";
 import { clients, projectRules, projects, timeline } from "@/domain/sample-data";
@@ -23,10 +22,8 @@ import type {
   CodexCliRun,
   CompanyTimelineEvent,
   CompanyContact,
-  DemoGuideDraft,
   DevelopmentProgressItem,
   EmailTemplate,
-  LocalDemoRun,
   MeetingAnalysis,
   MeetingAsset,
   MeetingRecord,
@@ -59,9 +56,7 @@ export const collectionNames = {
   ruleLayers: "ruleLayers",
   timelineEvents: "timelineEvents",
   emailTemplates: "emailTemplates",
-  demoGuideDrafts: "demoGuideDrafts",
   agentConfigs: "agentConfigs",
-  localDemoRuns: "localDemoRuns",
   websiteAnalyses: "websiteAnalyses",
   monthlyReports: "monthlyReports",
   notifications: "notifications",
@@ -93,9 +88,7 @@ type Persistable =
   | RuleLayer
   | TimelineEvent
   | EmailTemplate
-  | DemoGuideDraft
   | AgentConfig
-  | LocalDemoRun
   | WebsiteAnalysis
   | MonthlyReport
   | NotificationItem
@@ -174,9 +167,7 @@ export async function loadDashboardCollections() {
     remoteRules,
     remoteTimeline,
     remoteTemplates,
-    remoteDemoGuideDrafts,
     remoteAgentConfigs,
-    remoteLocalDemoRuns,
     remoteWebsiteAnalyses,
     remoteMonthlyReports,
     remoteNotifications,
@@ -206,9 +197,7 @@ export async function loadDashboardCollections() {
     getCollectionDocuments<RuleLayer>(collectionNames.ruleLayers),
     getCollectionDocuments<TimelineEvent>(collectionNames.timelineEvents),
     getCollectionDocuments<EmailTemplate>(collectionNames.emailTemplates),
-    getCollectionDocuments<DemoGuideDraft>(collectionNames.demoGuideDrafts),
     getCollectionDocuments<AgentConfig>(collectionNames.agentConfigs),
-    getCollectionDocuments<LocalDemoRun>(collectionNames.localDemoRuns),
     getCollectionDocuments<WebsiteAnalysis>(collectionNames.websiteAnalyses),
     getCollectionDocuments<MonthlyReport>(collectionNames.monthlyReports),
     getCollectionDocuments<NotificationItem>(collectionNames.notifications),
@@ -240,9 +229,7 @@ export async function loadDashboardCollections() {
     ruleLayers: remoteRules,
     timelineEvents: remoteTimeline,
     emailTemplates: remoteTemplates,
-    demoGuideDrafts: remoteDemoGuideDrafts,
     agentConfigs: remoteAgentConfigs,
-    localDemoRuns: remoteLocalDemoRuns,
     websiteAnalyses: remoteWebsiteAnalyses,
     monthlyReports: remoteMonthlyReports,
     notifications: remoteNotifications,
@@ -316,8 +303,8 @@ export async function approveProject(projectId: string, approverEmail: string): 
     approvalStatus: "approved",
     approvedBy: approverEmail,
     approvedAt: serverTimestamp(),
-    status: "デモ作成中",
-    nextAction: "石田承認済み。CodexでローカルDemo生成へ進行"
+    status: "承認済み",
+    nextAction: "石田承認済み。Codex進捗と開発タスクを確認"
   });
 }
 
@@ -371,7 +358,7 @@ export async function createProjectWithMinutes(input: CreateProjectWithMinutesIn
     owner: input.createdBy,
     nextAction: needsApproval
       ? "議事録登録済み。AI要件定義後、石田承認へ進行"
-      : "議事録登録済み。AI要件定義とローカルDemo生成へ進行"
+      : "議事録登録済み。AI要件定義と開発タスク確認へ進行"
   };
 
   const minutes: MinutesRecord = {
@@ -415,8 +402,8 @@ export async function saveRequirementDraftForProject({ project, draft }: { proje
     updateDoc(doc(db, collectionNames.projects, project.id), {
       nextAction:
         project.approvalStatus === "not-required"
-          ? "要件定義ドラフト生成済み。Demo生成へ進行可能"
-          : "要件定義ドラフト生成済み。石田承認後にDemo生成へ進行",
+          ? "要件定義ドラフト生成済み。開発タスク確認へ進行可能"
+          : "要件定義ドラフト生成済み。石田承認後に開発タスク確認へ進行",
       requirementDraftId: draft.id,
       status: "要件確認中",
       updatedAt: serverTimestamp()
@@ -471,8 +458,6 @@ export async function approveRequirementDraft({
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase is not configured.");
 
-  const tasks = createDemoWorkTasks({ project, draft, createdBy: approverEmail });
-
   await Promise.all([
     updateDoc(doc(db, collectionNames.requirementDrafts, draft.id), {
       approvalStatus: "approved",
@@ -482,17 +467,10 @@ export async function approveRequirementDraft({
     }),
     updateDoc(doc(db, collectionNames.projects, project.id), {
       status: "承認済み",
-      nextAction: "要件定義承認済み。CodexでローカルDemo生成タスクへ進行",
+      nextAction: "要件定義承認済み。Codex進捗と開発タスクを確認",
       requirementDraftId: draft.id,
       updatedAt: serverTimestamp()
-    }),
-    ...tasks.map((task) =>
-      setDoc(doc(db, collectionNames.workTasks, task.id), {
-        ...task,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      })
-    )
+    })
   ]);
 }
 
@@ -513,73 +491,6 @@ export async function updateWorkTaskStatus({
     updatedBy,
     updatedAt: serverTimestamp()
   });
-}
-
-export async function saveDemoPreviewUrl({
-  task,
-  project,
-  previewUrl,
-  updatedBy
-}: {
-  task: WorkTask;
-  project: Project;
-  previewUrl: string;
-  updatedBy: string;
-}): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebase is not configured.");
-
-  await Promise.all([
-    updateDoc(doc(db, collectionNames.workTasks, task.id), {
-      previewUrl,
-      status: "done",
-      updatedBy,
-      updatedAt: serverTimestamp()
-    }),
-    updateDoc(doc(db, collectionNames.projects, project.id), {
-      demoUrl: previewUrl,
-      status: "デモ完成",
-      nextAction: "Preview URL記録済み。デモ案内準備へ進行",
-      updatedAt: serverTimestamp()
-    })
-  ]);
-}
-
-export async function saveDemoGuideDraft({
-  guideDraft,
-  task,
-  project,
-  updatedBy
-}: {
-  guideDraft: DemoGuideDraft;
-  task: WorkTask;
-  project: Project;
-  updatedBy: string;
-}): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebase is not configured.");
-
-  await Promise.all([
-    setDoc(
-      doc(db, collectionNames.demoGuideDrafts, guideDraft.id),
-      {
-        ...guideDraft,
-        updatedBy,
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
-    ),
-    updateDoc(doc(db, collectionNames.workTasks, task.id), {
-      status: "done",
-      updatedBy,
-      updatedAt: serverTimestamp()
-    }),
-    updateDoc(doc(db, collectionNames.projects, project.id), {
-      status: "デモ案内待ち",
-      nextAction: "デモ案内文の下書き作成済み。石田確認後、送付へ進行",
-      updatedAt: serverTimestamp()
-    })
-  ]);
 }
 
 export async function createProductionTasksForProject({
@@ -642,20 +553,6 @@ export async function saveAgentConfig(agentConfig: AgentConfig, updatedBy: strin
     {
       ...agentConfig,
       updatedBy,
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-
-export async function saveLocalDemoRun(run: LocalDemoRun): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebase is not configured.");
-
-  await setDoc(
-    doc(db, collectionNames.localDemoRuns, run.id),
-    {
-      ...run,
       updatedAt: serverTimestamp()
     },
     { merge: true }

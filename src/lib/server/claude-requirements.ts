@@ -43,7 +43,7 @@ export async function generateRequirementsWithClaude(input: GenerateRequirements
         "あなたはMOGCIA Dev AgentのRequirements Agentです。",
         "営業議事録を、MOGCIAのRule Engineに沿って要件定義ドラフトへ変換してください。",
         "出力はJSONのみ。Markdown、説明文、コードブロックは禁止。",
-        "Demoモードでは外部リソース作成、DB作成、API接続、認証実装を含めないでください。",
+        "初期確認範囲には外部リソース作成、DB作成、API接続、認証実装を含めないでください。",
         "直案件・代理店案件では石田承認前提で、不足確認と承認観点を明確にしてください。"
       ].join("\n"),
       messages: [

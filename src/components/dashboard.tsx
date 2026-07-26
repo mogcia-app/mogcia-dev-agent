@@ -15,8 +15,6 @@ import {
   mapCodexResultToProgressItems,
   parseCodexResultJson
 } from "@/domain/codex-progress";
-import { generateDemoGuideDraft } from "@/domain/demo-guide";
-import { createDemoWorkTasks } from "@/domain/demo-tasks";
 import { createMonthlyReport } from "@/domain/monthly-report";
 import { createProductionWorkTasks } from "@/domain/production-tasks";
 import { analyzeQuickCapture } from "@/domain/quick-capture";
@@ -37,10 +35,8 @@ import type {
   CompanyTimelineEvent,
   ConversationLog,
   CompanyContact,
-  DemoGuideDraft,
   DevelopmentProgressItem,
   EmailTemplate,
-  LocalDemoRun,
   MeetingAnalysis,
   MeetingAsset,
   MeetingKind,
@@ -83,9 +79,6 @@ import {
   saveAgentConfig,
   saveCodexCliRun,
   saveCodexProgressImport,
-  saveDemoGuideDraft,
-  saveDemoPreviewUrl,
-  saveLocalDemoRun,
   saveMonthlyReport,
   saveClient,
   saveEmailTemplate,
@@ -143,9 +136,7 @@ interface DashboardData {
   ruleLayers: RuleLayer[];
   timelineEvents: TimelineEvent[];
   emailTemplates: EmailTemplate[];
-  demoGuideDrafts: DemoGuideDraft[];
   agentConfigs: AgentConfig[];
-  localDemoRuns: LocalDemoRun[];
   websiteAnalyses: WebsiteAnalysis[];
   monthlyReports: MonthlyReport[];
   notifications: NotificationItem[];
@@ -177,9 +168,7 @@ const fallbackData: DashboardData = {
   ruleLayers: fallbackRules,
   timelineEvents: fallbackTimeline,
   emailTemplates: fallbackEmailTemplates,
-  demoGuideDrafts: [],
   agentConfigs: defaultAgentConfigs,
-  localDemoRuns: [],
   websiteAnalyses: [],
   monthlyReports: [],
   notifications: [],
@@ -233,37 +222,20 @@ interface HomeCliEvent {
   source: string;
 }
 
-const golfDemoTestInput: ProjectRegistrationInput = {
+const golfTestInput: ProjectRegistrationInput = {
   clientName: "八女上陽ゴルフ倶楽部",
   industry: "ゴルフ場",
   contactName: "支配人",
   projectName: "公式LINEミニページ制作",
   kind: "development",
   source: "direct-client",
-  mode: "demo",
+  mode: "production",
   services: ["HP制作", "公式LINE運用"],
   minutes:
-    "八女上陽ゴルフ倶楽部の公式LINEから見られるミニページを作りたい。\n\n現在はイベント情報をLINE配信で案内しているが、配信後に情報が流れてしまい、後から見返しにくい。お客様がイベント情報を一覧で確認できるページが欲しい。\n\nDemoでは、TOP、イベント一覧、イベント詳細を確認したい。\n\nTOPには今月のおすすめイベント、公式LINEへの導線、ゴルフ場の基本情報を載せたい。イベント一覧では、コンペ、レッスン、キャンペーンを並べたい。イベント詳細では、開催日、内容、対象者、参加方法、注意事項を表示したい。\n\n本番では将来的にLINE連携や予約導線も検討するが、今回のDemoではLINE API接続、予約機能、顧客DB、認証は実装しない。まずはローカルDemoで画面構成と導線を確認したい。"
+    "八女上陽ゴルフ倶楽部の公式LINEから見られるミニページを作りたい。\n\n現在はイベント情報をLINE配信で案内しているが、配信後に情報が流れてしまい、後から見返しにくい。お客様がイベント情報を一覧で確認できるページが欲しい。\n\n確認範囲は、TOP、イベント一覧、イベント詳細。\n\nTOPには今月のおすすめイベント、公式LINEへの導線、ゴルフ場の基本情報を載せたい。イベント一覧では、コンペ、レッスン、キャンペーンを並べたい。イベント詳細では、開催日、内容、対象者、参加方法、注意事項を表示したい。\n\n将来的にLINE連携や予約導線も検討するが、最初はLINE API接続、予約機能、顧客DB、認証は含めず、画面構成と導線を確認したい。"
 };
 
 const serviceOptions: ServiceKind[] = ["HP制作", "LP制作", "SNS運用", "公式LINE運用", "commo.", "tellmo.", "Signal.", "Roomly.", "MOGCIA"];
-
-function getVisibleDemoTasks(tasks: WorkTask[]): WorkTask[] {
-  const demoTasks = tasks.filter((task) => task.kind === "demo");
-  const projectsWithDetailedTasks = new Set(
-    demoTasks.filter((task) => task.group === "local-demo-generation" || typeof task.order === "number").map((task) => task.projectId)
-  );
-
-  return demoTasks
-    .filter((task) => {
-      const isDetailedTask = task.group === "local-demo-generation" || typeof task.order === "number";
-      return isDetailedTask || !projectsWithDetailedTasks.has(task.projectId);
-    })
-    .sort((a, b) => {
-      if (a.projectId !== b.projectId) return a.projectId.localeCompare(b.projectId);
-      return (a.order ?? 999) - (b.order ?? 999);
-    });
-}
 
 function getVisibleProductionTasks(tasks: WorkTask[]): WorkTask[] {
   return tasks
@@ -298,19 +270,6 @@ function withRequirementVersion(draft: RequirementDraft, existingDrafts: Require
     sourceLabel: "AI生成",
     changeNote
   };
-}
-
-function createDemoSafetyChecks(run?: LocalDemoRun) {
-  return (
-    run?.safetyChecks ?? [
-      { id: "no-github", label: "GitHubリポジトリを作成していない", passed: true },
-      { id: "no-vercel", label: "Vercelへデプロイしていない", passed: true },
-      { id: "no-firebase-project", label: "Firebaseプロジェクトを作成していない", passed: true },
-      { id: "no-external-api", label: "外部APIへ接続していない", passed: true },
-      { id: "no-real-customer-data", label: "実在顧客データを埋め込んでいない", passed: true },
-      { id: "no-secrets", label: "認証情報をコードに含めていない", passed: true }
-    ]
-  );
 }
 
 function taskDueWeight(due: string): number {
@@ -369,7 +328,7 @@ function mergeProgressItems(current: DevelopmentProgressItem[], incoming: Develo
 
 function pageFromPath(pathname: string): DashboardPage {
   if (pathname === "/" || pathname.startsWith("/home")) return "home";
-  if (pathname.startsWith("/tasks") || pathname.startsWith("/projects/demo") || pathname.startsWith("/projects/codex") || pathname.startsWith("/delivery") || pathname.startsWith("/codex")) return "tasks";
+  if (pathname.startsWith("/tasks") || pathname.startsWith("/projects/codex") || pathname.startsWith("/codex")) return "tasks";
   if (pathname.startsWith("/projects") || pathname.startsWith("/requirements")) return "projects";
   if (pathname.startsWith("/products")) return "products";
   if (pathname.startsWith("/calendar") || pathname.startsWith("/sales") || pathname.startsWith("/companies") || pathname.startsWith("/meetings") || pathname.startsWith("/timeline")) return "crm";
@@ -390,7 +349,7 @@ function routeForPage(page: DashboardPage): string {
     crm: "/sales",
     rules: "/settings/rules",
     routing: "/ai",
-    tasks: "/projects/demo",
+    tasks: "/tasks",
     gmail: "/settings",
     reports: "/analysis",
     sns: "/sns",
@@ -414,7 +373,6 @@ export function Dashboard() {
   const [requirementsActionId, setRequirementsActionId] = useState<string | null>(null);
   const [draftActionId, setDraftActionId] = useState<string | null>(null);
   const [taskActionId, setTaskActionId] = useState<string | null>(null);
-  const [demoActionId, setDemoActionId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isDashboardReady, setIsDashboardReady] = useState(false);
   const [pageAction, setPageAction] = useState<PageActionMode>(null);
@@ -436,9 +394,7 @@ export function Dashboard() {
         ruleLayers: remote.ruleLayers.length > 0 ? remote.ruleLayers : fallbackRules,
         timelineEvents: remote.timelineEvents.length > 0 ? remote.timelineEvents : fallbackTimeline,
         emailTemplates: remote.emailTemplates.length > 0 ? remote.emailTemplates : fallbackEmailTemplates,
-        demoGuideDrafts: remote.demoGuideDrafts,
         agentConfigs: remote.agentConfigs.length > 0 ? remote.agentConfigs : defaultAgentConfigs,
-        localDemoRuns: remote.localDemoRuns,
         websiteAnalyses: remote.websiteAnalyses,
         monthlyReports: remote.monthlyReports,
         notifications: remote.notifications,
@@ -572,7 +528,6 @@ export function Dashboard() {
   const activeClient = data.clients.find((client) => client.id === activeProject.clientId) ?? fallbackClients[0];
   const activeMinutes = data.minutes.filter((minutes) => minutes.projectId === activeProject.id);
   const activeDrafts = sortRequirementDrafts(data.requirementDrafts.filter((draft) => draft.projectId === activeProject.id));
-  const activeDemoTasks = getVisibleDemoTasks(data.workTasks).filter((task) => task.projectId === activeProject.id);
   const activeProductionTasks = getVisibleProductionTasks(data.workTasks).filter((task) => task.projectId === activeProject.id);
   const activeWorkTasks = data.workTasks.filter((task) => task.projectId === activeProject.id);
   const activeCodexRuns = data.codexRuns
@@ -586,7 +541,6 @@ export function Dashboard() {
   const activeDevelopmentProgressItems = data.developmentProgressItems.filter((item) => item.projectId === activeProject.id);
   const latestCodexResult = activeCodexResults[0];
   const codexProgress = calculateCodexProgress({ progressItems: activeDevelopmentProgressItems, tasks: activeWorkTasks });
-  const activeGuideDraft = data.demoGuideDrafts.find((draft) => draft.projectId === activeProject.id);
   const activeSnsPlans = data.snsOperationPlans
     .filter((plan) => plan.projectId === activeProject.id)
     .slice()
@@ -605,15 +559,9 @@ export function Dashboard() {
   const activeMeetings = data.meetings.filter((meeting) => meeting.clientId === activeClient.id);
   const activeMeetingAssets = data.meetingAssets.filter((asset) => asset.clientId === activeClient.id);
   const activeMeetingAnalyses = data.meetingAnalyses.filter((analysis) => analysis.clientId === activeClient.id);
-  const activeDemoRun = data.localDemoRuns
-    .filter((run) => run.projectId === activeProject.id)
-    .slice()
-    .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())[0];
   const generatedTasks = generateTasks(activeProject);
   const mergedRules = mergeRules(data.ruleLayers);
   const approvalProjects = data.projects.filter((project) => getApprovalStatus(project) === "pending");
-  const visibleDemoTasks = getVisibleDemoTasks(data.workTasks);
-  const visibleProductionTasks = getVisibleProductionTasks(data.workTasks);
   const crmView = pathname.startsWith("/meetings")
     ? "meetings"
     : pathname.startsWith("/calendar")
@@ -632,14 +580,9 @@ export function Dashboard() {
   const latestActiveMeeting = activeMeetings.slice().sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
   const latestActiveMeetingAnalysis = latestActiveMeeting ? activeMeetingAnalyses.find((analysis) => analysis.meetingId === latestActiveMeeting.id) : undefined;
   const isRequirementsRoute = pathname.startsWith("/requirements") || pathname.startsWith("/projects/requirements");
-  const isDeliveryRoute = pathname.startsWith("/delivery") || pathname.startsWith("/projects/demo");
   const isCodexRoute = pathname.startsWith("/codex") || pathname.startsWith("/projects/codex");
   const isTasksRoute = pathname.startsWith("/tasks");
-  const isProjectDetailRoute = pathname.startsWith("/projects/") && !isRequirementsRoute && !isDeliveryRoute && !isCodexRoute;
-  const doneDemoTasks = visibleDemoTasks.filter((task) => task.status === "done").length;
-  const doneProductionTasks = visibleProductionTasks.filter((task) => task.status === "done").length;
-  const demoProgress = visibleDemoTasks.length > 0 ? Math.round((doneDemoTasks / visibleDemoTasks.length) * 100) : 0;
-  const productionProgress = visibleProductionTasks.length > 0 ? Math.round((doneProductionTasks / visibleProductionTasks.length) * 100) : 0;
+  const isProjectDetailRoute = pathname.startsWith("/projects/") && !isRequirementsRoute && !isCodexRoute;
   const statCards = [
     { label: "進行中の案件", value: data.projects.filter((project) => !["完了", "失注", "解約"].includes(project.status)).length, note: "営業から運用まで" },
     { label: "完了したタスク", value: data.workTasks.filter((task) => task.status === "done").length, note: "Codex / Sales" },
@@ -650,7 +593,6 @@ export function Dashboard() {
   const homeTodoItems = [
     ...approvalProjects.slice(0, 2).map((project) => `要件レビュー: ${project.name}`),
     ...activeSalesActionTasks.slice(0, 2).map((task) => task.title),
-    visibleDemoTasks.some((task) => task.status !== "done") ? "Demo生成タスク確認" : "",
     latestCodexResult ? "Codex進捗の差分確認" : "Codex Result JSON取込"
   ].filter(Boolean);
   const agentNotices = [
@@ -713,7 +655,7 @@ export function Dashboard() {
           approvalStatus: needsApproval ? "pending" : "not-required",
           services: input.services,
           owner: createdBy,
-          nextAction: needsApproval ? "議事録登録済み。AI要件定義後、石田承認へ進行" : "議事録登録済み。AI要件定義とローカルDemo生成へ進行"
+          nextAction: needsApproval ? "議事録登録済み。AI要件定義後、石田承認へ進行" : "議事録登録済み。AI要件定義と開発タスク確認へ進行"
         };
         const minutes: MinutesRecord = {
           id: minutesId,
@@ -833,8 +775,8 @@ export function Dashboard() {
                   approvedAt: action === "approve" ? new Date().toISOString() : item.approvedAt,
                   rejectedBy: action === "reject" ? approverEmail : item.rejectedBy,
                   rejectedAt: action === "reject" ? new Date().toISOString() : item.rejectedAt,
-                  status: action === "approve" ? "デモ作成中" : "保留",
-                  nextAction: action === "approve" ? "石田承認済み。CodexでローカルDemo生成へ進行" : "石田差し戻し。要件・不足確認を更新"
+                  status: action === "approve" ? "承認済み" : "保留",
+                  nextAction: action === "approve" ? "石田承認済み。Codex進捗と開発タスクを確認" : "石田差し戻し。要件・不足確認を更新"
                 }
               : item
           )
@@ -891,8 +833,8 @@ export function Dashboard() {
                   status: "要件確認中",
                   nextAction:
                     item.approvalStatus === "not-required"
-                      ? "要件定義ドラフト生成済み。Demo生成へ進行可能"
-                      : "要件定義ドラフト生成済み。石田承認後にDemo生成へ進行"
+                      ? "要件定義ドラフト生成済み。開発タスク確認へ進行可能"
+                      : "要件定義ドラフト生成済み。石田承認後に開発タスク確認へ進行"
                 }
               : item
           )
@@ -961,19 +903,17 @@ export function Dashboard() {
         const remoteData = await refreshFirestore();
         if (remoteData) setData(remoteData);
       } else {
-        const tasks = createDemoWorkTasks({ project, draft, createdBy: approverEmail });
         setData((current) => ({
           ...current,
           requirementDrafts: current.requirementDrafts.map((item) =>
             item.id === draft.id ? { ...item, approvalStatus: "approved", approvedBy: approverEmail, approvedAt: new Date().toISOString() } : item
           ),
           projects: current.projects.map((item) =>
-            item.id === project.id ? { ...item, status: "承認済み", nextAction: "要件定義承認済み。CodexでローカルDemo生成タスクへ進行" } : item
-          ),
-          workTasks: [...tasks, ...current.workTasks.filter((item) => !tasks.some((task) => task.id === item.id))]
+            item.id === project.id ? { ...item, status: "承認済み", nextAction: "要件定義承認済み。Codex進捗と開発タスクを確認" } : item
+          )
         }));
       }
-      setStatus("要件定義を承認し、Demo生成タスクを作成しました");
+      setStatus("要件定義を承認しました");
     } catch (error) {
       setStatus(error instanceof Error ? `要件定義承認エラー: ${error.message}` : "要件定義承認エラー");
     } finally {
@@ -1048,95 +988,6 @@ export function Dashboard() {
     }
   };
 
-  const recordDemoPreviewUrl = async (task: WorkTask, previewUrl: string) => {
-    const updatedBy = auth.user?.email;
-    const project = data.projects.find((item) => item.id === task.projectId);
-    const normalizedPreviewUrl = previewUrl.trim();
-
-    if (!project) {
-      setStatus("案件が見つかりません");
-      return;
-    }
-    if (!auth.isIshida || !updatedBy) {
-      setStatus(`${ISHIDA_EMAIL} の石田アカウントでログインするとPreview URLを保存できます`);
-      return;
-    }
-    if (!isPreviewUrl(normalizedPreviewUrl)) {
-      setStatus("Preview URLは http://localhost:3000 または https://... の形式で入力してください");
-      return;
-    }
-
-    setTaskActionId(task.id);
-    setStatus("Preview URLを保存中");
-
-    try {
-      if (source === "firestore") {
-        await saveDemoPreviewUrl({ task, project, previewUrl: normalizedPreviewUrl, updatedBy });
-        const remoteData = await refreshFirestore();
-        if (remoteData) setData(remoteData);
-      } else {
-        setData((current) => ({
-          ...current,
-          projects: current.projects.map((item) =>
-            item.id === project.id
-              ? { ...item, demoUrl: normalizedPreviewUrl, status: "デモ完成", nextAction: "Preview URL記録済み。デモ案内準備へ進行" }
-              : item
-          ),
-          workTasks: current.workTasks.map((item) => (item.id === task.id ? { ...item, previewUrl: normalizedPreviewUrl, status: "done" } : item))
-        }));
-      }
-      setStatus("Preview URLを案件へ紐づけました");
-    } catch (error) {
-      setStatus(error instanceof Error ? `Preview URL保存エラー: ${error.message}` : "Preview URL保存エラー");
-    } finally {
-      setTaskActionId(null);
-    }
-  };
-
-  const createDemoGuideForTask = async (task: WorkTask) => {
-    const updatedBy = auth.user?.email;
-    const project = data.projects.find((item) => item.id === task.projectId);
-    const client = project ? data.clients.find((item) => item.id === project.clientId) : undefined;
-    const requirementDraft = data.requirementDrafts.find((item) => item.projectId === task.projectId);
-
-    if (!project || !client) {
-      setStatus("案件または顧客が見つかりません");
-      return;
-    }
-    if (!auth.isIshida || !updatedBy) {
-      setStatus(`${ISHIDA_EMAIL} の石田アカウントでログインするとデモ案内文を生成できます`);
-      return;
-    }
-
-    const guideDraft = generateDemoGuideDraft({ client, project, requirementDraft, task, createdBy: updatedBy });
-    setTaskActionId(task.id);
-    setStatus("デモ案内文の下書きを生成中");
-
-    try {
-      if (source === "firestore") {
-        await saveDemoGuideDraft({ guideDraft, task, project, updatedBy });
-        const remoteData = await refreshFirestore();
-        if (remoteData) setData(remoteData);
-      } else {
-        setData((current) => ({
-          ...current,
-          demoGuideDrafts: [guideDraft, ...current.demoGuideDrafts.filter((item) => item.id !== guideDraft.id)],
-          projects: current.projects.map((item) =>
-            item.id === project.id
-              ? { ...item, status: "デモ案内待ち", nextAction: "デモ案内文の下書き作成済み。石田確認後、送付へ進行" }
-              : item
-          ),
-          workTasks: current.workTasks.map((item) => (item.id === task.id ? { ...item, status: "done" } : item))
-        }));
-      }
-      setStatus("デモ案内文の下書きを作成しました");
-    } catch (error) {
-      setStatus(error instanceof Error ? `デモ案内文生成エラー: ${error.message}` : "デモ案内文生成エラー");
-    } finally {
-      setTaskActionId(null);
-    }
-  };
-
   const saveRuleLayerFromEditor = async (ruleLayer: RuleLayer) => {
     const updatedBy = auth.user?.email;
     if (!auth.isIshida || !updatedBy) {
@@ -1205,40 +1056,6 @@ export function Dashboard() {
       setStatus("Agentを追加しました");
     } catch (error) {
       setStatus(error instanceof Error ? `Agent追加エラー: ${error.message}` : "Agent追加エラー");
-    }
-  };
-
-  const generateLocalDemoForActiveProject = async () => {
-    const createdBy = auth.user?.email ?? "local-user";
-    const draft = activeDrafts[0];
-    if (demoActionId === activeProject.id) return;
-    setDemoActionId(activeProject.id);
-    setStatus("ローカルDemoを生成中");
-
-    try {
-      const response = await fetch("/api/demo/local", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ client: activeClient, project: activeProject, draft, createdBy })
-      });
-      if (!response.ok) throw new Error("ローカルDemo生成APIに失敗しました");
-      const result = (await response.json()) as { run: LocalDemoRun };
-
-      if (source === "firestore" && auth.isIshida) {
-        await saveLocalDemoRun(result.run);
-        const remoteData = await refreshFirestore();
-        if (remoteData) setData(remoteData);
-      } else {
-        setData((current) => ({
-          ...current,
-          localDemoRuns: [result.run, ...current.localDemoRuns.filter((run) => run.id !== result.run.id)]
-        }));
-      }
-      setStatus("ローカルDemoを生成しました");
-    } catch (error) {
-      setStatus(error instanceof Error ? `ローカルDemo生成エラー: ${error.message}` : "ローカルDemo生成エラー");
-    } finally {
-      setDemoActionId(null);
     }
   };
 
@@ -1466,8 +1283,8 @@ export function Dashboard() {
     }
   };
 
-  const createGolfDemoTestProject = async () => {
-    await registerProjectWithMinutes(golfDemoTestInput);
+  const createGolfTestProject = async () => {
+    await registerProjectWithMinutes(golfTestInput);
     navigateToPage("home");
   };
 
@@ -1759,8 +1576,8 @@ export function Dashboard() {
       talkScript: createTalkScript(text, activeClient, activeProject),
       preparationItems: createPreparationItems(text, activeClient, activeProject),
       objectionHandling: createObjectionHandling(text),
-      projectCandidate: text.includes("案件") || text.includes("Demo") || text.includes("制作"),
-      requirementInput: extractKeywordLines(text, ["要件", "Demo", "画面", "機能"]),
+      projectCandidate: text.includes("案件") || text.includes("制作"),
+      requirementInput: extractKeywordLines(text, ["要件", "画面", "機能"]),
       salesNotes: extractKeywordLines(text, ["注意", "懸念", "負担"]),
       status: "ai-candidate",
       generatedBy: "local-crm-ai",
@@ -1915,8 +1732,8 @@ export function Dashboard() {
                   status: "要件確認中",
                   nextAction:
                     item.approvalStatus === "not-required"
-                      ? "会議解析から要件定義ドラフト生成済み。Demo生成へ進行可能"
-                      : "会議解析から要件定義ドラフト生成済み。石田承認後にDemo生成へ進行"
+                      ? "会議解析から要件定義ドラフト生成済み。開発タスク確認へ進行可能"
+                      : "会議解析から要件定義ドラフト生成済み。石田承認後に開発タスク確認へ進行"
                 }
               : item
           )
@@ -1974,7 +1791,6 @@ export function Dashboard() {
                 projects={data.projects}
                 clients={data.clients}
                 approvalProjects={approvalProjects}
-                demoTasks={visibleDemoTasks}
                 codexResult={latestCodexResult}
                 snsPosts={data.snsPostTasks}
                 onOpenProjects={() => navigateToPage("projects")}
@@ -2107,7 +1923,7 @@ export function Dashboard() {
                     <h3 className="mt-1 font-semibold">{project.name}</h3>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className={`rounded-md px-2 py-1 text-xs ${selected ? "bg-white/15 text-white" : "bg-mogcia-light text-ink"}`}>
-                        {(project.kind ?? "development") === "sns-operation" ? "SNS運用" : "開発 / Demo"}
+                        {(project.kind ?? "development") === "sns-operation" ? "SNS運用" : "開発案件"}
                       </span>
                       <span className={`rounded-md px-2 py-1 text-xs ${selected ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>{project.status}</span>
                       <span className={`rounded-md px-2 py-1 text-xs ${selected ? "bg-white/15 text-white" : "bg-mogcia-light text-ink"}`}>{project.source}</span>
@@ -2122,14 +1938,9 @@ export function Dashboard() {
           {!isRequirementsRoute ? (
             <ProjectDetailPanel
               client={activeClient}
-              demoRun={activeDemoRun}
-              demoTasks={activeDemoTasks}
               drafts={activeDrafts}
-              isGeneratingDemo={demoActionId === activeProject.id}
-              guideDraft={activeGuideDraft}
               companyTimelineEvents={activeCompanyTimelineEvents}
               minutes={activeMinutes}
-              onGenerateLocalDemo={generateLocalDemoForActiveProject}
               onSnsPlanCreate={createSnsPlanForActiveProject}
               onSnsPostUpdate={updateSnsPostFromPanel}
               onSalesTaskUpdate={updateSalesActionTaskFromPanel}
@@ -2146,8 +1957,6 @@ export function Dashboard() {
           {isProjectDetailRoute ? (
             <ClientTimelinePanel
               client={activeClient}
-              demoRuns={data.localDemoRuns.filter((run) => run.clientId === activeClient.id)}
-              guideDrafts={data.demoGuideDrafts.filter((draft) => draft.clientId === activeClient.id)}
               minutes={data.minutes.filter((item) => item.clientId === activeClient.id)}
               notifications={data.notifications.filter((item) => item.targetProjectId === activeProject.id)}
               projects={data.projects.filter((project) => project.clientId === activeClient.id)}
@@ -2182,8 +1991,8 @@ export function Dashboard() {
                 ) : null}
               </div>
               <div className="rounded-lg bg-neutral-50 p-4">
-                <p className="text-sm text-neutral-500">Mode</p>
-                <p className="mt-1 text-xl font-semibold">{activeProject.mode === "demo" ? "Demo" : "Production"}</p>
+                <p className="text-sm text-neutral-500">運用区分</p>
+                <p className="mt-1 text-xl font-semibold">{activeProject.mode === "demo" ? "確認用" : "本番"}</p>
                 <div className="mt-4 space-y-2">
                   {getModeRestrictions(activeProject.mode).slice(0, 4).map((restriction) => (
                     <p key={restriction} className="rounded-md bg-white px-3 py-2 text-xs text-neutral-600">
@@ -2314,99 +2123,6 @@ export function Dashboard() {
             />
           ) : null}
 
-          {isDeliveryRoute ? (
-            <div className="grid gap-8">
-              <Panel title="Demo生成タスク" action={`${visibleDemoTasks.length}件`}>
-                <div className="grid gap-6">
-                  {visibleDemoTasks.length > 0 ? (
-                    <>
-                      <div className="rounded-lg border border-line bg-white p-4">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-medium">Demo進捗</span>
-                          <span className="text-neutral-500">
-                            {doneDemoTasks} / {visibleDemoTasks.length} 完了
-                          </span>
-                        </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-100">
-                          <div className="h-full rounded-full bg-mogcia-primary-dark transition-all" style={{ width: `${demoProgress}%` }} />
-                        </div>
-                      </div>
-                      {visibleDemoTasks.map((task) => {
-                        const project = data.projects.find((item) => item.id === task.projectId);
-                        const guideDraft = data.demoGuideDrafts.find((item) => item.taskId === task.id || item.projectId === task.projectId);
-                        return (
-                          <DemoTaskCard
-                            key={task.id}
-                            busy={taskActionId === task.id}
-                            canManage={auth.isIshida}
-                            guideDraft={guideDraft}
-                            onGuideGenerate={createDemoGuideForTask}
-                            onPreviewSave={recordDemoPreviewUrl}
-                            onStatusChange={changeWorkTaskStatus}
-                            projectName={project?.name ?? task.projectId}
-                            task={task}
-                          />
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">要件定義を承認すると、Codex向けDemo生成タスクが作成されます。</p>
-                  )}
-                </div>
-              </Panel>
-
-              <Panel title="本番化タスク" action={`${visibleProductionTasks.length}件`}>
-                <div className="grid gap-6">
-                  {visibleProductionTasks.length > 0 ? (
-                    <>
-                      <div className="rounded-lg border border-line bg-white p-4">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-medium">本番化準備</span>
-                          <span className="text-neutral-500">
-                            {doneProductionTasks} / {visibleProductionTasks.length} 完了
-                          </span>
-                        </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-100">
-                          <div className="h-full rounded-full bg-mogcia-primary-dark transition-all" style={{ width: `${productionProgress}%` }} />
-                        </div>
-                        <p className="mt-3 text-sm text-neutral-500">契約後に実行するためのチェックリストです。外部リソースの作成はここでは行いません。</p>
-                      </div>
-                      {visibleProductionTasks.map((task) => {
-                        const project = data.projects.find((item) => item.id === task.projectId);
-                        return (
-                          <WorkTaskCard
-                            key={task.id}
-                            busy={taskActionId === task.id}
-                            canManage={auth.isIshida}
-                            onStatusChange={changeWorkTaskStatus}
-                            projectName={project?.name ?? task.projectId}
-                            task={task}
-                          />
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">要件定義ドラフトから本番化タスクを生成すると、契約後に必要な作業がここに表示されます。</p>
-                  )}
-                </div>
-              </Panel>
-            </div>
-          ) : null}
-
-          {!isDeliveryRoute && !isCodexRoute && !isTasksRoute ? (
-            <Panel title="Demo・Codexの確認入口" action="分割済み">
-              <div className="grid gap-6 md:grid-cols-2">
-                <button className="rounded-[18px] border border-line bg-white p-5 text-left hover:bg-mogcia-icon" onClick={() => router.push("/delivery" as Route<string>)} type="button">
-                  <p className="font-semibold text-neutral-950">Demo・本番化へ</p>
-                  <p className="mt-2 text-sm text-neutral-500">Demoタスク、Preview URL、本番化判断を確認します。</p>
-                </button>
-                <button className="rounded-[18px] border border-line bg-white p-5 text-left hover:bg-mogcia-icon" onClick={() => router.push("/codex" as Route<string>)} type="button">
-                  <p className="font-semibold text-neutral-950">Codex進捗へ</p>
-                  <p className="mt-2 text-sm text-neutral-500">Codex Result JSON、Build/Lint/Typecheckを確認します。</p>
-                </button>
-              </div>
-            </Panel>
-          ) : null}
             </>
             </TasksDashboardPage>
           ) : null}
@@ -2798,7 +2514,7 @@ function RequirementDraftCard({
           <DraftTextArea label="概要" value={editableDraft.summary} onChange={(value) => updateText("summary", value)} rows={4} />
           <DraftTextArea label="要件" value={editableDraft.requirements.join("\n")} onChange={(value) => updateList("requirements", value)} />
           <DraftTextArea label="不足確認" value={editableDraft.missingQuestions.join("\n")} onChange={(value) => updateList("missingQuestions", value)} />
-          <DraftTextArea label="Demo範囲" value={editableDraft.demoScope.join("\n")} onChange={(value) => updateList("demoScope", value)} />
+          <DraftTextArea label="確認範囲" value={editableDraft.demoScope.join("\n")} onChange={(value) => updateList("demoScope", value)} />
           <div className="grid gap-3 md:grid-cols-2">
             <DraftTextArea label="必要画面" value={editableDraft.screens.join("\n")} onChange={(value) => updateList("screens", value)} />
             <DraftTextArea label="必要機能" value={editableDraft.features.join("\n")} onChange={(value) => updateList("features", value)} />
@@ -2810,7 +2526,7 @@ function RequirementDraftCard({
           {draft.changeNote ? <p className="mt-2 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">{draft.changeNote}</p> : null}
           <RequirementList title="要件" items={draft.requirements} />
           <RequirementList title="不足確認" items={draft.missingQuestions} />
-          <RequirementList title="Demo範囲" items={draft.demoScope} />
+          <RequirementList title="確認範囲" items={draft.demoScope} />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <RequirementList title="必要画面" items={draft.screens} compact />
             <RequirementList title="必要機能" items={draft.features} compact />
@@ -3649,7 +3365,7 @@ function summarizeMeetingText(text: string, kind: MeetingKind): string {
 }
 
 function scoreMeetingLead(text: string): number {
-  const positiveKeywords = ["興味", "検討", "お願い", "進め", "見積", "提案", "デモ", "Demo", "詳しく", "次回", "日程", "課題", "困", "必要"];
+  const positiveKeywords = ["興味", "検討", "お願い", "進め", "見積", "提案", "詳しく", "次回", "日程", "課題", "困", "必要"];
   const negativeKeywords = ["不要", "今は", "高い", "予算", "忙しい", "難しい", "保留", "また今度", "断", "必要ない"];
   const positive = positiveKeywords.reduce((count, keyword) => count + countKeyword(text, keyword), 0);
   const negative = negativeKeywords.reduce((count, keyword) => count + countKeyword(text, keyword), 0);
@@ -3681,7 +3397,7 @@ function createTalkFlow(text: string, client: Client, project: Project): string[
     `${client.name}の前回状況を確認し、今日は${project.name}の目的確認から入る。`,
     "相手の現状運用、困っていること、意思決定者、時期、予算感を順番に確認する。",
     concerns.length > 0 ? `懸念点として ${concerns.join(" / ")} を先に受け止める。` : "懸念が出たら、運用負担・費用・社内確認のどれかに分類する。",
-    "Demoまたは資料を見せる前に、相手が一番確認したい成果を一つに絞る。",
+    "資料や画面構成を見せる前に、相手が一番確認したい成果を一つに絞る。",
     "最後に次回アクション、担当者、期限をその場で確認する。"
   ]);
 }
@@ -3692,7 +3408,7 @@ function createTalkScript(text: string, client: Client, project: Project): strin
   return [
     `本日は${client.name}様の${interest}について、まず現状と優先順位を整理させてください。`,
     `前回は「${issue}」がポイントだと感じたので、今日はそこを解消できる形か確認したいです。`,
-    "こちらから機能を増やす話ではなく、最初に必要な導線だけをDemoで見えるようにします。",
+    "こちらから機能を増やす話ではなく、最初に必要な導線だけを画面構成で見えるようにします。",
     "運用負担が増えないように、誰が・いつ・何を更新するかまで一緒に決めたいです。",
     "今日の最後に、次回までにMOGCIA側で準備するものと、先方で確認いただくものを分けます。"
   ];
@@ -3701,7 +3417,7 @@ function createTalkScript(text: string, client: Client, project: Project): strin
 function createPreparationItems(text: string, client: Client, project: Project): string[] {
   const items = [
     `${client.name}向けの会社概要・現在サービス情報`,
-    `${project.name}の簡易Demoまたは画面構成`,
+    `${project.name}の画面構成`,
     "料金表または概算見積のたたき台",
     "導入後の運用フロー案",
     "次回アクションをその場で決めるための候補日"
@@ -3714,12 +3430,12 @@ function createPreparationItems(text: string, client: Client, project: Project):
 
 function createObjectionHandling(text: string): string[] {
   const handlers = [
-    "費用が不安: まずDemoで必要範囲を絞り、初期費用と運用費を分けて説明する。",
+    "費用が不安: まず必要範囲を絞り、初期費用と運用費を分けて説明する。",
     "運用負担が不安: 更新頻度、担当者、MOGCIA側で巻き取る範囲を先に決める。",
     "社内確認が必要: 決裁者向けに1枚で分かる目的・費用・効果の資料を用意する。"
   ];
-  if (text.includes("予約")) handlers.push("予約連携が気になる: Demoでは画面導線だけ確認し、本番連携は契約後の別タスクとして切る。");
-  if (text.includes("LINE")) handlers.push("LINE連携が気になる: DemoではAPI接続せず、導線と表示内容だけを先に固める。");
+  if (text.includes("予約")) handlers.push("予約連携が気になる: 画面導線だけ確認し、本番連携は契約後の別タスクとして切る。");
+  if (text.includes("LINE")) handlers.push("LINE連携が気になる: API接続せず、導線と表示内容だけを先に固める。");
   return handlers;
 }
 
@@ -3886,11 +3602,11 @@ function ProductsWorkspace({
 
 const pageActionLabels: Record<DashboardPage, { title: string; note: string }> = {
   home: { title: "Home operations", note: "今日の対応を整理します。" },
-  projects: { title: "案件操作", note: "案件登録、議事録、承認、Demo進捗をここから動かします。" },
+  projects: { title: "案件操作", note: "案件登録、議事録、承認、開発進捗をここから動かします。" },
   crm: { title: "営業操作", note: "営業メモ、商談メモ、会社タイムラインへの登録をすぐ開けます。" },
   rules: { title: "Rules操作", note: "要件・AI・Coding Ruleを確認しながら案件や議事録へ戻れます。" },
   routing: { title: "AI操作", note: "Agentの稼働状況を見ながら、実行履歴と人間確認へ進めます。" },
-  tasks: { title: "Demo / Codex操作", note: "Demo生成、Codex結果、残タスクを確認します。" },
+  tasks: { title: "タスク / Codex操作", note: "Codex結果、残タスク、開発進捗を確認します。" },
   gmail: { title: "設定操作", note: "テンプレート、通知、素材アップロードを管理します。" },
   reports: { title: "分析操作", note: "Website分析、AIレビュー、月次レポートを手動作成できます。" },
   sns: { title: "SNS運用操作", note: "月次投稿タスクと確認待ちを手動で管理します。" },
@@ -3929,7 +3645,7 @@ function PageActionBar({
     { title: "商談メモ", note: "会議記録", tone: "plain", onClick: onOpenMeeting },
     { title: "SNS月次", note: `確認待ち ${snsWaitingCount}件`, tone: "plain", onClick: onOpenSnsPlan },
     { title: "承認キュー", note: `${approvalCount}件`, tone: "soft", onClick: onOpenApproval },
-    { title: "Demo進捗", note: `残 ${demoTaskCount}件`, tone: "soft", onClick: onOpenTasks }
+    { title: "開発進捗", note: `残 ${demoTaskCount}件`, tone: "soft", onClick: onOpenTasks }
   ];
 
   return (
@@ -4000,7 +3716,7 @@ function RouteFocusBanner({
   meetings: MeetingRecord[];
 }) {
   const isCompanyDetail = pathname.startsWith("/companies/") && pathname.split("/").filter(Boolean).length > 1;
-  const isProjectDetail = pathname.startsWith("/projects/") && !pathname.startsWith("/projects/demo") && pathname.split("/").filter(Boolean).length > 1;
+  const isProjectDetail = pathname.startsWith("/projects/") && pathname.split("/").filter(Boolean).length > 1;
   const isMeetings = pathname.startsWith("/meetings");
   if (!isCompanyDetail && !isProjectDetail && !isMeetings) return null;
 
@@ -4096,7 +3812,7 @@ function HomeActionLauncher({
           <p className="mt-2 text-sm leading-6 text-neutral-500">状況を見ながら、必要な操作だけその場で開きます。入力フォームは閉じるまでHomeを邪魔しません。</p>
         </div>
         <button className="rounded-2xl border border-mogcia-light bg-mogcia-icon px-4 py-3 text-sm font-semibold text-mogcia-blush hover:bg-mogcia-light" onClick={onOpenApproval} type="button">
-          承認待ち {approvalCount}件 / Demo残 {demoTaskCount}件
+          承認待ち {approvalCount}件 / 開発残 {demoTaskCount}件
         </button>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -4253,7 +3969,6 @@ function HomeOperatingPanel({
   projects,
   clients,
   approvalProjects,
-  demoTasks,
   codexResult,
   snsPosts,
   onOpenProjects,
@@ -4265,7 +3980,6 @@ function HomeOperatingPanel({
   projects: Project[];
   clients: Client[];
   approvalProjects: Project[];
-  demoTasks: WorkTask[];
   codexResult?: CodexResult;
   snsPosts: SnsPostTask[];
   onOpenProjects: () => void;
@@ -4274,7 +3988,6 @@ function HomeOperatingPanel({
 }) {
   const activeProjects = projects.filter((project) => !["完了", "失注", "解約"].includes(project.status)).slice(0, 3);
   const waitingSns = snsPosts.filter((post) => post.materialStatus === "未受領" || post.status === "確認待ち");
-  const pendingDemoTasks = demoTasks.filter((task) => task.status !== "done").slice(0, 3);
   const recentClients = clients.slice(0, 2);
 
   return (
@@ -4339,7 +4052,7 @@ function HomeOperatingPanel({
           <div className="mt-4 grid gap-4 pb-5">
             {activeProjects.map((project) => {
               const client = clients.find((item) => item.id === project.clientId);
-              const progress = project.status.includes("要件") ? 72 : project.status.includes("デモ") ? 45 : 30;
+              const progress = project.status.includes("要件") ? 72 : project.status.includes("確認") ? 45 : 30;
               return (
                 <div key={project.id} className="grid gap-3 md:grid-cols-[1fr_60px_170px_130px_20px] md:items-center">
                   <div>
@@ -4377,12 +4090,13 @@ function HomeOperatingPanel({
         <HomeCard className="min-h-[220px]">
           <HomeCardHeader
             title="未確認・重要事項"
-            badge={<span className="rounded-full bg-mogcia-light px-3 py-1 text-xs text-mogcia-blush">{approvalProjects.length + pendingDemoTasks.length}</span>}
+            badge={<span className="rounded-full bg-mogcia-light px-3 py-1 text-xs text-mogcia-blush">{approvalProjects.length}</span>}
           />
           <div className="mt-4 grid gap-3">
-            {[...approvalProjects.map((project) => `要件定義の承認待ち（${project.name}）`), ...pendingDemoTasks.map((task) => task.title)].slice(0, 4).map((item) => (
+            {approvalProjects.map((project) => `要件定義の承認待ち（${project.name}）`).slice(0, 4).map((item) => (
               <p key={item} className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm text-neutral-700">{item}</p>
             ))}
+            {approvalProjects.length === 0 ? <p className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm text-neutral-500">未確認事項はありません。</p> : null}
           </div>
         </HomeCard>
 
@@ -4478,9 +4192,9 @@ function ProjectPipelinePanel({
 }) {
   const stages = [
     { label: "要件", match: ["要件", "承認待ち", "要件確認中"] },
-    { label: "実装", match: ["デモ作成中", "制作中", "承認済み"] },
-    { label: "レビュー", match: ["確認待ち", "Demo確認待ち", "デモ確認中"] },
-    { label: "Demo", match: ["デモ完成", "デモ案内待ち", "クライアント確認中"] },
+    { label: "実装", match: ["制作中", "承認済み"] },
+    { label: "レビュー", match: ["確認待ち"] },
+    { label: "確認", match: ["クライアント確認中"] },
     { label: "本番", match: ["本番化判断待ち", "契約待ち", "契約済み", "完了"] }
   ];
 
@@ -4810,7 +4524,7 @@ function CompanyDetailWorkspace({
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <RelatedInfoCard label="関連案件" value={`${projects.length}件`} note={projects[0]?.status ?? "未登録"} />
-          <RelatedInfoCard label="Demo" value={projects.some((project) => project.demoUrl) ? "あり" : "未登録"} note="詳細は案件へ" />
+          <RelatedInfoCard label="Preview" value={projects.some((project) => project.demoUrl) ? "あり" : "未登録"} note="詳細は案件へ" />
           <RelatedInfoCard label="SNS運用" value={`${snsPlans.length}件`} note={snsPlans[0]?.month ?? "未登録"} />
           <RelatedInfoCard label="添付ファイル" value={`${assets.length}件`} note="Storage" />
           <RelatedInfoCard label="担当者" value={`${contacts.length}名`} note={contacts[0]?.name ?? "未登録"} />
@@ -4959,14 +4673,14 @@ function GuidedWorkflowPanel({
   const hasMinutes = minutes.length > 0;
   const hasDraft = drafts.length > 0;
   const approvalDone = project.approvalStatus === "approved" || project.approvalStatus === "not-required";
-  const hasDemoTasks = demoTasks.length > 0;
+  const hasDevelopmentTasks = demoTasks.length > 0;
   const hasCodexResult = Boolean(latestCodexResult);
-  const currentStep = !hasMinutes ? 1 : !hasDraft ? 2 : !approvalDone ? 3 : !hasDemoTasks ? 4 : !hasCodexResult ? 5 : 6;
+  const currentStep = !hasMinutes ? 1 : !hasDraft ? 2 : !approvalDone ? 3 : !hasDevelopmentTasks ? 4 : !hasCodexResult ? 5 : 6;
   const steps = [
     { id: 1, label: "案件・議事録", done: hasMinutes },
     { id: 2, label: "要件定義", done: hasDraft },
     { id: 3, label: "石田承認", done: approvalDone },
-    { id: 4, label: "Demoタスク", done: hasDemoTasks },
+    { id: 4, label: "開発タスク", done: hasDevelopmentTasks },
     { id: 5, label: "Codex進捗", done: hasCodexResult }
   ];
 
@@ -5009,8 +4723,8 @@ function GuidedWorkflowPanel({
         <div className="rounded-md bg-neutral-50 px-3 py-3 text-sm leading-6 text-neutral-600">
           {currentStep === 1 ? "まず「テスト案件を作る」を押すと、ゴルフ場の案件と議事録が自動登録されます。" : null}
           {currentStep === 2 ? "次は「要件定義生成」。登録済み議事録からClaudeまたはfallbackで要件定義を作ります。" : null}
-          {currentStep === 3 ? "次は「石田承認」。承認後にDemo生成タスクが作られます。" : null}
-          {currentStep === 4 ? "承認済みです。Demo生成タスクが表示されるまで少し待つか、要件定義カードからDemoタスク生成を確認してください。" : null}
+          {currentStep === 3 ? "次は「石田承認」。承認後に開発タスクを確認します。" : null}
+          {currentStep === 4 ? "承認済みです。開発タスクとCodex進捗を確認してください。" : null}
           {currentStep === 5 ? "次はTasksページの「Codex進捗連携」にResult JSONを入れて、Typecheck/Lint/Buildと完了項目を反映します。" : null}
           {currentStep === 6 ? "通しテストの主要導線は完了しています。残りは実案件の入力で同じ流れを確認します。" : null}
         </div>
@@ -5048,7 +4762,7 @@ function WebsiteAnalysisPanel({ analyses, onCreate }: { analyses: WebsiteAnalysi
             <p className="mt-3 rounded-md bg-neutral-50 px-3 py-2 text-sm leading-6 text-neutral-600">{latest.demoSuggestion}</p>
           </div>
         ) : (
-          <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">URLを入力すると、Lighthouse前段の改善仮説とDemo提案を作成します。</p>
+          <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">URLを入力すると、Lighthouse前段の改善仮説と改善案を作成します。</p>
         )}
       </div>
     </Panel>
@@ -5090,14 +4804,14 @@ function OpenAiReviewPanel({ reviews, onCreate }: { reviews: OpenAiReview[]; onC
 }
 
 function CodexCliPanel({ runs, onCreate }: { runs: CodexCliRun[]; onCreate: (input: { taskTitle: string; taskBody: string }) => Promise<void> }) {
-  const [taskTitle, setTaskTitle] = useState("ローカルDemo改善タスク");
-  const [taskBody, setTaskBody] = useState("選択中案件のローカルDemoを確認し、UI改善案と実装タスクを整理してください。");
+  const [taskTitle, setTaskTitle] = useState("UI改善タスク");
+  const [taskBody, setTaskBody] = useState("選択中案件の画面構成を確認し、UI改善案と実装タスクを整理してください。");
   const latest = runs[0];
 
   return (
     <Panel title="Codex CLI連携" action={`${runs.length}件`}>
       <div className="grid gap-3">
-        <Field label="タスク名" value={taskTitle} onChange={setTaskTitle} placeholder="ローカルDemo改善タスク" />
+        <Field label="タスク名" value={taskTitle} onChange={setTaskTitle} placeholder="UI改善タスク" />
         <DraftTextArea label="タスク内容" value={taskBody} onChange={setTaskBody} rows={4} />
         <button className="rounded-md bg-ink px-3 py-2 text-sm text-white" onClick={() => onCreate({ taskTitle, taskBody })} type="button">
           Codexタスク作成
@@ -5363,8 +5077,6 @@ function ClientTimelinePanel({
   projects,
   minutes,
   timelineEvents,
-  demoRuns,
-  guideDrafts,
   notifications,
   companyTimelineEvents
 }: {
@@ -5372,8 +5084,6 @@ function ClientTimelinePanel({
   projects: Project[];
   minutes: MinutesRecord[];
   timelineEvents: TimelineEvent[];
-  demoRuns: LocalDemoRun[];
-  guideDrafts: DemoGuideDraft[];
   notifications: NotificationItem[];
   companyTimelineEvents: CompanyTimelineEvent[];
 }) {
@@ -5382,8 +5092,6 @@ function ClientTimelinePanel({
     ...companyTimelineEvents.map((item) => ({ id: item.id, date: item.eventAt, kind: item.kind, title: item.title, body: item.summary })),
     ...minutes.map((item) => ({ id: item.id, date: item.registeredAt, kind: "minutes", title: "議事録登録", body: item.content })),
     ...timelineEvents.map((item) => ({ id: item.id, date: item.date, kind: item.kind, title: item.title, body: item.summary })),
-    ...demoRuns.map((item) => ({ id: item.id, date: item.generatedAt, kind: "demo", title: "ローカルDemo生成", body: item.demoUrl })),
-    ...guideDrafts.map((item) => ({ id: item.id, date: item.generatedAt, kind: "mail", title: "デモ案内文下書き", body: item.subject })),
     ...notifications.map((item) => ({ id: item.id, date: item.createdAt, kind: item.kind, title: item.title, body: item.body }))
   ]
     .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
@@ -5435,7 +5143,7 @@ function EmailTemplateEditor({ templates, canEdit, onSave }: { templates: EmailT
               </button>
             ))}
           </div>
-          <Field label="名称" value={draft.name} onChange={(value) => setDraft((current) => (current ? { ...current, name: value } : current))} placeholder="デモ案内" />
+          <Field label="名称" value={draft.name} onChange={(value) => setDraft((current) => (current ? { ...current, name: value } : current))} placeholder="案内文" />
           <Field label="件名" value={draft.subject} onChange={(value) => setDraft((current) => (current ? { ...current, subject: value } : current))} placeholder="件名" />
           <DraftTextArea label="本文" value={draft.body ?? ""} onChange={(value) => setDraft((current) => (current ? { ...current, body: value } : current))} rows={5} />
           <p className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600">保存時に安全ルールを再判定し、初回・金額・請求・契約・本番・送付を含む文面は承認必須になります。</p>
@@ -5478,7 +5186,7 @@ function NotificationPanel({
           options={[
             ["system", "System"],
             ["approval", "Approval"],
-            ["demo", "Demo"],
+            ["preview", "確認"],
             ["report", "Report"]
           ]}
         />
@@ -5505,16 +5213,11 @@ function ProjectDetailPanel({
   client,
   minutes,
   drafts,
-  demoTasks,
   productionTasks,
-  guideDraft,
-  demoRun,
   snsPlans,
   snsPosts,
   companyTimelineEvents,
   salesActionTasks,
-  isGeneratingDemo,
-  onGenerateLocalDemo,
   onSnsPlanCreate,
   onSnsPostUpdate,
   onSalesTaskUpdate
@@ -5523,25 +5226,18 @@ function ProjectDetailPanel({
   client: Client;
   minutes: MinutesRecord[];
   drafts: RequirementDraft[];
-  demoTasks: WorkTask[];
   productionTasks: WorkTask[];
-  guideDraft?: DemoGuideDraft;
-  demoRun?: LocalDemoRun;
   snsPlans: SnsOperationPlan[];
   snsPosts: SnsPostTask[];
   companyTimelineEvents: CompanyTimelineEvent[];
   salesActionTasks: SalesActionTask[];
-  isGeneratingDemo: boolean;
-  onGenerateLocalDemo: () => Promise<void>;
   onSnsPlanCreate: (input: { month: string; contractPlan: string; platforms: SnsPlatform[]; monthlyPostCount: number; meetingMemo: string }) => Promise<void>;
   onSnsPostUpdate: (post: SnsPostTask) => Promise<void>;
   onSalesTaskUpdate: (task: SalesActionTask) => Promise<void>;
 }) {
   const latestMinutes = minutes[0];
   const latestDraft = drafts[0];
-  const doneDemoTasks = demoTasks.filter((task) => task.status === "done").length;
   const doneProductionTasks = productionTasks.filter((task) => task.status === "done").length;
-  const demoProgress = demoTasks.length > 0 ? Math.round((doneDemoTasks / demoTasks.length) * 100) : 0;
   const productionProgress = productionTasks.length > 0 ? Math.round((doneProductionTasks / productionTasks.length) * 100) : 0;
 
   return (
@@ -5563,28 +5259,19 @@ function ProjectDetailPanel({
           <div className="rounded-lg bg-neutral-50 p-4">
             <p className="text-sm text-neutral-500">担当者</p>
             <p className="mt-1 font-semibold">{client.contactName}</p>
-            <p className="mt-4 text-sm text-neutral-500">Mode</p>
-            <p className="mt-1 font-semibold">{project.mode === "demo" ? "Demo" : "Production"}</p>
+            <p className="mt-4 text-sm text-neutral-500">種別</p>
+            <p className="mt-1 font-semibold">{(project.kind ?? "development") === "sns-operation" ? "SNS運用" : "開発案件"}</p>
             {project.demoUrl ? (
               <a className="mt-4 inline-flex rounded-md bg-mogcia-primary px-3 py-2 text-sm font-medium text-ink hover:bg-mogcia-dark" href={project.demoUrl} rel="noreferrer" target="_blank">
                 Previewを開く
               </a>
             ) : null}
-            {demoRun ? (
-              <a className="mt-2 inline-flex rounded-md border border-line bg-white px-3 py-2 text-sm hover:bg-neutral-50" href={demoRun.demoUrl} rel="noreferrer" target="_blank">
-                生成済みDemo
-              </a>
-            ) : null}
-            <button className="mt-2 w-full rounded-md bg-ink px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50" disabled={isGeneratingDemo} onClick={onGenerateLocalDemo} type="button">
-              {isGeneratingDemo ? "生成中" : demoRun ? "ローカルDemo再生成" : "ローカルDemo生成"}
-            </button>
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-3">
           <DetailMetric label="議事録" value={`${minutes.length}件`} />
           <DetailMetric label="要件定義" value={latestDraft ? "生成済み" : "未生成"} />
-          <DetailMetric label="Demo" value={`${doneDemoTasks}/${demoTasks.length}`} />
           <DetailMetric label="本番化" value={`${doneProductionTasks}/${productionTasks.length}`} />
         </div>
 
@@ -5620,33 +5307,15 @@ function ProjectDetailPanel({
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <TaskSummary title="Demo生成" tasks={demoTasks} progress={demoProgress} />
-          <TaskSummary title="本番化" tasks={productionTasks} progress={productionProgress} />
-        </div>
+        <TaskSummary title="本番化" tasks={productionTasks} progress={productionProgress} />
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <RequirementHistoryPanel drafts={drafts} />
-          <DemoSafetyPanel run={demoRun} />
-        </div>
+        <RequirementHistoryPanel drafts={drafts} />
 
         <CompanyTimelineEventsPanel events={companyTimelineEvents} />
 
         {(project.kind ?? "development") === "sns-operation" ? (
           <SnsOperationPanel plans={snsPlans} posts={snsPosts} onCreatePlan={onSnsPlanCreate} onUpdatePost={onSnsPostUpdate} />
         ) : null}
-
-        <div className="rounded-lg border border-line bg-white p-4">
-          <p className="font-semibold">デモ案内文</p>
-          {guideDraft ? (
-            <div className="mt-3 grid gap-3">
-              <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm font-medium">{guideDraft.subject}</p>
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-neutral-50 px-3 py-3 text-sm leading-6 text-neutral-600">{guideDraft.body}</pre>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-neutral-500">デモ案内準備タスクから下書きを生成すると表示されます。</p>
-          )}
-        </div>
       </div>
     </Panel>
   );
@@ -6211,31 +5880,6 @@ function RequirementHistoryPanel({ drafts }: { drafts: RequirementDraft[] }) {
   );
 }
 
-function DemoSafetyPanel({ run }: { run?: LocalDemoRun }) {
-  const checks = createDemoSafetyChecks(run);
-  const passedCount = checks.filter((check) => check.passed).length;
-
-  return (
-    <div className="rounded-lg border border-line bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold">Demo安全チェック</p>
-        <span className="rounded-md bg-neutral-100 px-2 py-1 text-xs text-neutral-600">{passedCount}/{checks.length}</span>
-      </div>
-      <div className="mt-3 grid gap-2">
-        {checks.map((check) => (
-          <div key={check.id} className="flex items-center gap-2 rounded-md bg-neutral-50 px-3 py-2 text-sm">
-            <span className={`grid h-5 w-5 place-items-center rounded-full text-xs ${check.passed ? "bg-mogcia-light text-ink" : "bg-red-100 text-red-700"}`}>
-              {check.passed ? "OK" : "!"}
-            </span>
-            <span className="text-neutral-700">{check.label}</span>
-          </div>
-        ))}
-      </div>
-      {!run ? <p className="mt-3 text-xs text-neutral-500">ローカルDemo生成後、このチェック結果がRunに保存されます。</p> : null}
-    </div>
-  );
-}
-
 const snsPlatformOptions: SnsPlatform[] = ["Instagram", "TikTok", "X", "Facebook", "YouTube", "LINE"];
 const snsPostStatusOptions: SnsPostStatus[] = ["未着手", "企画中", "作成中", "確認待ち", "修正中", "予約済み", "投稿済み"];
 const materialStatusOptions: MaterialStatus[] = ["未受領", "一部受領", "受領済み", "不要"];
@@ -6327,7 +5971,7 @@ function OperationalReadinessPanel({
       note: `${projects.length}件`
     },
     {
-      label: "Demo/本番化タスク",
+      label: "開発/本番化タスク",
       ok: workTasks.length > 0,
       note: `${workTasks.length}件`
     },
@@ -6360,7 +6004,7 @@ function OperationalReadinessPanel({
         ))}
       </div>
       <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-neutral-600">
-        実案件で、案件登録、議事録、承認、Demo、商談MP4、文字起こし、商談分析まで1回ずつ保存すると全項目がOKになります。
+        実案件で、案件登録、議事録、承認、商談MP4、文字起こし、商談分析まで1回ずつ保存すると全項目がOKになります。
       </p>
     </Panel>
   );
@@ -6622,128 +6266,6 @@ function WorkTaskCard({
   );
 }
 
-function DemoTaskCard({
-  task,
-  projectName,
-  guideDraft,
-  canManage,
-  busy,
-  onStatusChange,
-  onPreviewSave,
-  onGuideGenerate
-}: {
-  task: WorkTask;
-  projectName: string;
-  guideDraft?: DemoGuideDraft;
-  canManage: boolean;
-  busy: boolean;
-  onStatusChange: (task: WorkTask, status: NonNullable<WorkTask["status"]>) => Promise<void>;
-  onPreviewSave: (task: WorkTask, previewUrl: string) => Promise<void>;
-  onGuideGenerate: (task: WorkTask) => Promise<void>;
-}) {
-  const currentStatus = task.status ?? "todo";
-  const isPreviewTask = task.title.includes("Preview URL");
-  const isGuideTask = task.title.includes("デモ案内準備");
-  const [previewUrl, setPreviewUrl] = useState(task.previewUrl ?? "");
-
-  return (
-    <div className="rounded-lg border border-line bg-white p-4">
-      <div className="grid gap-3 md:grid-cols-[48px_1fr_140px_140px] md:items-start">
-        <div className="grid h-9 w-9 place-items-center rounded-md bg-mogcia-light text-sm font-semibold text-ink">{task.order ?? "-"}</div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">{task.title}</p>
-            <TaskStatusBadge status={currentStatus} />
-          </div>
-          <p className="mt-1 text-sm text-neutral-500">{projectName}</p>
-          {task.description ? <p className="mt-2 text-sm leading-5 text-neutral-600">{task.description}</p> : null}
-          {task.previewUrl ? (
-            <a className="mt-3 inline-flex text-sm font-medium text-mogcia-blush underline-offset-4 hover:underline" href={task.previewUrl} rel="noreferrer" target="_blank">
-              記録済みPreviewを開く
-            </a>
-          ) : null}
-        </div>
-        <span className="rounded-md bg-neutral-100 px-3 py-2 text-center text-sm">{task.assignee}</span>
-        <SafetyBadge safety={task.safety} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
-        <button
-          className="rounded-md border border-line bg-white px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-          disabled={!canManage || busy || currentStatus === "todo"}
-          onClick={() => onStatusChange(task, "todo")}
-          type="button"
-        >
-          未着手に戻す
-        </button>
-        <button
-          className="rounded-md border border-line bg-white px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-          disabled={!canManage || busy || currentStatus === "doing"}
-          onClick={() => onStatusChange(task, "doing")}
-          type="button"
-        >
-          {busy ? "更新中" : "開始"}
-        </button>
-        <button
-          className="rounded-md bg-ink px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
-          disabled={!canManage || busy || currentStatus === "done"}
-          onClick={() => onStatusChange(task, "done")}
-          type="button"
-        >
-          {busy ? "更新中" : "完了"}
-        </button>
-      </div>
-
-      {isPreviewTask ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-[1fr_120px]">
-          <input
-            className="h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-ink"
-            onChange={(event) => setPreviewUrl(event.target.value)}
-            placeholder="http://localhost:3000"
-            value={previewUrl}
-          />
-          <button
-            className="rounded-md bg-mogcia-primary px-3 py-2 text-sm font-medium text-ink hover:bg-mogcia-dark disabled:opacity-50"
-            disabled={!canManage || busy || !previewUrl.trim()}
-            onClick={() => onPreviewSave(task, previewUrl)}
-            type="button"
-          >
-            URL保存
-          </button>
-        </div>
-      ) : null}
-
-      {isGuideTask ? (
-        <div className="mt-4 rounded-lg border border-line bg-neutral-50 p-4">
-          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-ink">デモ案内文</p>
-              <p className="mt-1 text-sm text-neutral-500">送信はせず、営業確認用の下書きだけ作成します。</p>
-            </div>
-            <button
-              className="rounded-md bg-mogcia-primary px-3 py-2 text-sm font-medium text-ink hover:bg-mogcia-dark disabled:opacity-50"
-              disabled={!canManage || busy}
-              onClick={() => onGuideGenerate(task)}
-              type="button"
-            >
-              {busy ? "生成中" : guideDraft ? "再生成" : "案内文生成"}
-            </button>
-          </div>
-          {guideDraft ? (
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-md bg-white px-3 py-2">
-                <p className="text-xs text-neutral-500">件名</p>
-                <p className="mt-1 text-sm font-medium">{guideDraft.subject}</p>
-              </div>
-              <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-white px-3 py-3 text-sm leading-6 text-neutral-700">{guideDraft.body}</pre>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function TaskStatusBadge({ status }: { status: NonNullable<WorkTask["status"]> }) {
   const label = {
     todo: "未着手",
@@ -6778,7 +6300,7 @@ function ProjectRegistrationForm({
   const [projectName, setProjectName] = useState("");
   const [kind, setKind] = useState<ProjectKind>("development");
   const [source, setSource] = useState<ProjectSource>("direct-client");
-  const [mode, setMode] = useState<AgentMode>("demo");
+  const [mode, setMode] = useState<AgentMode>("production");
   const [services, setServices] = useState<ServiceKind[]>(["HP制作"]);
   const [minutes, setMinutes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -6817,7 +6339,7 @@ function ProjectRegistrationForm({
       setProjectName("");
       setKind("development");
       setSource("direct-client");
-      setMode("demo");
+      setMode("production");
       setServices(["HP制作"]);
       setMinutes("");
       setMessage(firebaseReady ? "Firestoreへ保存しました。" : "ローカル表示に登録しました。ログイン後はFirestoreへ保存されます。");
@@ -6838,7 +6360,7 @@ function ProjectRegistrationForm({
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <Field label="業種" value={industry} onChange={setIndustry} placeholder="ホテル / 美容 / 飲食" />
-            <Field label="案件名" value={projectName} onChange={setProjectName} placeholder="予約導線改善Demo" />
+            <Field label="案件名" value={projectName} onChange={setProjectName} placeholder="予約導線改善" />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <SelectField
@@ -6846,7 +6368,7 @@ function ProjectRegistrationForm({
               value={kind}
               onChange={(value) => setKind(value as ProjectKind)}
               options={[
-                ["development", "開発 / Demo"],
+                ["development", "開発案件"],
                 ["sns-operation", "SNS運用"]
               ]}
             />
@@ -6867,7 +6389,6 @@ function ProjectRegistrationForm({
                 value={mode}
                 onChange={(value) => setMode(value as AgentMode)}
                 options={[
-                  ["demo", "Demo"],
                   ["production", "本番"]
                 ]}
               />

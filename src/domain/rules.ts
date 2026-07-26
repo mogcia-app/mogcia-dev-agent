@@ -13,11 +13,9 @@ export const workflowStages: WorkflowStage[] = [
   "ヒアリング完了",
   "要件整理中",
   "承認待ち",
-  "デモ作成中",
-  "デモ完成",
-  "Demo確認待ち",
-  "デモ案内待ち",
-  "デモ確認中",
+  "制作中",
+  "確認待ち",
+  "クライアント確認中",
   "クライアント確認中",
   "本番化判断待ち",
   "見積提出",
@@ -36,8 +34,8 @@ export const workflowStages: WorkflowStage[] = [
 
 export const rolePermissions = {
   admin: ["all", "cli", "rule-edit", "ai-config", "approve"],
-  internal: ["project-create", "minutes-create", "demo-create", "progress-view", "review"],
-  sales: ["project-create", "minutes-create", "demo-request", "progress-view"],
+  internal: ["project-create", "minutes-create", "progress-view", "review"],
+  sales: ["project-create", "minutes-create", "progress-view"],
   agency: ["project-create", "minutes-create", "progress-view"]
 } as const;
 
@@ -59,7 +57,7 @@ export const baseRules: RuleLayer[] = [
     rules: [
       "利用者にAIプロバイダーを意識させない",
       "初回顧客メール、金額、請求、契約、本番公開は承認必須",
-      "Demoモードでは外部リソースを作成しない"
+      "外部リソース作成や本番公開は承認後に実行する"
     ]
   },
   {

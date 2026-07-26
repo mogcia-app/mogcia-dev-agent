@@ -39,7 +39,7 @@ export function generateRequirementDraft({
   const features = pickMatches(normalizedMinutes, featureCandidates, "feature", [
     "ファーストビューの訴求整理",
     "顧客課題に合わせたCTA設計",
-    "Demo用ダミーデータ表示"
+    "確認用ダミーデータ表示"
   ]);
 
   const missingQuestions = [
@@ -61,9 +61,9 @@ export function generateRequirementDraft({
     summary: `${client.name} の ${project.name} は、${client.industry} 向けに ${project.services.join(" / ")} を軸として、議事録内容を要件化する案件です。`,
     requirements: [
       `${client.industry} の顧客課題に合わせて、${project.services.join(" / ")} の提案範囲を整理する`,
-      "営業議事録からDemoで見せる範囲と本番化で必要な範囲を分離する",
-      "直案件・代理店案件では石田承認後にDemo生成へ進む",
-      "Demoモードでは外部リソースを作成せずローカルで完結する"
+      "営業議事録から初期確認範囲と本番化で必要な範囲を分離する",
+      "直案件・代理店案件では石田承認後に開発タスク確認へ進む",
+      "外部リソース作成や本番反映は石田承認後に進める"
     ],
     missingQuestions,
     demoScope: [
@@ -78,7 +78,7 @@ export function generateRequirementDraft({
     aiRoutes: [
       "Claude: 議事録整理、要件定義、未確認事項抽出",
       "Gemini: Google Docs / Sheets保存、Gmail下書き",
-      "Codex: ローカルDemo生成、実装、PR",
+      "Codex: 実装、レビュー、進捗連携",
       "ChatGPT / OpenAI: UIレビュー、改善提案、分析"
     ],
     generatedBy: "local-rule-engine",

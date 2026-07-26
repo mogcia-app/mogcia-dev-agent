@@ -19,9 +19,9 @@ export function createWebsiteAnalysis({ url, createdBy }: { url: string; created
       "ファーストビューに主要CTAを固定表示する",
       "サービス別の導線を3つ以内に整理する",
       "Instagram/LINE/予約導線を同じセクションにまとめる",
-      "改善版Demoをローカルで生成し、商談前にBefore/Afterで比較する"
+      "改善版の画面構成を作成し、商談前にBefore/Afterで比較する"
     ],
-    demoSuggestion: "改善Demoでは、ファーストビュー、予約導線、公式LINE導線、SNS流入導線を重点的に作成する。",
+    demoSuggestion: "改善案では、ファーストビュー、予約導線、公式LINE導線、SNS流入導線を重点的に作成する。",
     createdAt: new Date().toISOString(),
     createdBy
   };

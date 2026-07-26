@@ -10,7 +10,7 @@ const contactKindRules: Array<{ keyword: string; kind: SalesContactKind }> = [
 ];
 
 const concernKeywords = ["気にしていた", "懸念", "不安", "負担", "難しい", "高い", "迷っている"];
-const interestKeywords = ["興味", "関心", "やりたい", "検討", "LINE", "SNS", "Demo", "資料"];
+const interestKeywords = ["興味", "関心", "やりたい", "検討", "LINE", "SNS", "資料"];
 const requestKeywords = ["欲しい", "追加", "修正", "見たい", "送って", "作って", "確認"];
 const promiseKeywords = ["約束", "送付", "電話", "連絡", "確認", "提出", "追加"];
 
