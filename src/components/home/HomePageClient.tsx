@@ -13,6 +13,7 @@ import { subscribeCompaniesMaster } from "@/lib/companies";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { formatTaskTime, isAdminUser, isSameDate, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
+import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent } from "@/types/calendar";
 import type { Company } from "@/types/company";
 import type { Task } from "@/types/task";
@@ -25,11 +26,6 @@ type RecentItem = {
   at: Date;
   href: Route;
 };
-
-function userName(user: User | null): string {
-  if (!user) return "ログインユーザー";
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 function endOfToday(): Date {
   const end = startOfToday();
@@ -145,7 +141,7 @@ export function HomePageClient() {
         id: `task-${task.id}`,
         label: "タスク",
         title: task.title,
-        subtitle: task.companyName || task.assigneeName || "担当未設定",
+        subtitle: task.companyName || getUserDisplayNameById(task.assigneeId, task.assigneeName),
         at: task.updatedAt.toDate(),
         href: "/tasks" as Route
       })),
@@ -153,7 +149,7 @@ export function HomePageClient() {
         id: `event-${event.id}`,
         label: "予定",
         title: event.title,
-        subtitle: event.companyName || event.assigneeName || "予定",
+        subtitle: event.companyName || getUserDisplayNameById(event.assigneeId, event.assigneeName),
         at: event.updatedAt.toDate(),
         href: "/calendar" as Route
       })),
@@ -195,7 +191,7 @@ export function HomePageClient() {
     <section className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
       <PageHeader
         title="Home"
-        description={`${userName(user)}さんの今日の予定、タスク、要対応をまとめています。`}
+        description={`${getUserDisplayName(user)}さんの今日の予定、タスク、要対応をまとめています。`}
         actions={
           <Link className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(236,111,139,0.22)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
             <Plus className="h-4 w-4" />
@@ -354,7 +350,7 @@ function TaskRow({ task }: { task: Task }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold text-[#2B2B2B]">{task.title}</span>
-        <span className="mt-1 block truncate text-sm font-semibold text-[#777]">{task.companyName || task.assigneeName || "担当未設定"}</span>
+        <span className="mt-1 block truncate text-sm font-semibold text-[#777]">{task.companyName || getUserDisplayNameById(task.assigneeId, task.assigneeName)}</span>
       </span>
       <span className="rounded-full bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{due ? `${formatTaskTime(due)}まで` : "期限なし"}</span>
     </Link>

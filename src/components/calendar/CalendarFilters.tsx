@@ -9,7 +9,7 @@ const filterItems: Array<{ key: keyof CalendarFilterState; label: string; color:
   { key: "aiTasks", label: "AI作成タスク", color: "bg-[#F7B5C1]" },
   { key: "manualTasks", label: "手動タスク", color: "bg-[#4F78B4]" },
   { key: "meetings", label: "会議・商談", color: "bg-[#67B667]" },
-  { key: "members", label: "他のメンバー", color: "bg-[#9B72D9]" }
+  { key: "members", label: "他のメンバー", color: "bg-[#F47E96]" }
 ];
 
 export function CalendarFilters({ filters, members, member, onFilterChange, onMemberChange }: { filters: CalendarFilterState; members: MemberOption[]; member: string; onFilterChange: (key: keyof CalendarFilterState, value: boolean) => void; onMemberChange: (member: string) => void }) {

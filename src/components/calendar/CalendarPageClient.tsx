@@ -45,6 +45,11 @@ export function CalendarPageClient() {
     }
   };
 
+  const openCalendarItem = (item: CalendarItem) => {
+    setSelectedItem(item);
+    updateSelectedDate(item.startAt);
+  };
+
   const eventCanDelete = selectedEvent ? calendar.canDeleteEvent() : false;
   const taskCanEdit = (task: Task) => calendar.isAdmin || task.assigneeId === calendar.user?.uid || task.createdBy === calendar.user?.uid;
 
@@ -61,13 +66,13 @@ export function CalendarPageClient() {
             <CalendarFilters filters={calendarFilters.filters} member={selected.member} members={calendar.members} onFilterChange={calendarFilters.updateFilter} onMemberChange={selected.setMember} />
           </div>
           <div className="space-y-5">
-            <DayTimeline items={calendarFilters.filteredItems} onOpen={setSelectedItem} onViewChange={selected.setView} selectedDate={selected.selectedDate} view={selected.view} />
-            <UpcomingEvents items={calendarFilters.filteredItems} onOpen={setSelectedItem} onShowAll={() => selected.setView("list")} selectedDate={selected.selectedDate} />
+            <DayTimeline items={calendarFilters.filteredItems} onOpen={openCalendarItem} onViewChange={selected.setView} selectedDate={selected.selectedDate} view={selected.view} />
+            <UpcomingEvents items={calendarFilters.filteredItems} onOpen={openCalendarItem} onShowAll={() => selected.setView("list")} selectedDate={selected.selectedDate} />
           </div>
         </div>
       )}
       {isCreateOpen ? <CalendarEventFormModal companies={workspaceOptions.companies} currentMember={calendar.currentMember} isAdmin={calendar.isAdmin} meetings={workspaceOptions.meetings} members={calendar.members} onClose={() => setCreateOpen(false)} onSubmit={calendar.createEvent} projects={workspaceOptions.projects} /> : null}
-      <CalendarEventDrawer canDelete={eventCanDelete} event={selectedEvent} item={selectedEvent && selectedItem ? selectedItem : null} onClose={() => setSelectedItem(null)} onDelete={calendar.deleteEvent} />
+      <CalendarEventDrawer canDelete={eventCanDelete} event={selectedEvent} item={selectedItem?.sourceCollection === "calendarEvents" ? selectedItem : null} onClose={() => setSelectedItem(null)} onDelete={calendar.deleteEvent} />
       <TaskDetailDrawer
         canDelete={false}
         canEdit={selectedTask ? taskCanEdit(selectedTask) : false}

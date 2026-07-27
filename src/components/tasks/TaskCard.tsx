@@ -3,6 +3,7 @@
 import { CalendarDays, Check, ChevronRight, Circle, UserRound } from "lucide-react";
 import { getDueBadge, isTaskOverdue } from "@/lib/task-utils";
 import { TaskPriorityBadge, TaskSourceBadge } from "@/components/tasks/TaskBadges";
+import { getUserDisplayNameById } from "@/lib/user-display";
 import type { Task } from "@/types/task";
 
 export function TaskCard({ task, canEdit, onOpen, onToggle }: { task: Task; canEdit: boolean; onOpen: () => void; onToggle: (completed: boolean) => void }) {
@@ -31,7 +32,7 @@ export function TaskCard({ task, canEdit, onOpen, onToggle }: { task: Task; canE
         {task.description ? <p className={`mt-2 text-sm font-semibold text-[#8A8186] ${completed ? "line-through" : ""}`}>{task.description}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-semibold text-[#8A8186]">
           <TaskPriorityBadge priority={task.priority} />
-          <span className="inline-flex items-center gap-2"><UserRound className="h-4 w-4" />{task.assigneeName || "未設定"}</span>
+          <span className="inline-flex items-center gap-2"><UserRound className="h-4 w-4" />{getUserDisplayNameById(task.assigneeId, task.assigneeName)}</span>
           {due ? <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />{due.toLocaleString("ja-JP", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })}まで</span> : null}
           {task.companyName ? <span>{task.companyName}</span> : null}
           {task.projectName ? <span>{task.projectName}</span> : null}

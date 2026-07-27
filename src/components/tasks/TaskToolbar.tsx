@@ -50,13 +50,13 @@ export function TaskViewTabs({ view, setFilter }: { view: TaskView; setFilter: (
 
 export function TaskStatusFilters({ status, counts, setFilter }: { status: TaskStatusFilter; counts: Record<TaskStatusFilter, number>; setFilter: (key: string, value: string) => void }) {
   return (
-    <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 2xl:flex 2xl:flex-wrap">
+    <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
       {statusItems.map((item) => {
         const active = item.value === status;
         return (
-          <button className={`flex h-11 min-w-28 items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-bold transition ${active ? "border-[#EC6F8B] bg-[#EC6F8B] text-white shadow-[0_10px_22px_rgba(236,111,139,0.22)]" : "border-[#F0DEE2] bg-white text-[#5F585C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("status", item.value)} type="button">
-            <span>{item.label}</span>
-            <span className={`tabular-nums ${active ? "text-white" : "text-[#EC6F8B]"}`}>{counts[item.value]}</span>
+          <button className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-bold leading-none transition ${active ? "border-[#EC6F8B] bg-[#EC6F8B] text-white shadow-[0_10px_22px_rgba(236,111,139,0.22)]" : "border-[#F0DEE2] bg-white text-[#5F585C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("status", item.value)} type="button">
+            <span className="whitespace-nowrap">{item.label}</span>
+            <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs tabular-nums ${active ? "bg-white/20 text-white" : "bg-[#FFF0F3] text-[#EC6F8B]"}`}>{counts[item.value]}</span>
           </button>
         );
       })}

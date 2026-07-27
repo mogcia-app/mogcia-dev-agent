@@ -5,11 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { ADMIN_UID, isAdminUser } from "@/lib/task-utils";
 import { createTask, deleteTask, duplicateTask, setTaskCompleted, subscribeTasks, updateTask } from "@/lib/tasks";
+import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
-
-function getUserName(user: User): string {
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 export function useTasks() {
   const [user, setUser] = useState<User | null>(null);
@@ -48,16 +45,16 @@ export function useTasks() {
 
   const currentMember = useMemo<MemberOption & { uid: string }>(() => {
     if (!user) return { id: "", uid: "", name: "ログインユーザー" };
-    return { id: user.uid, uid: user.uid, name: getUserName(user) };
+    return { id: user.uid, uid: user.uid, name: getUserDisplayName(user) };
   }, [user]);
 
   const members = useMemo<MemberOption[]>(() => {
     const memberMap = new Map<string, string>();
-    if (user) memberMap.set(user.uid, getUserName(user));
-    if (ADMIN_UID) memberMap.set(ADMIN_UID, "管理者");
+    if (user) memberMap.set(user.uid, getUserDisplayName(user));
+    if (ADMIN_UID) memberMap.set(ADMIN_UID, getUserDisplayNameById(ADMIN_UID));
     tasks.forEach((task) => {
-      if (task.assigneeId) memberMap.set(task.assigneeId, task.assigneeName || task.assigneeId);
-      if (task.createdBy) memberMap.set(task.createdBy, task.createdByName || task.createdBy);
+      if (task.assigneeId) memberMap.set(task.assigneeId, getUserDisplayNameById(task.assigneeId, task.assigneeName));
+      if (task.createdBy) memberMap.set(task.createdBy, getUserDisplayNameById(task.createdBy, task.createdByName));
     });
     return Array.from(memberMap, ([id, name]) => ({ id, name }));
   }, [tasks, user]);

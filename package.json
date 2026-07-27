@@ -5,6 +5,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "desktop-sdk:build": "tsc -p packages/desktop-sdk/tsconfig.json",
+    "cli:build": "tsc -p packages/cli/tsconfig.json",
+    "mogcia": "node packages/cli/dist/cli/src/index.js",
+    "macos:build": "swift build --package-path \"apps/macos/MOGCIA Desktop\"",
+    "desktop-widget:dev": "npm --prefix apps/desktop-widget start",
+    "desktop-widget:start": "npm --prefix apps/desktop-widget start",
+    "dist:cli": "bash scripts/build-cli-dist.sh",
+    "dist:desktop-widget": "bash scripts/build-desktop-widget-macos.sh",
+    "dist:tools": "bash scripts/build-release-zips.sh",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"

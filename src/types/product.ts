@@ -48,6 +48,20 @@ export interface ProductHearingItem {
   sortOrder: number;
 }
 
+export type ProductSalesScene = "teleapo" | "meeting";
+export type ProductCustomerSegment = "new" | "existing";
+
+export interface ProductSalesPlaybookEntry {
+  proposalDirection: string;
+  process: string;
+  keyQuestions: string[];
+  talkScript: string;
+  materials: string[];
+  cautions: string[];
+}
+
+export type ProductSalesPlaybooks = Record<ProductSalesScene, Record<ProductCustomerSegment, ProductSalesPlaybookEntry>>;
+
 export interface ProductResource {
   id: string;
   title: string;
@@ -66,6 +80,8 @@ export interface Product {
   id: string;
   name: string;
   displayName: string;
+  iconUrl?: string | null;
+  iconStoragePath?: string | null;
   slug: string;
   categoryIds: string[];
   categoryNames: string[];
@@ -124,12 +140,14 @@ export interface Product {
     leadTemperatureOptions: string[];
     disqualificationConditions: string[];
     requiredHearingItems: ProductHearingItem[];
+    salesPlaybooks: ProductSalesPlaybooks;
     notes?: string[];
   };
   resources: ProductResource[];
   ownerId: string;
   ownerName?: string;
   status: ProductStatus;
+  sortOrder: number;
   favoriteUserIds: string[];
   createdBy: string;
   createdByName?: string;

@@ -7,12 +7,9 @@ import { eventToCalendarItem, taskToCalendarItem } from "@/lib/calendar-item-map
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
+import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarEventDraft } from "@/types/calendar";
 import type { MemberOption, Task } from "@/types/task";
-
-function userName(user: User): string {
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 export function useCalendarItems() {
   const [user, setUser] = useState<User | null>(null);
@@ -64,19 +61,19 @@ export function useCalendarItems() {
 
   const currentMember = useMemo<MemberOption & { uid: string }>(() => {
     if (!user) return { id: "", uid: "", name: "ログインユーザー" };
-    return { id: user.uid, uid: user.uid, name: userName(user) };
+    return { id: user.uid, uid: user.uid, name: getUserDisplayName(user) };
   }, [user]);
 
   const members = useMemo<MemberOption[]>(() => {
     const map = new Map<string, string>();
-    if (user) map.set(user.uid, userName(user));
+    if (user) map.set(user.uid, getUserDisplayName(user));
     tasks.forEach((task) => {
-      if (task.assigneeId) map.set(task.assigneeId, task.assigneeName || task.assigneeId);
-      if (task.createdBy) map.set(task.createdBy, task.createdByName || task.createdBy);
+      if (task.assigneeId) map.set(task.assigneeId, getUserDisplayNameById(task.assigneeId, task.assigneeName));
+      if (task.createdBy) map.set(task.createdBy, getUserDisplayNameById(task.createdBy, task.createdByName));
     });
     events.forEach((event) => {
-      if (event.assigneeId) map.set(event.assigneeId, event.assigneeName || event.assigneeId);
-      if (event.createdBy) map.set(event.createdBy, event.createdByName || event.createdBy);
+      if (event.assigneeId) map.set(event.assigneeId, getUserDisplayNameById(event.assigneeId, event.assigneeName));
+      if (event.createdBy) map.set(event.createdBy, getUserDisplayNameById(event.createdBy, event.createdByName));
     });
     return Array.from(map, ([id, name]) => ({ id, name }));
   }, [events, tasks, user]);

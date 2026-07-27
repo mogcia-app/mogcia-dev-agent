@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import type { Product, ProductStatus, ProductTab, ProductType } from "@/types/product";
+import type { Product, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab, ProductType } from "@/types/product";
 
 export const productTabs: Array<{ value: ProductTab; label: string }> = [
   { value: "basic", label: "基本情報" },
@@ -28,10 +28,37 @@ export const productTypeLabels: Record<ProductType, string> = {
   other: "その他"
 };
 
+export function createDefaultSalesPlaybookEntry(): ProductSalesPlaybookEntry {
+  return {
+    proposalDirection: "",
+    process: "",
+    keyQuestions: [],
+    talkScript: "",
+    materials: [],
+    cautions: []
+  };
+}
+
+export function createDefaultSalesPlaybooks(): ProductSalesPlaybooks {
+  return {
+    teleapo: {
+      new: createDefaultSalesPlaybookEntry(),
+      existing: createDefaultSalesPlaybookEntry()
+    },
+    meeting: {
+      new: createDefaultSalesPlaybookEntry(),
+      existing: createDefaultSalesPlaybookEntry()
+    }
+  };
+}
+
 export function createDefaultProduct(user: { id: string; name: string }, input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">): Omit<Product, "id"> {
   const now = Timestamp.now();
   return {
     ...input,
+    displayName: input.displayName || input.name,
+    iconUrl: null,
+    iconStoragePath: null,
     slug: slugify(input.name),
     categoryIds: input.categoryNames.map(slugify),
     summary: "",
@@ -87,11 +114,13 @@ export function createDefaultProduct(user: { id: string; name: string }, input: 
       leadTemperatureOptions: ["high", "middle", "low"],
       disqualificationConditions: [],
       requiredHearingItems: [],
+      salesPlaybooks: createDefaultSalesPlaybooks(),
       notes: []
     },
     resources: [],
     ownerId: user.id,
     ownerName: user.name,
+    sortOrder: Date.now(),
     favoriteUserIds: [],
     createdBy: user.id,
     createdByName: user.name,

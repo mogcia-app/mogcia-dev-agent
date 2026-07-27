@@ -4,6 +4,7 @@ export type CompanyStatus = "lead" | "prospect" | "customer" | "inactive" | "arc
 export type CustomerRank = "A" | "B" | "C" | "D" | "dormant";
 export type CompanyTab = "overview" | "timeline" | "deals" | "meetings" | "tasks" | "files" | "notes";
 export type ActivityLogType = "phone" | "email" | "visit" | "meeting" | "deal" | "memo" | "task_created" | "task_completed" | "file" | "status_change" | "ai_task" | "other";
+export type ActivityDirection = "outbound" | "inbound" | "internal" | "unknown";
 
 export interface Company {
   id: string;
@@ -24,6 +25,11 @@ export interface Company {
   customerRank?: CustomerRank;
   internalOwnerId?: string;
   internalOwnerName?: string;
+  companionUserIds?: string[];
+  companionNames?: string[];
+  productIds?: string[];
+  productNames?: string[];
+  contacts?: CompanyContactPerson[];
   primaryContactId?: string | null;
   primaryContactName?: string | null;
   tags: string[];
@@ -39,6 +45,13 @@ export interface Company {
   archivedAt?: Timestamp | null;
 }
 
+export interface CompanyContactPerson {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface CompanyActivityLog {
   id: string;
   companyId: string;
@@ -48,6 +61,12 @@ export interface CompanyActivityLog {
   occurredAt: Timestamp;
   userId: string;
   userName?: string;
+  direction?: ActivityDirection;
+  actorUserIds?: string[];
+  actorNames?: string[];
+  contactIds?: string[];
+  contactNames?: string[];
+  contactNote?: string;
   dealId?: string | null;
   meetingId?: string | null;
   taskId?: string | null;
@@ -70,6 +89,10 @@ export interface CompanyMeeting {
   startAt: Timestamp;
   endAt?: Timestamp | null;
   meetingType: "in_person" | "online" | "phone" | "visit" | "other";
+  productIds?: string[];
+  productNames?: string[];
+  contactIds?: string[];
+  contactNames?: string[];
   participants?: string[];
   summary?: string;
   customerQuotes?: string[];

@@ -23,7 +23,7 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
     <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-baseline gap-4">
-          <h3 className="text-xl font-bold text-[#2B2B2B]">{isToday ? "今日の予定" : `${selectedDate.getMonth() + 1}月${selectedDate.getDate()}日の予定`}</h3>
+          <h3 className="text-xl font-bold text-[#2B2B2B]">{isToday ? "今日の予定" : "予定"}</h3>
           <p className="text-sm font-bold text-[#777]">{formatShortDate(selectedDate)}</p>
         </div>
         <CalendarViewToggle onChange={onViewChange} view={view} />
@@ -47,7 +47,7 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
               {view === "timeline" ? (
                 <>
                   <p className="pt-3 text-sm font-bold text-[#2B2B2B]">{formatTime(item.startAt)}</p>
-                  <span className={`mt-5 h-2.5 w-2.5 rounded-full ${item.category === "manual_task" ? "bg-[#4F78B4]" : item.category === "meeting" ? "bg-[#67B667]" : item.category === "appointment" ? "bg-[#9B72D9]" : "bg-[#F47E96]"}`} />
+                  <span className={`mt-5 h-2.5 w-2.5 rounded-full ${item.category === "manual_task" ? "bg-[#4F78B4]" : item.category === "meeting" ? "bg-[#67B667]" : "bg-[#F47E96]"}`} />
                 </>
               ) : null}
               <TimelineEventCard item={item} onOpen={onOpen} />

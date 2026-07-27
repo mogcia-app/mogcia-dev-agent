@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, FileVideo, Mic2, Pencil, Sparkles, UploadCloud } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronDown, FileVideo, Mic2, Pencil, Sparkles, UploadCloud, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { AIProcessingCard, LoadingSpinner } from "@/components/ui/loading";
 import { StatusBanner } from "@/components/ui/status";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { subscribeCompaniesMaster } from "@/lib/companies";
 import {
   createTeleapoRecord,
   maxTeleapoDurationSec,
@@ -19,6 +20,8 @@ import {
   updateTeleapoRecord,
   uploadTeleapoFile
 } from "@/lib/teleapo";
+import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName } from "@/lib/user-display";
+import type { Company } from "@/types/company";
 import type { CallPurpose, CallResult, ConversationLog, NextContactType, ProductKnowledge, SalesDomain, TeleapoRecord, TeleapoSpeaker } from "@/types/teleapo";
 
 type InputMode = "teleapo_audio" | "meeting_transcript";
@@ -60,8 +63,11 @@ export function SalesUploadWorkspace() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<ProductKnowledge[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [record, setRecord] = useState<TeleapoRecord | null>(null);
   const [mode, setMode] = useState<InputMode>("teleapo_audio");
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [members, setMembers] = useState<Array<{ uid: string; name: string; email: string }>>(DEFAULT_WORKSPACE_MEMBERS);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [durationSec, setDurationSec] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -71,13 +77,14 @@ export function SalesUploadWorkspace() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
+    companyId: "",
     customerName: "",
     contactName: "",
     recordedAt: toDatetimeLocalValue(new Date()),
     productId: "",
     productName: "",
     callPurpose: "first_appointment" as CallPurpose,
-    callResult: "considering" as CallResult,
+    callResult: "appointment" as CallResult,
     nextContactType: "none" as NextContactType,
     industry: "",
     role: "",
@@ -86,6 +93,7 @@ export function SalesUploadWorkspace() {
     memo: "",
     expectedIssue: "",
     reactionMemo: "",
+    attendeeUserIds: [] as string[],
     attendeeNames: "",
     transcriptText: "",
     location: "",
@@ -101,12 +109,36 @@ export function SalesUploadWorkspace() {
 
   useEffect(() => subscribeProducts(setProducts, () => setProducts([])), []);
 
+  useEffect(() => subscribeCompaniesMaster((nextCompanies) => setCompanies(nextCompanies.filter((company) => !company.archivedAt)), () => setCompanies([])), []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let cancelled = false;
+    void user.getIdToken()
+      .then(async (token) => {
+        const response = await fetch("/api/users/members", { headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok) throw new Error("メンバーを取得できませんでした");
+        return response.json() as Promise<{ members: Array<{ uid: string; name: string; email: string }> }>;
+      })
+      .then((data) => {
+        if (!cancelled) setMembers(data.members.length ? data.members : DEFAULT_WORKSPACE_MEMBERS);
+      })
+      .catch(() => {
+        if (!cancelled) setMembers(DEFAULT_WORKSPACE_MEMBERS);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   useEffect(() => {
     if (!recordId) return undefined;
     return subscribeTeleapoRecord(recordId, setRecord, (nextError) => setError(nextError.message));
   }, [recordId]);
 
   const selectedProduct = useMemo(() => products.find((product) => product.id === form.productId) ?? null, [form.productId, products]);
+  const selectedCompany = useMemo(() => companies.find((company) => company.id === form.companyId) ?? null, [companies, form.companyId]);
+  const selectedMembers = useMemo(() => members.filter((member) => form.attendeeUserIds.includes(member.uid)), [form.attendeeUserIds, members]);
   const isSpeakersMode = Boolean(recordId);
   const durationInvalid = durationSec !== null && durationSec > maxTeleapoDurationSec;
   const canSubmit =
@@ -121,6 +153,27 @@ export function SalesUploadWorkspace() {
   const selectProduct = (productId: string) => {
     const product = products.find((item) => item.id === productId);
     setForm((current) => ({ ...current, productId, productName: product?.name ?? "" }));
+  };
+
+  const selectCompany = (companyId: string) => {
+    const company = companies.find((item) => item.id === companyId);
+    setForm((current) => ({
+      ...current,
+      companyId,
+      customerName: company?.name ?? current.customerName,
+      contactName: company?.primaryContactName || current.contactName,
+      industry: company?.industry || current.industry,
+      phone: company?.phone || current.phone
+    }));
+  };
+
+  const toggleAttendee = (member: { uid: string; name: string }) => {
+    setForm((current) => {
+      const selected = current.attendeeUserIds.includes(member.uid);
+      const attendeeUserIds = selected ? current.attendeeUserIds.filter((uid) => uid !== member.uid) : [...current.attendeeUserIds, member.uid];
+      const attendeeNames = members.filter((item) => attendeeUserIds.includes(item.uid)).map((item) => item.name).join(", ");
+      return { ...current, attendeeUserIds, attendeeNames };
+    });
   };
 
   const onFileChange = async (file: File | null) => {
@@ -147,9 +200,10 @@ export function SalesUploadWorkspace() {
       const conversationLogs = isMeeting ? parseTranscriptToLogs(transcriptText) : [];
       const newRecordId = await createTeleapoRecord({
         userId: user.uid,
-        userName: user.displayName || user.email || "営業",
+        userName: getUserDisplayName(user),
         salesDomain: isMeeting ? "meeting" : "teleapo",
         sourceTeleapoId: null,
+        companyId: form.companyId || null,
         customerName: form.customerName.trim(),
         contactName: form.contactName.trim(),
         productId: form.productId || null,
@@ -159,7 +213,8 @@ export function SalesUploadWorkspace() {
         callResult: form.callResult,
         nextContactType: form.nextContactType,
         recordedAt: Timestamp.fromDate(new Date(form.recordedAt)),
-        attendeeNames: form.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean),
+        attendeeUserIds: form.attendeeUserIds,
+        attendeeNames: selectedMembers.map((member) => member.name),
         industry: form.industry.trim(),
         role: form.role.trim(),
         phone: form.phone.trim(),
@@ -286,6 +341,21 @@ export function SalesUploadWorkspace() {
           )}
         </section>
         <section className="rounded-lg border border-[#F0DEE2] bg-white p-5 shadow-sm">
+          <div className="mb-4 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4">
+            <Field label="会社一覧から反映">
+              <select className="task-input" value={form.companyId} onChange={(event) => selectCompany(event.target.value)}>
+                <option value="">未選択（手入力）</option>
+                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              </select>
+            </Field>
+            {selectedCompany ? (
+              <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
+                {selectedCompany.industry || "業種未設定"} / 担当: {selectedCompany.primaryContactName || "未設定"} / 電話: {selectedCompany.phone || "未登録"}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs font-bold text-[#8A8186]">会社一覧に登録済みなら、選択すると入力を自動反映します。</p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="顧客名 / 会社名" required><input className="task-input" value={form.customerName} onChange={(event) => setForm((current) => ({ ...current, customerName: event.target.value }))} /></Field>
             <Field label="担当者名" required><input className="task-input" value={form.contactName} onChange={(event) => setForm((current) => ({ ...current, contactName: event.target.value }))} /></Field>
@@ -313,13 +383,39 @@ export function SalesUploadWorkspace() {
             <Field label="業種"><input className="task-input" value={form.industry} onChange={(event) => setForm((current) => ({ ...current, industry: event.target.value }))} /></Field>
             <Field label="役職"><input className="task-input" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} /></Field>
             <Field label="電話番号"><input className="task-input" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} /></Field>
-            <Field label="流入元 / リスト種別"><input className="task-input" value={form.leadSource} onChange={(event) => setForm((current) => ({ ...current, leadSource: event.target.value }))} /></Field>
           </div>
           <div className="mt-4 grid gap-4">
-            <Field label="事前メモ / 予定メモ"><textarea className="task-input min-h-20 resize-none" value={form.memo} onChange={(event) => setForm((current) => ({ ...current, memo: event.target.value }))} /></Field>
-            <Field label="顧客の想定課題"><textarea className="task-input min-h-20 resize-none" value={form.expectedIssue} onChange={(event) => setForm((current) => ({ ...current, expectedIssue: event.target.value }))} /></Field>
-            <Field label="受付・担当者の反応メモ"><textarea className="task-input min-h-20 resize-none" value={form.reactionMemo} onChange={(event) => setForm((current) => ({ ...current, reactionMemo: event.target.value }))} /></Field>
-            <Field label="同席者・共有先"><input className="task-input" value={form.attendeeNames} onChange={(event) => setForm((current) => ({ ...current, attendeeNames: event.target.value }))} placeholder="カンマ区切り" /></Field>
+            <Field label="同席者・共有先">
+              <button className="min-h-11 w-auto min-w-56 max-w-full justify-self-start rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 py-2 text-left transition hover:bg-white" onClick={() => setMembersOpen((current) => !current)} type="button">
+                <span className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Users className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
+                    {selectedMembers.length ? selectedMembers.map((member) => <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#D94F6E] ring-1 ring-[#F7CAD2]" key={member.uid}>{member.name}</span>) : <span className="text-sm font-bold text-[#9A9296]">メンバーを選択</span>}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-[#EC6F8B] transition ${membersOpen ? "rotate-180" : ""}`} />
+                </span>
+              </button>
+              {membersOpen ? (
+                <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-sm">
+                  {members.length === 0 ? <p className="px-3 py-4 text-sm font-bold text-[#8A8186]">Authユーザーを取得できませんでした。</p> : null}
+                  {members.map((member) => {
+                    const checked = form.attendeeUserIds.includes(member.uid);
+                    return (
+                      <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-bold transition ${checked ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#5E565A] hover:bg-[#FFFBFC]"}`} key={member.uid}>
+                        <input checked={checked} className="sr-only" onChange={() => toggleAttendee(member)} type="checkbox" />
+                        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${checked ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : "border-[#E3D7DA] bg-white text-transparent"}`}>
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate">{member.name}</span>
+                          {member.email ? <span className="block truncate text-xs text-[#8A8186]">{member.email}</span> : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </Field>
           </div>
           <div className="mt-4"><StatusBanner message={error} type="error" /></div>
           <button className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={!canSubmit || isSubmitting} onClick={() => void submit()} type="button">

@@ -6,12 +6,9 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, uploadCompanyFile } from "@/lib/companies";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
+import { getUserDisplayName } from "@/lib/user-display";
 import type { Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
 import type { Task } from "@/types/task";
-
-function userName(user: User): string {
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +49,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     };
   }, [logLimit, selectedCompanyId]);
 
-  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: user ? userName(user) : "ログインユーザー" }), [user]);
+  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: getUserDisplayName(user) }), [user]);
   const isAdmin = isAdminUser(user?.uid);
 
   return {

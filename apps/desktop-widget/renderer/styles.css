@@ -1,0 +1,283 @@
+:root {
+  color: #222;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.widget {
+  min-height: 100vh;
+  border: 1px solid rgba(236, 111, 139, 0.22);
+  border-radius: 24px;
+  background: rgba(255, 252, 252, 0.94);
+  box-shadow: 0 24px 70px rgba(57, 31, 37, 0.18);
+  overflow: hidden;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(240, 231, 233, 0.9);
+}
+
+.drag-zone {
+  -webkit-app-region: drag;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.robot {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.eyebrow,
+.sub,
+.status,
+.selected-company {
+  margin: 0;
+  color: #888;
+  font-size: 12px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 17px;
+}
+
+h2 {
+  font-size: 15px;
+}
+
+.window-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.window-actions button,
+.section-header button,
+.button-row button,
+.mini-actions button {
+  border: 1px solid #f0e7e9;
+  border-radius: 999px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+}
+
+.window-actions button {
+  width: 28px;
+  height: 28px;
+}
+
+.panel {
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid #f0e7e9;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.hidden {
+  display: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mini-actions {
+  display: flex;
+  gap: 6px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #655d62;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #f0e7e9;
+  border-radius: 14px;
+  background: #fffbfc;
+}
+
+.toggle-row small {
+  display: block;
+  margin-top: 3px;
+  color: #9a9296;
+  font-size: 11px;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ec6f8b;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #eadcdf;
+  border-radius: 14px;
+  outline: none;
+  background: #fff;
+  color: #222;
+}
+
+input {
+  height: 40px;
+  padding: 0 12px;
+}
+
+textarea {
+  min-height: 150px;
+  margin-top: 10px;
+  padding: 12px;
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #ec6f8b;
+  box-shadow: 0 0 0 3px rgba(236, 111, 139, 0.12);
+}
+
+.selected-company {
+  min-height: 18px;
+  padding-top: 6px;
+  color: #ec6f8b;
+  font-weight: 700;
+}
+
+.memo-panel {
+  margin-top: 12px;
+}
+
+.preview {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 240, 244, 0.95), rgba(255, 255, 255, 0.95));
+  color: #555;
+  font-size: 12px;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.button-row.compact {
+  margin-top: 8px;
+}
+
+.button-row button,
+.section-header button,
+.mini-actions button,
+.primary {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.primary {
+  border: 0;
+  border-radius: 999px;
+  background: #ec6f8b;
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.status {
+  min-height: 20px;
+  padding: 0 16px 14px;
+}
+
+.loading-blocks {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.loading-blocks i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #f5c2cc;
+  animation: blockPulse 0.9s infinite;
+}
+
+.loading-blocks i:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.loading-blocks i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.loading-blocks i:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+@keyframes blockPulse {
+  0%,
+  100% {
+    background: #f5c2cc;
+    transform: translateY(0);
+  }
+  40% {
+    background: #ec6f8b;
+    transform: translateY(-2px);
+  }
+}

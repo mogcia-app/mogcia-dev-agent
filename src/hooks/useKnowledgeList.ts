@@ -5,11 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { archiveKnowledge, createKnowledge, deleteKnowledge, duplicateKnowledge, incrementKnowledgeView, subscribeKnowledge, toggleKnowledgeFavorite, updateKnowledge } from "@/lib/knowledge";
 import { isAdminUser } from "@/lib/task-utils";
+import { getUserDisplayName } from "@/lib/user-display";
 import type { Knowledge, KnowledgeDraft } from "@/types/knowledge";
-
-function userName(user: User): string {
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 export function useKnowledgeList() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,7 +34,7 @@ export function useKnowledgeList() {
     );
   }, [user]);
 
-  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: user ? userName(user) : "ログインユーザー" }), [user]);
+  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: getUserDisplayName(user) }), [user]);
   const isAdmin = isAdminUser(user?.uid);
   const visibleItems = useMemo(() => items.filter((item) => isAdmin || item.visibility !== "admin").filter((item) => item.visibility !== "private" || item.createdBy === user?.uid), [isAdmin, items, user?.uid]);
 

@@ -3,13 +3,10 @@
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { archiveProduct, createProduct, duplicateProduct, subscribeProductsMaster, toggleFavorite, updateProduct } from "@/lib/products";
+import { archiveProduct, createProduct, deleteProduct, duplicateProduct, reorderProducts, subscribeProductsMaster, toggleFavorite, updateProduct } from "@/lib/products";
 import { isAdminUser } from "@/lib/task-utils";
+import { getUserDisplayName } from "@/lib/user-display";
 import type { Product, ProductTab } from "@/types/product";
-
-function userName(user: User): string {
-  return user.displayName || user.email?.split("@")[0] || "ログインユーザー";
-}
 
 export function useProducts() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,7 +34,7 @@ export function useProducts() {
     );
   }, [user]);
 
-  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: user ? userName(user) : "ログインユーザー" }), [user]);
+  const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: getUserDisplayName(user) }), [user]);
   const isAdmin = isAdminUser(user?.uid);
   const canEdit = isAdmin;
 
@@ -53,6 +50,8 @@ export function useProducts() {
     updateProduct: (productId: string, tab: ProductTab, patch: Partial<Product>) => updateProduct(productId, currentUser, tab, patch),
     duplicateProduct: (product: Product) => duplicateProduct(product, currentUser),
     archiveProduct: (productId: string) => archiveProduct(productId, currentUser),
+    deleteProduct,
+    reorderProducts,
     toggleFavorite: (product: Product) => (user ? toggleFavorite(product, user.uid) : Promise.resolve())
   };
 }

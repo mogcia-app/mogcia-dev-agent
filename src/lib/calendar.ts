@@ -28,7 +28,16 @@ function normalizeEvent(id: string, data: DocumentData): CalendarEvent {
     id,
     title: String(data.title ?? ""),
     description: typeof data.description === "string" ? data.description : "",
-    eventType: data.eventType === "appointment" || data.eventType === "personal" || data.eventType === "other" ? data.eventType : "meeting",
+    eventType:
+      data.eventType === "appointment" ||
+      data.eventType === "phone" ||
+      data.eventType === "visit" ||
+      data.eventType === "internal" ||
+      data.eventType === "deskwork" ||
+      data.eventType === "personal" ||
+      data.eventType === "other"
+        ? data.eventType
+        : "meeting",
     startAt: data.startAt instanceof Timestamp ? data.startAt : now,
     endAt: data.endAt instanceof Timestamp ? data.endAt : null,
     allDay: Boolean(data.allDay),

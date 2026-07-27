@@ -2,6 +2,7 @@
 
 import { ExternalLink, Trash2, X } from "lucide-react";
 import { formatShortDate, formatTime, getCategoryMeta } from "@/lib/calendar-utils";
+import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
 
 export function CalendarEventDrawer({ item, event, canDelete, onClose, onDelete }: { item: CalendarItem | null; event: CalendarEvent | null; canDelete: boolean; onClose: () => void; onDelete: (eventId: string) => Promise<void> }) {
@@ -26,15 +27,14 @@ export function CalendarEventDrawer({ item, event, canDelete, onClose, onDelete 
         </div>
         <div className="space-y-4 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-semibold text-[#5E565A]">
           {item.description ? <Info label="説明" value={item.description} /> : null}
-          <Info label="担当者" value={item.assigneeName || "未設定"} />
+          <Info label="担当者" value={getUserDisplayNameById(item.assigneeId, item.assigneeName)} />
           {item.attendeeNames?.length ? <Info label="参加者" value={item.attendeeNames.join(", ")} /> : null}
           {item.companyName ? <Info label="会社" value={item.companyName} /> : null}
           {item.projectName ? <Info label="案件" value={item.projectName} /> : null}
           {item.location ? <Info label="場所" value={item.location} /> : null}
-          {item.createdByName ? <Info label="作成者" value={item.createdByName} /> : null}
+          {item.createdBy ? <Info label="作成者" value={getUserDisplayNameById(item.createdBy, item.createdByName)} /> : null}
           {item.createdAt ? <Info label="作成日時" value={item.createdAt.toLocaleString("ja-JP")} /> : null}
           {item.updatedAt ? <Info label="更新日時" value={item.updatedAt.toLocaleString("ja-JP")} /> : null}
-          <Info label="外部カレンダー連携元" value={event?.source === "google_calendar" ? "Google Calendar" : "未連携"} />
         </div>
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">

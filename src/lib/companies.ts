@@ -4,7 +4,7 @@ import { Timestamp, addDoc, collection, deleteDoc, doc, limit, onSnapshot, order
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import { createEmptyCompany } from "@/lib/company-utils";
-import type { ActivityLogType, Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
+import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
 
 const companiesCollection = "companies";
 
@@ -33,6 +33,11 @@ function normalizeCompany(id: string, data: DocumentData): Company {
     customerRank: data.customerRank ?? "C",
     internalOwnerId: data.internalOwnerId ?? "",
     internalOwnerName: data.internalOwnerName ?? "",
+    companionUserIds: Array.isArray(data.companionUserIds) ? data.companionUserIds : [],
+    companionNames: Array.isArray(data.companionNames) ? data.companionNames : [],
+    productIds: Array.isArray(data.productIds) ? data.productIds : [],
+    productNames: Array.isArray(data.productNames) ? data.productNames : [],
+    contacts: Array.isArray(data.contacts) ? data.contacts : [],
     primaryContactId: data.primaryContactId ?? null,
     primaryContactName: data.primaryContactName ?? "",
     tags: data.tags ?? [],
@@ -60,6 +65,12 @@ function normalizeLog(id: string, data: DocumentData): CompanyActivityLog {
     occurredAt: data.occurredAt instanceof Timestamp ? data.occurredAt : now,
     userId: data.userId ?? "",
     userName: data.userName ?? "",
+    direction: data.direction ?? "unknown",
+    actorUserIds: Array.isArray(data.actorUserIds) ? data.actorUserIds : [],
+    actorNames: Array.isArray(data.actorNames) ? data.actorNames : [],
+    contactIds: Array.isArray(data.contactIds) ? data.contactIds : [],
+    contactNames: Array.isArray(data.contactNames) ? data.contactNames : [],
+    contactNote: data.contactNote ?? "",
     dealId: data.dealId ?? null,
     meetingId: data.meetingId ?? null,
     taskId: data.taskId ?? null,
@@ -90,7 +101,40 @@ export function subscribeCompanyActivityLogs(companyId: string, count: number, o
 export function subscribeCompanyMeetings(companyId: string, onNext: (meetings: CompanyMeeting[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
   const db = getFirebaseDb();
   if (!db) return () => undefined;
-  return onSnapshot(query(collection(db, "meetings"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() } as CompanyMeeting)).filter((meeting) => meeting.companyId === companyId)), onError);
+  return onSnapshot(query(collection(db, "meetings"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeMeeting(entry.id, entry.data())).filter((meeting) => meeting.companyId === companyId)), onError);
+}
+
+function normalizeMeeting(id: string, data: DocumentData): CompanyMeeting {
+  const now = tsNow();
+  return {
+    id,
+    companyId: data.companyId ?? "",
+    companyName: data.companyName ?? "",
+    title: data.title ?? "",
+    startAt: data.startAt instanceof Timestamp ? data.startAt : now,
+    endAt: data.endAt instanceof Timestamp ? data.endAt : null,
+    meetingType: data.meetingType ?? "other",
+    productIds: Array.isArray(data.productIds) ? data.productIds : [],
+    productNames: Array.isArray(data.productNames) ? data.productNames : [],
+    contactIds: Array.isArray(data.contactIds) ? data.contactIds : [],
+    contactNames: Array.isArray(data.contactNames) ? data.contactNames : [],
+    participants: Array.isArray(data.participants) ? data.participants : [],
+    summary: data.summary ?? "",
+    customerQuotes: Array.isArray(data.customerQuotes) ? data.customerQuotes : [],
+    problems: Array.isArray(data.problems) ? data.problems : [],
+    proposals: Array.isArray(data.proposals) ? data.proposals : [],
+    objections: Array.isArray(data.objections) ? data.objections : [],
+    decisions: Array.isArray(data.decisions) ? data.decisions : [],
+    nextActions: Array.isArray(data.nextActions) ? data.nextActions : [],
+    source: data.source ?? "manual",
+    uploadedRecording: Boolean(data.uploadedRecording),
+    aiTaskRequested: Boolean(data.aiTaskRequested),
+    generatedTaskIds: Array.isArray(data.generatedTaskIds) ? data.generatedTaskIds : [],
+    createdBy: data.createdBy ?? "",
+    createdByName: data.createdByName ?? "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : now
+  };
 }
 
 export function subscribeCompanyFiles(companyId: string, onNext: (files: CompanyFile[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
@@ -109,7 +153,6 @@ export async function createCompany(user: { id: string; name: string }, patch: P
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   const ref = await addDoc(collection(db, companiesCollection), { ...createEmptyCompany(user), ...patch, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  await addCompanyLog(ref.id, user, { type: "status_change", title: "会社を作成しました", content: patch.name ?? "", occurredAt: Timestamp.now(), source: "system" });
   return ref.id;
 }
 
@@ -117,7 +160,6 @@ export async function updateCompany(companyId: string, user: { id: string; name:
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await updateDoc(doc(db, companiesCollection, companyId), { ...patch, updatedAt: serverTimestamp() });
-  await addCompanyLog(companyId, user, { type: "status_change", title: "会社情報を更新しました", content: patch.name ?? "", occurredAt: Timestamp.now(), source: "system" });
 }
 
 export async function toggleCompanyFavorite(company: Company, userId: string): Promise<void> {
@@ -127,7 +169,7 @@ export async function toggleCompanyFavorite(company: Company, userId: string): P
   await updateDoc(doc(db, companiesCollection, company.id), { favoriteUserIds, updatedAt: serverTimestamp() });
 }
 
-export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
+export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; direction?: ActivityDirection; actorUserIds?: string[]; actorNames?: string[]; contactIds?: string[]; contactNames?: string[]; contactNote?: string; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   const ref = await addDoc(collection(db, companiesCollection, companyId, "activityLogs"), { companyId, userId: user.id, userName: user.name, createdBy: user.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), source: "manual", ...input });
@@ -139,7 +181,7 @@ export async function addManualMeeting(company: Company, user: { id: string; nam
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   const ref = await addDoc(collection(db, "meetings"), { ...input, companyId: company.id, companyName: company.name, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  await addCompanyLog(company.id, user, { type: "meeting", title: input.title, content: input.summary, occurredAt: input.startAt, source: "meeting" });
+  await addCompanyLog(company.id, user, { type: "meeting", title: input.title, content: input.summary, occurredAt: input.startAt, source: "meeting", direction: "outbound", contactIds: input.contactIds, contactNames: input.contactNames });
   return ref.id;
 }
 

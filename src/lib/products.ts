@@ -1,12 +1,45 @@
 "use client";
 
-import { Timestamp, addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
+import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, writeBatch, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
-import { createDefaultProduct, slugify } from "@/lib/product-utils";
-import type { Product, ProductChangeLog, ProductResource, ProductStatus, ProductTab } from "@/types/product";
+import { createDefaultProduct, createDefaultSalesPlaybooks, slugify } from "@/lib/product-utils";
+import type { Product, ProductChangeLog, ProductResource, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab } from "@/types/product";
 
 const collectionName = "products";
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function normalizeSalesPlaybookEntry(value: unknown, fallback: ProductSalesPlaybookEntry): ProductSalesPlaybookEntry {
+  if (!value || typeof value !== "object") return fallback;
+  const source = value as Partial<ProductSalesPlaybookEntry>;
+  return {
+    proposalDirection: typeof source.proposalDirection === "string" ? source.proposalDirection : fallback.proposalDirection,
+    process: typeof source.process === "string" ? source.process : fallback.process,
+    keyQuestions: stringArray(source.keyQuestions),
+    talkScript: typeof source.talkScript === "string" ? source.talkScript : fallback.talkScript,
+    materials: stringArray(source.materials),
+    cautions: stringArray(source.cautions)
+  };
+}
+
+function normalizeSalesPlaybooks(value: unknown): ProductSalesPlaybooks {
+  const defaults = createDefaultSalesPlaybooks();
+  if (!value || typeof value !== "object") return defaults;
+  const source = value as Partial<ProductSalesPlaybooks>;
+  return {
+    teleapo: {
+      new: normalizeSalesPlaybookEntry(source.teleapo?.new, defaults.teleapo.new),
+      existing: normalizeSalesPlaybookEntry(source.teleapo?.existing, defaults.teleapo.existing)
+    },
+    meeting: {
+      new: normalizeSalesPlaybookEntry(source.meeting?.new, defaults.meeting.new),
+      existing: normalizeSalesPlaybookEntry(source.meeting?.existing, defaults.meeting.existing)
+    }
+  };
+}
 
 function normalizeProduct(id: string, data: DocumentData): Product {
   const now = Timestamp.now();
@@ -14,6 +47,8 @@ function normalizeProduct(id: string, data: DocumentData): Product {
     id,
     name: String(data.name ?? ""),
     displayName: String(data.displayName ?? data.name ?? ""),
+    iconUrl: data.iconUrl ?? null,
+    iconStoragePath: data.iconStoragePath ?? null,
     slug: String(data.slug ?? slugify(String(data.name ?? ""))),
     categoryIds: Array.isArray(data.categoryIds) ? data.categoryIds : [],
     categoryNames: Array.isArray(data.categoryNames) ? data.categoryNames : [],
@@ -72,6 +107,7 @@ function normalizeProduct(id: string, data: DocumentData): Product {
       leadTemperatureOptions: data.salesSettings?.leadTemperatureOptions ?? [],
       disqualificationConditions: data.salesSettings?.disqualificationConditions ?? [],
       requiredHearingItems: data.salesSettings?.requiredHearingItems ?? [],
+      salesPlaybooks: normalizeSalesPlaybooks(data.salesSettings?.salesPlaybooks),
       notes: data.salesSettings?.notes ?? []
     },
     resources: data.resources ?? [],
@@ -81,6 +117,7 @@ function normalizeProduct(id: string, data: DocumentData): Product {
     favoriteUserIds: data.favoriteUserIds ?? [],
     createdBy: String(data.createdBy ?? ""),
     createdByName: data.createdByName ?? "",
+    sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : now.toMillis(),
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : now,
     archivedAt: data.archivedAt instanceof Timestamp ? data.archivedAt : null
@@ -128,6 +165,22 @@ export async function archiveProduct(productId: string, user: { id: string; name
   await updateProduct(productId, user, "basic", { status: "archived", archivedAt: Timestamp.now() } as Partial<Product>);
 }
 
+export async function deleteProduct(productId: string): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await deleteDoc(doc(db, collectionName, productId));
+}
+
+export async function reorderProducts(products: Array<Pick<Product, "id">>): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  const batch = writeBatch(db);
+  products.forEach((product, index) => {
+    batch.update(doc(db, collectionName, product.id), { sortOrder: index + 1, updatedAt: serverTimestamp() });
+  });
+  await batch.commit();
+}
+
 export async function toggleFavorite(product: Product, userId: string): Promise<void> {
   const favoriteUserIds = product.favoriteUserIds.includes(userId) ? product.favoriteUserIds.filter((id) => id !== userId) : [...product.favoriteUserIds, userId];
   const db = getFirebaseDb();
@@ -145,6 +198,19 @@ export async function addResourceFile(product: Product, file: File, user: { id: 
   });
   const url = await getDownloadURL(ref(storage, path));
   return { id: crypto.randomUUID(), title: file.name, type: "other", url, storagePath: path, fileName: file.name, visibility: "internal", createdBy: user.id, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
+}
+
+export async function uploadProductIcon(product: Product, file: File, onProgress: (progress: number) => void): Promise<{ iconUrl: string; iconStoragePath: string }> {
+  const storage = getFirebaseStorageClient();
+  if (!storage) throw new Error("Firebase Storageが未設定です。");
+  const extension = file.name.split(".").pop() || "png";
+  const path = `products/${product.id}/icon/${Date.now()}.${extension}`;
+  const task = uploadBytesResumable(ref(storage, path), file, { contentType: file.type });
+  await new Promise<void>((resolve, reject) => {
+    task.on("state_changed", (snapshot) => onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)), reject, () => resolve());
+  });
+  const iconUrl = await getDownloadURL(ref(storage, path));
+  return { iconUrl, iconStoragePath: path };
 }
 
 async function addChangeLog(productId: string, user: { id: string; name: string }, targetTab: ProductTab, action: string): Promise<void> {

@@ -4,6 +4,7 @@ import { Copy, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { taskToDraft } from "@/lib/task-utils";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
+import { getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
 import type { CompanyOption, MeetingOption, ProjectOption } from "@/types/workspace-records";
 
@@ -62,7 +63,7 @@ export function TaskDetailDrawer({
           <div>
             <p className="text-sm font-bold text-[#EC6F8B]">タスク詳細</p>
             <h2 className="mt-1 text-2xl font-bold text-[#29272A]">{task.title || "無題のタスク"}</h2>
-            <p className="mt-2 text-xs font-semibold text-[#8A8186]">作成者: {task.createdByName || task.createdBy} / 更新: {task.updatedAt.toDate().toLocaleString("ja-JP")}</p>
+            <p className="mt-2 text-xs font-semibold text-[#8A8186]">作成者: {getUserDisplayNameById(task.createdBy, task.createdByName)} / 更新: {task.updatedAt.toDate().toLocaleString("ja-JP")}</p>
             {task.completedAt ? <p className="mt-1 text-xs font-semibold text-[#70A55F]">完了: {task.completedAt.toDate().toLocaleString("ja-JP")}</p> : null}
           </div>
           <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-[#FFF2F5]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>

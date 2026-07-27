@@ -25,6 +25,13 @@ service firebase.storage {
         && request.resource.contentType.matches('application/pdf|application/vnd.*|image/.*');
     }
 
+    match /products/{productId}/icon/{fileName} {
+      allow read: if signedIn();
+      allow write: if isAdmin()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /companies/{companyId}/files/{fileName} {
       allow read: if signedIn();
       allow write: if signedIn()

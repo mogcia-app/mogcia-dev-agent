@@ -73,8 +73,12 @@ export function buildCalendarGrid(month: Date): Date[] {
 export function getCategoryMeta(category: CalendarCategory) {
   if (category === "ai_task") return { label: "AI作成タスク", dot: "bg-[#EC6F8B]", soft: "bg-[#FFF2F5]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
   if (category === "manual_task") return { label: "手動タスク", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
-  if (category === "meeting") return { label: "会議", dot: "bg-[#67B667]", soft: "bg-[#F3FAF0]", text: "text-[#5E9B61]", border: "border-[#DDEED8]" };
-  if (category === "appointment") return { label: "商談", dot: "bg-[#9B72D9]", soft: "bg-[#F7F1FF]", text: "text-[#8C61CF]", border: "border-[#E8D9FA]" };
+  if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#67B667]", soft: "bg-[#F3FAF0]", text: "text-[#5E9B61]", border: "border-[#DDEED8]" };
+  if (category === "appointment") return { label: "商談", dot: "bg-[#F47E96]", soft: "bg-[#FFF0F3]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
+  if (category === "phone") return { label: "電話", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
+  if (category === "visit") return { label: "訪問", dot: "bg-[#15A39B]", soft: "bg-[#ECFAF8]", text: "text-[#15827D]", border: "border-[#CBEDEA]" };
+  if (category === "internal") return { label: "社内MTG", dot: "bg-[#D98A3E]", soft: "bg-[#FFF4EA]", text: "text-[#C56F20]", border: "border-[#F2D8C0]" };
+  if (category === "deskwork") return { label: "作業時間", dot: "bg-[#6D7890]", soft: "bg-[#F3F5F8]", text: "text-[#5F687A]", border: "border-[#DDE2EA]" };
   if (category === "personal") return { label: "個人予定", dot: "bg-[#F29B45]", soft: "bg-[#FFF6EA]", text: "text-[#D7791F]", border: "border-[#F5E1C6]" };
   return { label: "その他", dot: "bg-[#9A9A9A]", soft: "bg-[#F5F5F5]", text: "text-[#6E6E6E]", border: "border-[#E5E5E5]" };
 }
@@ -126,14 +130,14 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
     meetingId: "",
     location: "",
     meetingUrl: "",
-    reminder: "10",
+    reminder: "0",
     recurrence: "none"
   };
 }
 
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
   const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
-  const endAt = draft.endDate ? parseDateTime(draft.endDate, draft.allDay ? "23:59" : draft.endTime) : null;
+  const endAt = draft.allDay ? parseDateTime(draft.startDate, "23:59") : parseEndDateTime(draft.startDate, draft.startTime, draft.endDate, draft.endTime);
   return {
     title: draft.title.trim(),
     description: draft.description.trim(),
@@ -154,8 +158,8 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
     source: "manual" as const,
     externalCalendarId: null,
     externalEventId: null,
-    reminderMinutes: draft.reminder ? [Number(draft.reminder)] : [],
-    recurrence: draft.recurrence === "none" ? null : { frequency: draft.recurrence },
+    reminderMinutes: [],
+    recurrence: null,
     visibility: "team" as const
   };
 }
@@ -163,4 +167,12 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
 export function parseDateTime(date: string, time: string): Timestamp {
   const value = new Date(`${date}T${time || "00:00"}`);
   return Timestamp.fromDate(Number.isNaN(value.getTime()) ? new Date() : value);
+}
+
+function parseEndDateTime(startDate: string, startTime: string, endDate: string, endTime: string): Timestamp {
+  if (endDate && endTime) return parseDateTime(endDate, endTime);
+  const start = new Date(`${startDate}T${startTime || "10:00"}`);
+  const end = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
+  end.setHours(end.getHours() + 1);
+  return Timestamp.fromDate(end);
 }

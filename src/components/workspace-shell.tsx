@@ -6,13 +6,12 @@ import {
   ChevronDown,
   ChevronRight,
   Home,
-  Library,
   LogOut,
   Package,
   UploadCloud,
   Building2,
   ListChecks,
-  Palette,
+  Settings,
   type LucideIcon
 } from "lucide-react";
 import Image from "next/image";
@@ -47,8 +46,8 @@ const sidebarGroups: SidebarGroup[] = [
       { href: "/calendar", label: "カレンダー", icon: CalendarDays },
       { href: "/tasks", label: "タスク", icon: ListChecks },
       { href: "/products", label: "商材管理", icon: Package },
-      { href: "/knowledge", label: "ナレッジ", icon: Library },
-      { href: "/design-system", label: "Design System", icon: Palette }
+      // { href: "/knowledge", label: "ナレッジ", icon: Library },
+      { href: "/settings/desktop", label: "デスクトップ連携", icon: Settings }
     ]
   },
   {
@@ -106,7 +105,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#F8F4F3] text-[#1F1F22] lg:grid lg:grid-cols-[280px_1fr]">
+    <div className="min-h-screen bg-[#F8F4F3] text-[#1F1F22] lg:grid lg:grid-cols-[260px_1fr]">
       {isSigningOut ? <PageProgress /> : null}
       <aside className="flex border-b border-[#E9DAD8] bg-white/90 px-4 py-4 shadow-[0_10px_32px_rgba(31,31,34,0.05)] backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-b-0 lg:border-r lg:px-5">
         <div className="flex w-full items-center gap-3">
@@ -165,10 +164,9 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto hidden rounded-lg border border-[#E9DAD8] bg-[#F8F4F3] p-3 lg:block">
-          <p className="truncate text-sm font-semibold text-[#1F1F22]">{user.email ?? "ログイン中"}</p>
+        <div className="mt-auto hidden pt-8 lg:block">
           <button
-            className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-white text-sm font-semibold text-[#B97B80] transition hover:bg-[#F7F3F2]"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#E9DAD8] bg-white text-sm font-semibold text-[#B97B80] transition hover:bg-[#F7F3F2]"
             onClick={() => void logout()}
             type="button"
           >
@@ -178,7 +176,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 px-5 py-6 sm:px-8 lg:px-10">
+      <main className="min-w-0 px-4 py-5 sm:px-5 lg:px-6">
         <div className="w-full">
           {children}
         </div>
