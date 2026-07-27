@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: light;
+  --mogcia-loading: #f45f7a;
   --mogcia-primary: #d5b5b2;
   --mogcia-primary-light: #e9cbc8;
   --mogcia-primary-dark: #c79a98;
@@ -12,7 +13,6 @@
   --mogcia-face: #1f1f22;
   --mogcia-eye: #f3b8c0;
   --mogcia-blush: #b97b80;
-  --mogcia-icon-bg: #f8f2f2;
   --background: var(--mogcia-bg);
   --foreground: var(--mogcia-face);
 }
@@ -21,31 +21,146 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(233, 203, 200, 0.58), transparent 30rem),
-    radial-gradient(circle at top right, rgba(213, 181, 178, 0.24), transparent 26rem),
-    linear-gradient(180deg, #fffafa 0%, var(--background) 44%, #f3eceb 100%);
+  background: linear-gradient(180deg, #fffafa 0%, var(--background) 52%, #f3eceb 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+.task-input {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #f0dee2;
+  background: #fffbfc;
+  padding: 10px 12px;
+  color: #302d30;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.agent-grid {
-  background-image:
-    linear-gradient(rgba(199, 154, 152, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(199, 154, 152, 0.14) 1px, transparent 1px);
-  background-size: 32px 32px;
+.task-input:focus {
+  border-color: #ec6f8b;
+  box-shadow: 0 0 0 3px rgba(236, 111, 139, 0.12);
+}
+
+.task-input:disabled {
+  cursor: not-allowed;
+  background: #f8f2f4;
+  color: #8a8186;
+}
+
+.mogcia-loading-logo {
+  animation: mogcia-float 3.4s ease-in-out infinite;
+}
+
+.mogcia-loading-antenna {
+  animation: mogcia-antenna 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(244, 95, 122, 0.12);
+}
+
+.mogcia-loading-dot {
+  animation: mogcia-dot 1.2s ease-in-out infinite;
+}
+
+.mogcia-block-spinner {
+  animation: mogcia-block-spinner 1.2s ease-in-out infinite;
+}
+
+.mogcia-progress-block {
+  animation: mogcia-progress-block 1.25s ease-in-out infinite;
+}
+
+.mogcia-page-progress {
+  animation: mogcia-page-progress 1.1s ease-in-out infinite;
+}
+
+.mogcia-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #f7f7f7;
+}
+
+.mogcia-skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 240, 243, 0.95), transparent);
+  animation: mogcia-shimmer 1.55s ease-in-out infinite;
+}
+
+@keyframes mogcia-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  35% {
+    transform: translate3d(4px, -7px, 0);
+  }
+  70% {
+    transform: translate3d(-3px, -2px, 0);
+  }
+}
+
+@keyframes mogcia-antenna {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translateX(-50%) scale(0.88);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes mogcia-dot {
+  0%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes mogcia-block-spinner {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.92);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes mogcia-progress-block {
+  0%, 100% {
+    opacity: 0.32;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+
+@keyframes mogcia-page-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
+@keyframes mogcia-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

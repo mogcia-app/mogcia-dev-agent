@@ -1,0 +1,118 @@
+import { Timestamp } from "firebase/firestore";
+import type { Product, ProductStatus, ProductTab, ProductType } from "@/types/product";
+
+export const productTabs: Array<{ value: ProductTab; label: string }> = [
+  { value: "basic", label: "基本情報" },
+  { value: "target", label: "ターゲット" },
+  { value: "pricing", label: "料金・契約" },
+  { value: "features", label: "機能" },
+  { value: "implementation", label: "導入・運用" },
+  { value: "sales", label: "営業設定" },
+  { value: "resources", label: "資料・デモ" },
+  { value: "history", label: "変更履歴" }
+];
+
+export const productStatusLabels: Record<ProductStatus, string> = {
+  active: "公開中",
+  draft: "準備中",
+  paused: "停止中",
+  archived: "アーカイブ"
+};
+
+export const productTypeLabels: Record<ProductType, string> = {
+  own_product: "自社プロダクト",
+  operation_service: "運用代行",
+  web_production: "Web制作",
+  custom_development: "受託開発",
+  sales_package: "提案パッケージ",
+  other: "その他"
+};
+
+export function createDefaultProduct(user: { id: string; name: string }, input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">): Omit<Product, "id"> {
+  const now = Timestamp.now();
+  return {
+    ...input,
+    slug: slugify(input.name),
+    categoryIds: input.categoryNames.map(slugify),
+    summary: "",
+    values: [],
+    problems: [],
+    target: {
+      industries: [],
+      companySizes: [],
+      facilitySizes: [],
+      roles: [],
+      decisionMakerRoles: [],
+      suitableConditions: [],
+      unsuitableConditions: [],
+      requiredConditions: [],
+      disqualificationConditions: []
+    },
+    pricing: {
+      displayType: "estimate",
+      initialFee: null,
+      monthlyFee: null,
+      minimumFee: null,
+      maximumFee: null,
+      plans: [],
+      options: [],
+      minimumContractMonths: null,
+      paymentTerms: "",
+      renewalTerms: "",
+      cancellationTerms: "",
+      cost: null,
+      grossMarginRate: null,
+      notes: ""
+    },
+    features: [],
+    implementation: {
+      estimatedDays: null,
+      flowSteps: [],
+      initialSetup: [],
+      clientRequirements: [],
+      mogciaResponsibilities: [],
+      supportDetails: [],
+      deliverables: [],
+      operationFlow: [],
+      notes: []
+    },
+    salesSettings: {
+      targetMonthlyDeals: null,
+      defaultPlanId: null,
+      expectedMeetingMinutes: null,
+      expectedSalesCycleDays: null,
+      salesStages: ["初回接触", "ヒアリング", "提案", "見積", "クロージング"],
+      objectionCategories: ["料金", "効果", "必要性", "既存サービス", "時期"],
+      lossReasonCategories: ["料金", "時期", "決裁者不在", "競合導入済み", "連絡不通"],
+      leadTemperatureOptions: ["high", "middle", "low"],
+      disqualificationConditions: [],
+      requiredHearingItems: [],
+      notes: []
+    },
+    resources: [],
+    ownerId: user.id,
+    ownerName: user.name,
+    favoriteUserIds: [],
+    createdBy: user.id,
+    createdByName: user.name,
+    createdAt: now,
+    updatedAt: now,
+    archivedAt: null
+  };
+}
+
+export function slugify(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9ぁ-んァ-ヶ一-龠ー-]/g, "");
+}
+
+export function toLines(value?: string[]): string {
+  return (value ?? []).join("\n");
+}
+
+export function fromLines(value: string): string[] {
+  return value.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+export function yen(value?: number | null): string {
+  return typeof value === "number" ? `${value.toLocaleString("ja-JP")}円` : "未設定";
+}

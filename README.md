@@ -1,2 +1,0 @@
-# MOGCIA Dev Agent
-

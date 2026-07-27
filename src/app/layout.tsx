@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MOGCIA Dev Agent",
-  description: "MOGCIA internal AI orchestrator for sales, demo, production, and operations."
+  description: "Blank MOGCIA Dev Agent workspace with Firebase and Cloud Run integration hooks.",
+  icons: {
+    icon: "/m-dev-agent.png",
+    apple: "/m-dev-agent.png"
+  }
 };
 
 export default function RootLayout({
@@ -14,9 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body>
-        <AuthProvider>{children}</AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

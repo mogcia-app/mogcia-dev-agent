@@ -2,193 +2,229 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isIshida() {
-      return isSignedIn() && request.auth.token.email == 'marina.ishida@mogcia.com';
+    function isAdmin() {
+      return signedIn() && request.auth.uid == "TjDadmBAdVYaPEvG3ppfBLS4HGN2";
     }
 
-    match /clients/{clientId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+    function isSelf(userId) {
+      return signedIn() && userId == request.auth.uid;
     }
 
-    match /products/{productId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
+    function isTaskParticipant(data) {
+      return signedIn() && (data.createdBy == request.auth.uid || data.assigneeId == request.auth.uid);
+    }
+
+    function isCalendarParticipant(data) {
+      return signedIn() && (
+        data.createdBy == request.auth.uid ||
+        data.assigneeId == request.auth.uid ||
+        (data.attendeeIds is list && request.auth.uid in data.attendeeIds)
+      );
+    }
+
+    function validTimestampOrNull(value) {
+      return value == null || value is timestamp;
+    }
+
+    function validTask(data) {
+      return data.title is string
+        && data.status in ["todo", "in_progress", "waiting", "completed", "cancelled"]
+        && data.priority in ["high", "medium", "low"]
+        && data.source in ["ai", "manual", "automation"]
+        && data.createdBy is string
+        && data.assigneeId is string
+        && validTimestampOrNull(data.dueDate)
+        && validTimestampOrNull(data.completedAt);
+    }
+
+    function validCalendarEvent(data) {
+      return data.title is string
+        && data.eventType in ["meeting", "appointment", "personal", "other"]
+        && data.startAt is timestamp
+        && validTimestampOrNull(data.endAt)
+        && data.allDay is bool
+        && data.createdBy is string
+        && data.assigneeId is string
+        && data.visibility in ["team", "private"];
+    }
+
+    function validWorkspaceRecord(data) {
+      return data.name is string
+        && data.createdBy is string;
+    }
+
+    function validTeleapoRecord(data) {
+      return data.userId is string
+        && data.salesDomain in ["teleapo", "meeting"]
+        && data.customerName is string
+        && data.contactName is string
+        && data.productName is string
+        && data.customerType == "new"
+        && data.transcriptionStatus in ["draft", "uploaded", "extracting", "transcribing", "diarizing", "completed", "failed"]
+        && data.aiAdviceStatus in ["idle", "running", "completed", "failed"];
+    }
+
+    function validKnowledge(data) {
+      return data.title is string
+        && data.type in ["meeting_note", "sales_talk", "objection", "success_case", "loss_reason", "faq", "industry", "competitor", "operation", "customer_voice", "internal", "other"]
+        && data.visibility in ["team", "sales", "admin", "private"]
+        && data.status in ["active", "archived"]
+        && data.createdBy is string;
+    }
+
+    match /tasks/{taskId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validTask(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && (isAdmin() || request.resource.data.assigneeId == request.auth.uid);
+      allow update: if signedIn()
+        && validTask(request.resource.data)
+        && (isAdmin() || isTaskParticipant(resource.data))
+        && (isAdmin() || request.resource.data.createdBy == resource.data.createdBy);
+      allow delete: if isAdmin();
+    }
+
+    match /calendarEvents/{eventId} {
+      allow read: if signedIn()
+        && (resource.data.visibility == "team" || isAdmin() || isCalendarParticipant(resource.data));
+      allow create: if signedIn()
+        && validCalendarEvent(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && (isAdmin() || request.resource.data.assigneeId == request.auth.uid);
+      allow update: if signedIn()
+        && validCalendarEvent(request.resource.data)
+        && (isAdmin() || isCalendarParticipant(resource.data))
+        && (isAdmin() || request.resource.data.createdBy == resource.data.createdBy);
+      allow delete: if isAdmin();
+    }
+
+    match /companies/{companyId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validWorkspaceRecord(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.createdBy == request.auth.uid)
+        || (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["favoriteUserIds", "updatedAt"]));
+      allow delete: if isAdmin();
+
+      match /activityLogs/{logId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.companyId == companyId
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+        allow delete: if isAdmin();
+      }
+
+      match /files/{fileId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+        allow delete: if isAdmin();
+      }
+
+      match /memos/{memoId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+        allow delete: if isAdmin();
+      }
     }
 
     match /projects/{projectId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isIshida()
-        || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'requirementDraftId',
-          'nextAction',
-          'updatedAt'
-        ]));
-      allow delete: if isIshida();
-    }
-
-    match /ruleLayers/{ruleLayerId} {
-      allow read: if isSignedIn();
-      allow write: if isIshida();
-    }
-
-    match /timelineEvents/{timelineEventId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
-    }
-
-    match /emailTemplates/{emailTemplateId} {
-      allow read: if isSignedIn();
-      allow write: if isIshida();
-    }
-
-    match /demoGuideDrafts/{demoGuideDraftId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /agentConfigs/{agentConfigId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /localDemoRuns/{localDemoRunId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /websiteAnalyses/{websiteAnalysisId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /monthlyReports/{monthlyReportId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /storageAssets/{storageAssetId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /openAiReviews/{openAiReviewId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /codexCliRuns/{codexCliRunId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /cliEvents/{cliEventId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /codexRuns/{codexRunId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /codexResults/{codexResultId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /developmentProgressItems/{developmentProgressItemId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
-    }
-
-    match /snsOperationPlans/{snsOperationPlanId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isIshida();
-    }
-
-    match /snsPostTasks/{snsPostTaskId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isIshida();
-    }
-
-    match /quickCaptures/{quickCaptureId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
-    }
-
-    match /companyTimelineEvents/{companyTimelineEventId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
-    }
-
-    match /salesActionTasks/{salesActionTaskId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
-    }
-
-    match /companyContacts/{companyContactId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
-    }
-
-    match /salesActivities/{salesActivityId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validWorkspaceRecord(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
     match /meetings/{meetingId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && (request.resource.data.name is string || request.resource.data.title is string)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
-    match /meetingAssets/{meetingAssetId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if isSelf(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    match /meetingAnalyses/{meetingAnalysisId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.name is string
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.createdBy == request.auth.uid)
+        || (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["favoriteUserIds", "updatedAt"]));
+      allow delete: if isAdmin();
+
+      match /changeLogs/{logId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.actorId == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
-    match /minutes/{minutesId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+    match /teleapoRecords/{recordId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validTeleapoRecord(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validTeleapoRecord(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
     }
 
-    match /requirementDrafts/{requirementDraftId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isIshida();
+    match /knowledge/{knowledgeId} {
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || resource.data.visibility in ["team", "sales"]
+          || resource.data.createdBy == request.auth.uid
+        );
+      allow create: if signedIn()
+        && validKnowledge(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn()
+        && validKnowledge(request.resource.data)
+        && (
+          isAdmin()
+          || resource.data.createdBy == request.auth.uid
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["favoriteUserIds", "viewCount", "updatedAt"])
+        );
+      allow delete: if isAdmin();
     }
 
-    match /workTasks/{workTaskId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isIshida();
+    match /knowledgeViews/{viewId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /users/{userId}/favoriteKnowledge/{knowledgeId} {
+      allow read, write: if isSelf(userId) || isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
