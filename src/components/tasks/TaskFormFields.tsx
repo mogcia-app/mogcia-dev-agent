@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import type { MemberOption, TaskDraft, TaskPriority, TaskSource, TaskStatus } from "@/types/task";
 import type { CompanyOption, MeetingOption, ProjectOption } from "@/types/workspace-records";
 
@@ -26,23 +26,23 @@ export function TaskFormFields({
   onChange: (draft: TaskDraft) => void;
 }) {
   const setValue = (key: DraftKey, value: string) => onChange({ ...draft, [key]: value });
-  const onAssigneeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const member = members.find((entry) => entry.id === event.target.value);
-    onChange({ ...draft, assigneeId: event.target.value, assigneeName: member?.name ?? event.target.value });
+  const onAssigneeChange = (value: string) => {
+    const member = members.find((entry) => entry.id === value);
+    onChange({ ...draft, assigneeId: value, assigneeName: member?.name ?? value });
   };
   const filteredProjects = draft.companyId ? projects.filter((project) => project.companyId === draft.companyId) : projects;
   const filteredMeetings = draft.projectId ? meetings.filter((meeting) => meeting.projectId === draft.projectId) : meetings;
-  const onCompanyChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const company = companies.find((entry) => entry.id === event.target.value);
-    onChange({ ...draft, companyId: event.target.value, companyName: company?.name ?? "", projectId: "", projectName: "", meetingId: "", meetingTitle: "" });
+  const onCompanyChange = (value: string) => {
+    const company = companies.find((entry) => entry.id === value);
+    onChange({ ...draft, companyId: value, companyName: company?.name ?? "", projectId: "", projectName: "", meetingId: "", meetingTitle: "" });
   };
-  const onProjectChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const project = projects.find((entry) => entry.id === event.target.value);
-    onChange({ ...draft, projectId: event.target.value, projectName: project?.name ?? "", companyId: project?.companyId ?? draft.companyId, companyName: project?.companyName ?? draft.companyName, meetingId: "", meetingTitle: "" });
+  const onProjectChange = (value: string) => {
+    const project = projects.find((entry) => entry.id === value);
+    onChange({ ...draft, projectId: value, projectName: project?.name ?? "", companyId: project?.companyId ?? draft.companyId, companyName: project?.companyName ?? draft.companyName, meetingId: "", meetingTitle: "" });
   };
-  const onMeetingChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const meeting = meetings.find((entry) => entry.id === event.target.value);
-    onChange({ ...draft, meetingId: event.target.value, meetingTitle: meeting?.name ?? "", companyId: meeting?.companyId ?? draft.companyId, companyName: meeting?.companyName ?? draft.companyName, projectId: meeting?.projectId ?? draft.projectId, projectName: meeting?.projectName ?? draft.projectName });
+  const onMeetingChange = (value: string) => {
+    const meeting = meetings.find((entry) => entry.id === value);
+    onChange({ ...draft, meetingId: value, meetingTitle: meeting?.name ?? "", companyId: meeting?.companyId ?? draft.companyId, companyName: meeting?.companyName ?? draft.companyName, projectId: meeting?.projectId ?? draft.projectId, projectName: meeting?.projectName ?? draft.projectName });
   };
 
   return (
@@ -55,34 +55,18 @@ export function TaskFormFields({
       </Field>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="状態">
-          <select className="task-input" disabled={readOnly} value={draft.status} onChange={(event) => setValue("status", event.target.value as TaskStatus)}>
-            <option value="todo">未着手</option>
-            <option value="in_progress">進行中</option>
-            <option value="waiting">待機中</option>
-            <option value="completed">完了</option>
-            <option value="cancelled">キャンセル</option>
-          </select>
+          <SingleSelect disabled={readOnly} options={[["todo", "未着手"], ["in_progress", "進行中"], ["waiting", "待機中"], ["completed", "完了"], ["cancelled", "キャンセル"]].map(([value, label]) => ({ value, label }))} value={draft.status} onChange={(value) => setValue("status", value as TaskStatus)} />
         </Field>
         <Field label="優先度">
-          <select className="task-input" disabled={readOnly} value={draft.priority} onChange={(event) => setValue("priority", event.target.value as TaskPriority)}>
-            <option value="high">高</option>
-            <option value="medium">中</option>
-            <option value="low">低</option>
-          </select>
+          <SingleSelect disabled={readOnly} options={[["high", "高"], ["medium", "中"], ["low", "低"]].map(([value, label]) => ({ value, label }))} value={draft.priority} onChange={(value) => setValue("priority", value as TaskPriority)} />
         </Field>
         <Field label="作成元">
-          <select className="task-input" disabled={readOnly} value={draft.source} onChange={(event) => setValue("source", event.target.value as TaskSource)}>
-            <option value="manual">手動</option>
-            <option value="ai">AI作成</option>
-            <option value="automation">自動</option>
-          </select>
+          <SingleSelect disabled={readOnly} options={[["manual", "手動"], ["ai", "AI作成"], ["automation", "自動"]].map(([value, label]) => ({ value, label }))} value={draft.source} onChange={(value) => setValue("source", value as TaskSource)} />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="担当者">
-          <select className="task-input" disabled={readOnly || !canAssign} value={draft.assigneeId} onChange={onAssigneeChange}>
-            {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-          </select>
+          <SearchSelect disabled={readOnly || !canAssign} options={members.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={onAssigneeChange} />
         </Field>
         <Field label="期限日">
           <input className="task-input" disabled={readOnly} type="date" value={draft.dueDate} onChange={(event) => setValue("dueDate", event.target.value)} />
@@ -93,22 +77,13 @@ export function TaskFormFields({
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="会社">
-          <select className="task-input" disabled={readOnly || companies.length === 0} value={draft.companyId} onChange={onCompanyChange}>
-            <option value="">{companies.length === 0 ? "未登録" : "未選択"}</option>
-            {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-          </select>
+          <SearchSelect clearable disabled={readOnly || companies.length === 0} emptyLabel="会社が未登録です。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder={companies.length === 0 ? "未登録" : "未選択"} value={draft.companyId} onChange={onCompanyChange} />
         </Field>
         <Field label="案件">
-          <select className="task-input" disabled={readOnly || filteredProjects.length === 0} value={draft.projectId} onChange={onProjectChange}>
-            <option value="">{filteredProjects.length === 0 ? "未登録" : "未選択"}</option>
-            {filteredProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-          </select>
+          <SearchSelect clearable disabled={readOnly || filteredProjects.length === 0} emptyLabel="案件が未登録です。" options={filteredProjects.map((project) => ({ value: project.id, label: project.name, description: project.companyName ?? undefined }))} placeholder={filteredProjects.length === 0 ? "未登録" : "未選択"} value={draft.projectId} onChange={onProjectChange} />
         </Field>
         <Field label="会議">
-          <select className="task-input" disabled={readOnly || filteredMeetings.length === 0} value={draft.meetingId} onChange={onMeetingChange}>
-            <option value="">{filteredMeetings.length === 0 ? "未登録" : "未選択"}</option>
-            {filteredMeetings.map((meeting) => <option key={meeting.id} value={meeting.id}>{meeting.name}</option>)}
-          </select>
+          <SearchSelect clearable disabled={readOnly || filteredMeetings.length === 0} emptyLabel="会議が未登録です。" options={filteredMeetings.map((meeting) => ({ value: meeting.id, label: meeting.name, description: meeting.companyName ?? undefined }))} placeholder={filteredMeetings.length === 0 ? "未登録" : "未選択"} value={draft.meetingId} onChange={onMeetingChange} />
         </Field>
       </div>
       {draft.source === "ai" ? (

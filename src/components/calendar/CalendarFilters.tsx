@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { SingleSelect } from "@/components/ui/select";
 import type { CalendarFilters as CalendarFilterState } from "@/types/calendar";
 import type { MemberOption } from "@/types/task";
 
@@ -28,10 +29,7 @@ export function CalendarFilters({ filters, members, member, onFilterChange, onMe
         ))}
       </div>
       {filters.members ? (
-        <select className="task-input mt-4" value={member} onChange={(event) => onMemberChange(event.target.value)}>
-          <option value="all">すべてのメンバー</option>
-          {members.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-        </select>
+        <SingleSelect className="mt-4" options={[{ value: "all", label: "すべてのメンバー" }, ...members.map((entry) => ({ value: entry.id, label: entry.name }))]} value={member} onChange={onMemberChange} />
       ) : null}
     </section>
   );

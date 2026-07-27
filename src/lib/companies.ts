@@ -37,6 +37,7 @@ function normalizeCompany(id: string, data: DocumentData): Company {
     companionNames: Array.isArray(data.companionNames) ? data.companionNames : [],
     productIds: Array.isArray(data.productIds) ? data.productIds : [],
     productNames: Array.isArray(data.productNames) ? data.productNames : [],
+    productAccountAccess: data.productAccountAccess ?? {},
     contacts: Array.isArray(data.contacts) ? data.contacts : [],
     primaryContactId: data.primaryContactId ?? null,
     primaryContactName: data.primaryContactName ?? "",

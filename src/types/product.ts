@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 export type ProductStatus = "active" | "draft" | "paused" | "archived";
 export type ProductType = "own_product" | "operation_service" | "web_production" | "custom_development" | "sales_package" | "other";
-export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "resources" | "history";
+export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "new" | "existing" | "resources" | "history";
 
 export interface ProductPlan {
   id: string;
@@ -34,6 +34,16 @@ export interface ProductFlowStep {
   description?: string;
   owner: "mogcia" | "client" | "both";
   estimatedDays?: number | null;
+  sortOrder: number;
+}
+
+export interface ProductObjectionItem {
+  id: string;
+  category: string;
+  objection: string;
+  responseExample: string;
+  howToTell?: string;
+  avoidPhrases?: string[];
   sortOrder: number;
 }
 
@@ -129,6 +139,7 @@ export interface Product {
     operationFlow?: string[];
     notes?: string[];
   };
+  objectionHandbook: ProductObjectionItem[];
   salesSettings: {
     targetMonthlyDeals?: number | null;
     defaultPlanId?: string | null;

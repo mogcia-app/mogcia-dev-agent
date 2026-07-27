@@ -12,8 +12,11 @@ const adviceSchema = {
     required: [
       "summary",
       "temperature",
+      "prospectRank",
       "prospectScore",
+      "rankReason",
       "scoreReason",
+      "nextActionUrgency",
       "customerIssues",
       "concerns",
       "meetingWarnings",
@@ -22,9 +25,19 @@ const adviceSchema = {
       "meetingScript",
       "materials",
       "nextActions",
+      "positives",
+      "negatives",
+      "positiveCustomerSignals",
+      "hesitationSignals",
+      "closingRequirements",
+      "missingInformation",
+      "requiredMaterials",
       "gapFromTeleapo",
       "closeReasons",
       "lostRisks",
+      "shouldFollowUp",
+      "followUpReason",
+      "followUpMethod",
       "shouldFollowupCall",
       "shouldFollowupEmail",
       "followupTiming",
@@ -37,8 +50,11 @@ const adviceSchema = {
     properties: {
       summary: { type: "string" },
       temperature: { type: "string", enum: ["high", "middle", "low"] },
+      prospectRank: { type: "string", enum: ["A", "B+", "B", "B-", "C"] },
       prospectScore: { type: "number", minimum: 0, maximum: 100 },
+      rankReason: { type: "string" },
       scoreReason: { type: "string" },
+      nextActionUrgency: { type: "string", enum: ["today", "next_business_day", "within_3_days", "next_week", "long_term", "none"] },
       customerIssues: { type: "array", items: { type: "string" } },
       concerns: { type: "array", items: { type: "string" } },
       meetingWarnings: { type: "array", items: { type: "string" } },
@@ -79,9 +95,19 @@ const adviceSchema = {
       },
       materials: { type: "array", items: { type: "string" } },
       nextActions: { type: "array", items: { type: "string" } },
+      positives: { type: "array", items: { type: "string" } },
+      negatives: { type: "array", items: { type: "string" } },
+      positiveCustomerSignals: { type: "array", items: { type: "string" } },
+      hesitationSignals: { type: "array", items: { type: "string" } },
+      closingRequirements: { type: "array", items: { type: "string" } },
+      missingInformation: { type: "array", items: { type: "string" } },
+      requiredMaterials: { type: "array", items: { type: "string" } },
       gapFromTeleapo: { type: "array", items: { type: "string" } },
       closeReasons: { type: "array", items: { type: "string" } },
       lostRisks: { type: "array", items: { type: "string" } },
+      shouldFollowUp: { type: "boolean" },
+      followUpReason: { type: "string" },
+      followUpMethod: { type: "string", enum: ["phone", "email", "chat", "meeting", "none"] },
       shouldFollowupCall: { type: "boolean" },
       shouldFollowupEmail: { type: "boolean" },
       followupTiming: { type: "string" },
@@ -140,10 +166,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
               record,
               product: productSnapshot?.exists ? productSnapshot.data() : null,
               calendarAvailabilitySource: calendarSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+              prospectRankRule: {
+                priority: "prospectScoreよりprospectRankを先に判定し、ランクに合うスコアを付けること。",
+                ranks: {
+                  A: "契約直前。契約書、見積、申込、開始日、社内稟議、決裁者確認まで進んでいる。次は契約・入金・導入準備に近い。score 85-100",
+                  "B+": "高確度。前向きで、次回アクション日時が決まっている。予算・決裁者・導入時期のどれかもかなり見えている。score 70-84",
+                  B: "通常見込み。検討意思と課題適合はあるが、決裁・予算・時期がまだ弱い。score 55-69",
+                  "B-": "低め見込み。興味はあるが温度感が薄い。資料を見る、また連絡ください止まり、次回時期が曖昧。score 35-54",
+                  C: "見込みなし。明確に不要、予算なし、対象外、連絡拒否、課題不一致。score 0-34"
+                },
+                nextActionUrgency: {
+                  today: "当日中に追うべき",
+                  next_business_day: "翌営業日に追うべき",
+                  within_3_days: "3営業日以内に追うべき",
+                  next_week: "1週間以内に追うべき",
+                  long_term: "長期フォローでよい",
+                  none: "追わない"
+                }
+              },
               instruction:
                 record?.salesDomain === "meeting"
-                  ? "商談後分析として、テレアポ時の想定との差分、追っかけ電話/メール、追うべきタイミングと理由を重視してください。"
-                  : "テレアポ後分析として、日程調整電話の候補日を3つ、5分程度の台本、1時間商談の要点台本、必要資料候補を重視してください。"
+                  ? [
+                      "商談後分析として、prospectRankをA/B+/B/B-/Cで厳密に判定してください。",
+                      "record.diagnosisSheetがある場合は、人間が商談終了後に入力した評価として重視してください。ただし、会話ログと矛盾する場合は矛盾点をrankReasonやmissingInformationに含めてください。",
+                      "営業が次に動けるよう、良かった点、ダメだった点・弱かった点、顧客が前向きだった発言、迷っていた発言、決まりそうな条件、足りない情報、成約のために必要なもの、失注リスクを具体的に出してください。",
+                      "良かった点は、営業側のヒアリング、提案、切り返し、次回アクション設定ができていたかを評価してください。",
+                      "ダメだった点は、決裁者、予算、導入時期、競合、懸念点を聞けていないなどを評価してください。",
+                      "決まりそうな条件は、見積、契約書、事例、費用対効果、決裁者同席、導入スケジュール、具体的な運用イメージなどから判断してください。",
+                      "フォローアップするべきか、理由、タイミング、方法(phone/email/chat/meeting/none)、電話トーク、メール文面、次回商談で確認すること、次に送る資料を必ず実務的に書いてください。"
+                    ].join("\n")
+                  : "テレアポ後分析として、日程調整電話の候補日を3つ、5分程度の台本、1時間商談の要点台本、必要資料候補を重視してください。商談後専用項目は空配列または最小限で構いません。"
             })
           }
         ]

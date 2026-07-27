@@ -3,8 +3,9 @@ import type { Timestamp } from "firebase/firestore";
 export type CompanyStatus = "lead" | "prospect" | "customer" | "inactive" | "archived";
 export type CustomerRank = "A" | "B" | "C" | "D" | "dormant";
 export type CompanyTab = "overview" | "timeline" | "deals" | "meetings" | "tasks" | "files" | "notes";
-export type ActivityLogType = "phone" | "email" | "visit" | "meeting" | "deal" | "memo" | "task_created" | "task_completed" | "file" | "status_change" | "ai_task" | "other";
+export type ActivityLogType = "phone" | "email" | "chat" | "visit" | "meeting" | "deal" | "memo" | "task_created" | "task_completed" | "file" | "status_change" | "ai_task" | "other";
 export type ActivityDirection = "outbound" | "inbound" | "internal" | "unknown";
+export type ContactMethod = "phone" | "email" | "chat";
 
 export interface Company {
   id: string;
@@ -29,6 +30,7 @@ export interface Company {
   companionNames?: string[];
   productIds?: string[];
   productNames?: string[];
+  productAccountAccess?: CompanyProductAccountAccess;
   contacts?: CompanyContactPerson[];
   primaryContactId?: string | null;
   primaryContactName?: string | null;
@@ -45,11 +47,29 @@ export interface Company {
   archivedAt?: Timestamp | null;
 }
 
+export interface CompanyProductAccountAccess {
+  sns?: {
+    instagram?: CompanyProductAccountCredential;
+    tiktok?: CompanyProductAccountCredential;
+  };
+  commo?: {
+    officialLine?: CompanyProductAccountCredential;
+  };
+}
+
+export interface CompanyProductAccountCredential {
+  accountName?: string;
+  email?: string;
+  password?: string;
+}
+
 export interface CompanyContactPerson {
   id: string;
   name: string;
+  role?: string;
   email?: string;
   phone?: string;
+  contactMethods?: ContactMethod[];
 }
 
 export interface CompanyActivityLog {

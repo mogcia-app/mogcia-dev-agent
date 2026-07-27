@@ -7,6 +7,7 @@ import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
+import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useKnowledgeList } from "@/hooks/useKnowledgeList";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
@@ -104,9 +105,9 @@ export function KnowledgePageClient() {
         <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-[#6F676B]">検索結果：{filtered.length}件</p>
-            <select className="h-10 rounded-full border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#6F676B]" value={sort} onChange={(event) => setRoute({ sort: event.target.value as KnowledgeSort })}>
-              {sortOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <div className="w-40">
+              <SingleSelect options={sortOptions.map(([value, label]) => ({ value, label }))} value={sort} onChange={(value) => setRoute({ sort: value as KnowledgeSort })} />
+            </div>
           </div>
           <div className="space-y-3">
             {store.loading ? <KnowledgeSkeleton /> : null}
@@ -255,7 +256,16 @@ function KnowledgeFormModal({ mode, initial, products, companies, projects, meet
 }
 
 function MultiProductSelect({ products, draft, onChange }: { products: Array<{ id: string; name: string }>; draft: KnowledgeDraft; onChange: (draft: KnowledgeDraft) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">関連商材<select className="task-input" value="" onChange={(event) => { const product = products.find((item) => item.id === event.target.value); if (!product || draft.productIds.includes(product.id)) return; onChange({ ...draft, productIds: [...draft.productIds, product.id], productNames: [...draft.productNames, product.name] }); }}><option value="">追加する商材を選択</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select><span className="flex flex-wrap gap-2">{draft.productNames.map((name, index) => <button className="rounded-full bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]" key={name} onClick={() => onChange({ ...draft, productIds: draft.productIds.filter((_, itemIndex) => itemIndex !== index), productNames: draft.productNames.filter((_, itemIndex) => itemIndex !== index) })} type="button">{name} ×</button>)}</span></label>;
+  return (
+    <MultiSelect
+      emptyLabel="商材が未登録です。"
+      label="関連商材"
+      options={products.map((product) => ({ value: product.id, label: product.name }))}
+      placeholder="商材を選択"
+      values={draft.productIds}
+      onChange={(productIds) => onChange({ ...draft, productIds, productNames: products.filter((product) => productIds.includes(product.id)).map((product) => product.name) })}
+    />
+  );
 }
 
 function Badge({ type }: { type: KnowledgeType }) {
@@ -295,7 +305,7 @@ function Text({ label, value, onChange }: { label: string; value: string; onChan
 }
 
 function Select({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<select className="task-input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([nextValue, nextLabel]) => <option key={nextValue} value={nextValue}>{nextLabel}</option>)}</select></label>;
+  return <SingleSelect label={label} options={options.map(([nextValue, nextLabel]) => ({ value: nextValue, label: nextLabel }))} value={value} onChange={onChange} />;
 }
 
 function KnowledgeSkeleton() {

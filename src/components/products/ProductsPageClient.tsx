@@ -6,22 +6,18 @@ import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
+import { SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner } from "@/components/ui/status";
 import { exportProductsCsv } from "@/lib/product-export";
 import { createDefaultSalesPlaybooks, productTabs, productTypeLabels, toLines, fromLines, yen } from "@/lib/product-utils";
 import { addResourceFile, uploadProductIcon } from "@/lib/products";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import { useProducts } from "@/hooks/useProducts";
-import type { Product, ProductCustomerSegment, ProductFeature, ProductFlowStep, ProductPlan, ProductResource, ProductSalesPlaybookEntry, ProductSalesScene, ProductStatus, ProductTab, ProductType } from "@/types/product";
+import type { Product, ProductCustomerSegment, ProductFeature, ProductObjectionItem, ProductPlan, ProductResource, ProductSalesPlaybookEntry, ProductSalesScene, ProductStatus, ProductTab, ProductType } from "@/types/product";
 
 const salesSceneLabels: Record<ProductSalesScene, string> = {
   teleapo: "テレアポ時",
   meeting: "打ち合わせ時"
-};
-
-const customerSegmentLabels: Record<ProductCustomerSegment, string> = {
-  new: "新規",
-  existing: "既存"
 };
 
 export function ProductsPageClient() {
@@ -90,8 +86,8 @@ export function ProductsPageClient() {
         }
       />
       <div className="mt-4"><StatusBanner message={store.error} type="error" /></div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
-        <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
+      <div className="mt-5 grid items-stretch gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
+        <section className="h-full rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <div>
             <label className="flex h-11 items-center gap-2 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
               <Search className="h-4 w-4" />
@@ -116,7 +112,7 @@ export function ProductsPageClient() {
             ))}
           </div>
         </section>
-        <section className="min-w-0">
+        <section className="min-w-0 xl:h-full xl:min-h-0">
           {selectedProduct ? (
             <ProductDetail
               canEdit={store.canEdit}
@@ -177,6 +173,7 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSa
   const [draft, setDraft] = useState(product);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const currentTab = productTabs.find((item) => item.value === tab) ?? productTabs[0];
 
   const save = async () => {
     setSaving(true);
@@ -196,7 +193,7 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSa
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid h-full min-h-0 gap-4 xl:grid-rows-[auto_minmax(0,1fr)]">
       <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
@@ -216,11 +213,15 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSa
           </div>
         </div>
       </section>
-      <section className="rounded-lg border border-[#F0E7E9] bg-white shadow-sm">
+      <section className="flex min-h-0 flex-col rounded-lg border border-[#F0E7E9] bg-white shadow-sm">
         <div className="flex overflow-x-auto border-b border-[#F0E7E9]">
-          {productTabs.map((item) => <button className={`h-12 shrink-0 px-4 text-sm font-bold ${tab === item.value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={item.value} onClick={() => onTabChange(item.value)} type="button">{item.label}</button>)}
+          {productTabs.map((item) => <button className={`grid h-14 shrink-0 place-items-center px-4 text-sm font-bold ${tab === item.value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={item.value} onClick={() => onTabChange(item.value)} title={item.aiPurpose} type="button"><span>{item.label}</span><span className="text-[10px] font-bold text-[#B89AA2]">AI参照</span></button>)}
         </div>
-        <div className="p-5">
+        <div className="border-b border-[#F0E7E9] bg-[#FFFBFC] px-5 py-3">
+          <p className="text-xs font-bold text-[#EC6F8B]">AI参照用途</p>
+          <p className="mt-1 text-sm font-semibold leading-6 text-[#6F676B]">{currentTab.aiPurpose}</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-5">
           {editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
           {editing ? (
             <div className="mt-5 flex justify-end gap-3">
@@ -238,22 +239,43 @@ function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: Pro
   if (tab === "basic") return <InfoGrid rows={[["商材名", product.name], ["商材種別", productTypeLabels[product.productType]], ...(product.tagline ? [["一言説明", product.tagline]] as Array<[string, string]> : []), ["概要", product.summary || "未設定"], ["提供価値", product.values.join(" / ") || "未設定"], ["解決する課題", product.problems.join(" / ") || "未設定"], ["商材責任者", getUserDisplayNameById(product.ownerId, product.ownerName)], ["作成日", product.createdAt.toDate().toLocaleString("ja-JP")], ["最終更新日", product.updatedAt.toDate().toLocaleString("ja-JP")]]} />;
   if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"]]} />;
   if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", product.pricing.displayType], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金プラン", product.pricing.plans.map((plan) => `${plan.name}: 初期 ${yen(plan.initialFee)} / 月額 ${yen(plan.monthlyFee)}`).join(" / ") || "未設定"]]} />;
-  if (tab === "features") return <Cards title="機能" items={product.features.map((feature) => `${feature.name} / ${feature.category || "カテゴリ未設定"} / ${feature.type === "standard" ? "標準" : "オプション"}`)} />;
-  if (tab === "implementation") return <Cards title="導入・運用" items={[...product.implementation.flowSteps.map((step) => `${step.sortOrder + 1}. ${step.title}`), ...(product.implementation.notes ?? [])]} />;
-  if (tab === "sales") return <SalesPlaybookReadView product={product} />;
+  if (tab === "features") return <FeatureReadView product={product} />;
+  if (tab === "implementation") return <ObjectionHandbookReadView product={product} />;
+  if (tab === "sales") return <SalesSettingsReadView product={product} />;
+  if (tab === "new") return <SalesPlaybookReadView product={product} segment="new" />;
+  if (tab === "existing") return <SalesPlaybookReadView product={product} segment="existing" />;
   if (tab === "resources") return <Cards title="資料・デモ" items={product.resources.map((resource) => `${resource.title} / ${resource.type} / ${resource.visibility}`)} />;
   return <ProductHistory productId={product.id} />;
 }
 
-function SalesPlaybookReadView({ product }: { product: Product }) {
+function SalesSettingsReadView({ product }: { product: Product }) {
+  return <InfoGrid rows={[["想定商談時間", product.salesSettings.expectedMeetingMinutes ? `${product.salesSettings.expectedMeetingMinutes}分` : "未設定"], ["想定受注期間", product.salesSettings.expectedSalesCycleDays ? `${product.salesSettings.expectedSalesCycleDays}日` : "未設定"], ["営業ステージ", product.salesSettings.salesStages.join(" / ") || "未設定"], ["よくある反論カテゴリ", product.salesSettings.objectionCategories.join(" / ") || "未設定"], ["失注理由カテゴリ", product.salesSettings.lossReasonCategories.join(" / ") || "未設定"]]} />;
+}
+
+function ObjectionHandbookReadView({ product }: { product: Product }) {
+  const items = product.objectionHandbook ?? [];
+  if (items.length === 0) return <Cards title="反論想定" items={[]} />;
+  return (
+    <div className="grid gap-4">
+      {items.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((item) => (
+        <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
+          <p className="text-xs font-bold text-[#EC6F8B]">{item.category || "カテゴリ未設定"}</p>
+          <h3 className="mt-2 text-lg font-bold text-[#2B2B2B]">{item.objection || "反論未設定"}</h3>
+          <InfoGrid rows={[["回答例", item.responseExample || "未設定"], ["伝え方", item.howToTell || "未設定"], ["避ける表現", item.avoidPhrases?.join("\n") || "未設定"]]} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function SalesPlaybookReadView({ product, segment }: { product: Product; segment: ProductCustomerSegment }) {
   const [scene, setScene] = useState<ProductSalesScene>("teleapo");
-  const [segment, setSegment] = useState<ProductCustomerSegment>("new");
   const playbooks = product.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
   const entry = playbooks[scene][segment];
 
   return (
     <div className="space-y-5">
-      <SalesPlaybookTabs scene={scene} segment={segment} onSceneChange={setScene} onSegmentChange={setSegment} />
+      <SalesSceneTabs scene={scene} onSceneChange={setScene} />
       <InfoGrid
         rows={[
           [segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針", entry.proposalDirection || "未設定"],
@@ -271,11 +293,13 @@ function SalesPlaybookReadView({ product }: { product: Product }) {
 function ProductEditForm({ draft, tab, isAdmin, user, onChange }: { draft: Product; tab: ProductTab; isAdmin: boolean; user: { id: string; name: string }; onChange: (product: Product) => void }) {
   const set = (patch: Partial<Product>) => onChange({ ...draft, ...patch });
   if (tab === "basic") return <BasicProductEditor draft={draft} onChange={onChange} />;
-  if (tab === "target") return <div className="grid gap-4 sm:grid-cols-2"><Text label="対象業種" value={toLines(draft.target.industries)} onChange={(value) => set({ target: { ...draft.target, industries: fromLines(value) } })} /><Text label="対象企業規模" value={toLines(draft.target.companySizes)} onChange={(value) => set({ target: { ...draft.target, companySizes: fromLines(value) } })} /><Text label="想定担当者" value={toLines(draft.target.roles)} onChange={(value) => set({ target: { ...draft.target, roles: fromLines(value) } })} /><Text label="想定決裁者" value={toLines(draft.target.decisionMakerRoles)} onChange={(value) => set({ target: { ...draft.target, decisionMakerRoles: fromLines(value) } })} /><Text label="向いている企業" value={toLines(draft.target.suitableConditions)} onChange={(value) => set({ target: { ...draft.target, suitableConditions: fromLines(value) } })} /><Text label="向いていない企業" value={toLines(draft.target.unsuitableConditions)} onChange={(value) => set({ target: { ...draft.target, unsuitableConditions: fromLines(value) } })} /></div>;
+  if (tab === "target") return <div className="grid gap-4 sm:grid-cols-2"><Text label="対象業種" value={toLines(draft.target.industries)} onChange={(value) => set({ target: { ...draft.target, industries: fromLines(value) } })} /><Text label="対象企業規模" value={toLines(draft.target.companySizes)} onChange={(value) => set({ target: { ...draft.target, companySizes: fromLines(value) } })} /><Text label="想定担当者" value={toLines(draft.target.roles)} onChange={(value) => set({ target: { ...draft.target, roles: fromLines(value) } })} /><Text label="想定決裁者" value={toLines(draft.target.decisionMakerRoles)} onChange={(value) => set({ target: { ...draft.target, decisionMakerRoles: fromLines(value) } })} /><Text label="向いている企業" value={toLines(draft.target.suitableConditions)} onChange={(value) => set({ target: { ...draft.target, suitableConditions: fromLines(value) } })} /><Text label="向いていない企業" value={toLines(draft.target.unsuitableConditions)} onChange={(value) => set({ target: { ...draft.target, unsuitableConditions: fromLines(value) } })} /><Text label="導入条件" value={toLines(draft.target.requiredConditions)} onChange={(value) => set({ target: { ...draft.target, requiredConditions: fromLines(value) } })} /><Text label="対象外条件" value={toLines(draft.target.disqualificationConditions)} onChange={(value) => set({ target: { ...draft.target, disqualificationConditions: fromLines(value) } })} /></div>;
   if (tab === "pricing") return <PricingEditor draft={draft} isAdmin={isAdmin} onChange={onChange} />;
   if (tab === "features") return <FeatureEditor draft={draft} onChange={onChange} />;
-  if (tab === "implementation") return <ImplementationEditor draft={draft} onChange={onChange} />;
-  if (tab === "sales") return <SalesEditor draft={draft} onChange={onChange} />;
+  if (tab === "implementation") return <ObjectionHandbookEditor draft={draft} onChange={onChange} />;
+  if (tab === "sales") return <SalesSettingsEditor draft={draft} onChange={onChange} />;
+  if (tab === "new") return <SalesPlaybookEditor draft={draft} segment="new" onChange={onChange} />;
+  if (tab === "existing") return <SalesPlaybookEditor draft={draft} segment="existing" onChange={onChange} />;
   if (tab === "resources") return <ResourceEditor draft={draft} user={user} onChange={onChange} />;
   return <p className="text-sm font-bold text-[#8A8A8A]">変更履歴は編集できません。</p>;
 }
@@ -333,19 +357,115 @@ function PlanRow({ plan, onChange }: { plan: ProductPlan; onChange: (plan: Produ
   return <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3"><input className="task-input" value={plan.name} onChange={(event) => onChange({ ...plan, name: event.target.value })} /><input className="task-input" placeholder="初期費用" value={plan.initialFee ?? ""} onChange={(event) => onChange({ ...plan, initialFee: numberOrNull(event.target.value) })} /><input className="task-input" placeholder="月額" value={plan.monthlyFee ?? ""} onChange={(event) => onChange({ ...plan, monthlyFee: numberOrNull(event.target.value) })} /></div>;
 }
 
+function FeatureReadView({ product }: { product: Product }) {
+  const groups = groupFeatures(product.features);
+  if (groups.length === 0) return <Cards title="機能" items={[]} />;
+  return (
+    <div className="grid gap-5">
+      {groups.map((group) => (
+        <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
+          <h3 className="text-lg font-bold text-[#2B2B2B]">{group.category || "見出し未設定"}</h3>
+          <div className="mt-3 grid gap-2">
+            {group.features.map((feature) => (
+              <div className="rounded-md bg-white px-4 py-3 ring-1 ring-[#F0E7E9]" key={feature.id}>
+                <p className="font-bold text-[#2B2B2B]">{feature.name || "機能名未設定"}</p>
+                {feature.description ? <p className="mt-1 text-sm font-semibold leading-6 text-[#6F676B]">{feature.description}</p> : null}
+                <p className="mt-2 text-xs font-bold text-[#EC6F8B]">{feature.type === "standard" ? "標準機能" : "オプション"}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function FeatureEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
-  const add = () => onChange({ ...draft, features: [...draft.features, { id: crypto.randomUUID(), name: "新しい機能", description: "", category: "", planIds: [], type: "standard", isPublic: true, sortOrder: draft.features.length }] });
-  return <EditorList onAdd={add}>{draft.features.map((feature) => <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3" key={feature.id}><input className="task-input" value={feature.name} onChange={(event) => updateFeature(draft, feature.id, { name: event.target.value }, onChange)} /><input className="task-input" value={feature.category ?? ""} onChange={(event) => updateFeature(draft, feature.id, { category: event.target.value }, onChange)} /><select className="task-input" value={feature.type} onChange={(event) => updateFeature(draft, feature.id, { type: event.target.value as ProductFeature["type"] }, onChange)}><option value="standard">標準機能</option><option value="option">オプション</option></select></div>)}</EditorList>;
+  const groups = groupFeatures(draft.features);
+  const addHeading = () => {
+    const category = createUniqueFeatureHeading(draft.features);
+    onChange({ ...draft, features: [...draft.features, createFeature(category, draft.features.length)] });
+  };
+  const addFeature = (category: string) => onChange({ ...draft, features: [...draft.features, createFeature(category, draft.features.length)] });
+  const updateHeading = (fromCategory: string, toCategory: string) => {
+    onChange({ ...draft, features: draft.features.map((feature) => (feature.category || "") === fromCategory ? { ...feature, category: toCategory } : feature) });
+  };
+  const removeFeature = (id: string) => {
+    onChange({ ...draft, features: draft.features.filter((feature) => feature.id !== id).map((feature, index) => ({ ...feature, sortOrder: index })) });
+  };
+
+  return (
+    <div>
+      <button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addHeading} type="button">見出しを追加</button>
+      <div className="mt-3 grid gap-4">
+        {groups.length ? groups.map((group) => (
+          <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <input className="task-input sm:max-w-sm" placeholder="見出し" value={group.category} onChange={(event) => updateHeading(group.category, event.target.value)} />
+              <button className="h-10 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => addFeature(group.category)} type="button">機能を追加</button>
+            </div>
+            <div className="mt-3 grid gap-3">
+              {group.features.map((feature) => (
+                <div className="grid gap-2 rounded-md border border-[#F0E7E9] bg-white p-3" key={feature.id}>
+                  <div className="grid gap-2 lg:grid-cols-[1fr_180px_auto]">
+                    <input className="task-input" placeholder="機能名（小見出し）" value={feature.name} onChange={(event) => updateFeature(draft, feature.id, { name: event.target.value }, onChange)} />
+                    <SingleSelect options={[{ value: "standard", label: "標準機能" }, { value: "option", label: "オプション" }]} value={feature.type} onChange={(type) => updateFeature(draft, feature.id, { type: type as ProductFeature["type"] }, onChange)} />
+                    <button className="h-11 rounded-md border border-[#F0E7E9] px-3 text-sm font-bold text-[#D94F6E]" onClick={() => removeFeature(feature.id)} type="button">削除</button>
+                  </div>
+                  <textarea className="task-input min-h-20 resize-none" placeholder="機能の説明" value={feature.description ?? ""} onChange={(event) => updateFeature(draft, feature.id, { description: event.target.value }, onChange)} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )) : <p className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">見出しを追加して、機能を整理できます。</p>}
+      </div>
+    </div>
+  );
 }
 
-function ImplementationEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
-  const add = () => onChange({ ...draft, implementation: { ...draft.implementation, flowSteps: [...draft.implementation.flowSteps, { id: crypto.randomUUID(), title: "新しいステップ", owner: "mogcia", sortOrder: draft.implementation.flowSteps.length }] } });
-  return <EditorList onAdd={add}>{draft.implementation.flowSteps.map((step) => <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3" key={step.id}><input className="task-input" value={step.title} onChange={(event) => updateStep(draft, step.id, { title: event.target.value }, onChange)} /><select className="task-input" value={step.owner} onChange={(event) => updateStep(draft, step.id, { owner: event.target.value as ProductFlowStep["owner"] }, onChange)}><option value="mogcia">MOGCIA</option><option value="client">クライアント</option><option value="both">両方</option></select><input className="task-input" placeholder="目安日数" value={step.estimatedDays ?? ""} onChange={(event) => updateStep(draft, step.id, { estimatedDays: numberOrNull(event.target.value) }, onChange)} /></div>)}</EditorList>;
+function ObjectionHandbookEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
+  const items = draft.objectionHandbook ?? [];
+  const add = () => onChange({ ...draft, objectionHandbook: [...items, createObjectionItem(items.length)] });
+  const remove = (id: string) => onChange({ ...draft, objectionHandbook: items.filter((item) => item.id !== id).map((item, index) => ({ ...item, sortOrder: index })) });
+
+  return (
+    <div>
+      <button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={add} type="button">反論を追加</button>
+      <div className="mt-3 grid gap-4">
+        {items.length ? items.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((item) => (
+          <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
+            <div className="grid gap-3 lg:grid-cols-[180px_1fr_auto]">
+              <input className="task-input" placeholder="カテゴリ（料金など）" value={item.category} onChange={(event) => updateObjectionItem(draft, item.id, { category: event.target.value }, onChange)} />
+              <input className="task-input" placeholder="よくある反論" value={item.objection} onChange={(event) => updateObjectionItem(draft, item.id, { objection: event.target.value }, onChange)} />
+              <button className="h-11 rounded-md border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#D94F6E]" onClick={() => remove(item.id)} type="button">削除</button>
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <textarea className="task-input min-h-28 resize-none" placeholder="回答例" value={item.responseExample} onChange={(event) => updateObjectionItem(draft, item.id, { responseExample: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-28 resize-none" placeholder="伝え方" value={item.howToTell ?? ""} onChange={(event) => updateObjectionItem(draft, item.id, { howToTell: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-24 resize-none lg:col-span-2" placeholder="避ける表現（1行ずつ）" value={toLines(item.avoidPhrases ?? [])} onChange={(event) => updateObjectionItem(draft, item.id, { avoidPhrases: fromLines(event.target.value) }, onChange)} />
+            </div>
+          </section>
+        )) : <p className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">料金・効果・運用負担など、よく出る反論を追加できます。</p>}
+      </div>
+    </div>
+  );
 }
 
-function SalesEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
+function SalesSettingsEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Input label="想定商談時間（分）" value={String(draft.salesSettings.expectedMeetingMinutes ?? "")} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, expectedMeetingMinutes: numberOrNull(value) } })} />
+      <Input label="想定受注期間（日）" value={String(draft.salesSettings.expectedSalesCycleDays ?? "")} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, expectedSalesCycleDays: numberOrNull(value) } })} />
+      <Text label="営業ステージ" value={toLines(draft.salesSettings.salesStages)} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, salesStages: fromLines(value) } })} />
+      <Text label="よくある反論カテゴリ" value={toLines(draft.salesSettings.objectionCategories)} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, objectionCategories: fromLines(value) } })} />
+      <Text label="失注理由カテゴリ" value={toLines(draft.salesSettings.lossReasonCategories)} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, lossReasonCategories: fromLines(value) } })} />
+      <Text label="対象外条件" value={toLines(draft.salesSettings.disqualificationConditions)} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, disqualificationConditions: fromLines(value) } })} />
+    </div>
+  );
+}
+
+function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; segment: ProductCustomerSegment; onChange: (product: Product) => void }) {
   const [scene, setScene] = useState<ProductSalesScene>("teleapo");
-  const [segment, setSegment] = useState<ProductCustomerSegment>("new");
   const playbooks = draft.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
   const entry = playbooks[scene][segment];
   const updateEntry = (patch: Partial<ProductSalesPlaybookEntry>) => {
@@ -366,7 +486,7 @@ function SalesEditor({ draft, onChange }: { draft: Product; onChange: (product: 
 
   return (
     <div className="space-y-5">
-      <SalesPlaybookTabs scene={scene} segment={segment} onSceneChange={setScene} onSegmentChange={setSegment} />
+      <SalesSceneTabs scene={scene} onSceneChange={setScene} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Text label={segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針"} value={entry.proposalDirection} onChange={(proposalDirection) => updateEntry({ proposalDirection })} />
         <Text label={scene === "teleapo" ? "テレアポ時の進め方" : "打ち合わせ時の進め方"} value={entry.process} onChange={(process) => updateEntry({ process })} />
@@ -375,34 +495,18 @@ function SalesEditor({ draft, onChange }: { draft: Product; onChange: (product: 
         <Text label="必要資料" value={toLines(entry.materials)} onChange={(value) => updateEntry({ materials: fromLines(value) })} />
         <Text label="注意点" value={toLines(entry.cautions)} onChange={(value) => updateEntry({ cautions: fromLines(value) })} />
       </div>
-      <div className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4">
-        <p className="text-sm font-bold text-[#2B2B2B]">AI参照用の基本設定</p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Input label="想定商談時間（分）" value={String(draft.salesSettings.expectedMeetingMinutes ?? "")} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, expectedMeetingMinutes: numberOrNull(value) } })} />
-          <Input label="想定受注期間（日）" value={String(draft.salesSettings.expectedSalesCycleDays ?? "")} onChange={(value) => onChange({ ...draft, salesSettings: { ...draft.salesSettings, expectedSalesCycleDays: numberOrNull(value) } })} />
-        </div>
-      </div>
     </div>
   );
 }
 
-function SalesPlaybookTabs({ scene, segment, onSceneChange, onSegmentChange }: { scene: ProductSalesScene; segment: ProductCustomerSegment; onSceneChange: (scene: ProductSalesScene) => void; onSegmentChange: (segment: ProductCustomerSegment) => void }) {
+function SalesSceneTabs({ scene, onSceneChange }: { scene: ProductSalesScene; onSceneChange: (scene: ProductSalesScene) => void }) {
   return (
-    <div className="space-y-3">
-      <div className="inline-flex rounded-full border border-[#F0E7E9] bg-[#FFFBFC] p-1">
-        {(Object.keys(salesSceneLabels) as ProductSalesScene[]).map((value) => (
-          <button className={`h-9 rounded-full px-4 text-sm font-bold ${scene === value ? "bg-[#EC6F8B] text-white shadow-sm" : "text-[#6F676B]"}`} key={value} onClick={() => onSceneChange(value)} type="button">
-            {salesSceneLabels[value]}
-          </button>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {(Object.keys(customerSegmentLabels) as ProductCustomerSegment[]).map((value) => (
-          <button className={`h-9 rounded-full border px-4 text-sm font-bold ${segment === value ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-white text-[#6F676B]"}`} key={value} onClick={() => onSegmentChange(value)} type="button">
-            {customerSegmentLabels[value]}
-          </button>
-        ))}
-      </div>
+    <div className="inline-flex rounded-full border border-[#F0E7E9] bg-[#FFFBFC] p-1">
+      {(Object.keys(salesSceneLabels) as ProductSalesScene[]).map((value) => (
+        <button className={`h-9 rounded-full px-4 text-sm font-bold ${scene === value ? "bg-[#EC6F8B] text-white shadow-sm" : "text-[#6F676B]"}`} key={value} onClick={() => onSceneChange(value)} type="button">
+          {salesSceneLabels[value]}
+        </button>
+      ))}
     </div>
   );
 }
@@ -410,7 +514,7 @@ function SalesPlaybookTabs({ scene, segment, onSceneChange, onSegmentChange }: {
 function ResourceEditor({ draft, user, onChange }: { draft: Product; user: { id: string; name: string }; onChange: (product: Product) => void }) {
   const [progress, setProgress] = useState(0);
   const addUrl = () => onChange({ ...draft, resources: [...draft.resources, { id: crypto.randomUUID(), title: "新しい資料", type: "proposal", url: "", visibility: "internal", createdBy: user.id, createdAt: draft.updatedAt, updatedAt: draft.updatedAt }] });
-  return <div><div className="flex gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addUrl} type="button">URL資料を追加</button><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]"><FileUp className="h-4 w-4" />ファイル<input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} /></label>{progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}</div><div className="mt-3 grid gap-3">{draft.resources.map((resource) => <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3" key={resource.id}><input className="task-input" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} /><input className="task-input" value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} /><select className="task-input" value={resource.visibility} onChange={(event) => updateResource(draft, resource.id, { visibility: event.target.value as ProductResource["visibility"] }, onChange)}><option value="internal">社内限定</option><option value="sales">営業担当のみ</option><option value="client_shareable">クライアント共有可</option><option value="public">一般公開</option></select></div>)}</div></div>;
+  return <div><div className="flex gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addUrl} type="button">URL資料を追加</button><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]"><FileUp className="h-4 w-4" />ファイル<input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} /></label>{progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}</div><div className="mt-3 grid gap-3">{draft.resources.map((resource) => <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3" key={resource.id}><input className="task-input" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} /><input className="task-input" value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} /><SingleSelect options={[{ value: "internal", label: "社内限定" }, { value: "sales", label: "営業担当のみ" }, { value: "client_shareable", label: "クライアント共有可" }, { value: "public", label: "一般公開" }]} value={resource.visibility} onChange={(visibility) => updateResource(draft, resource.id, { visibility: visibility as ProductResource["visibility"] }, onChange)} /></div>)}</div></div>;
 }
 
 function ProductHistory({ productId }: { productId: string }) {
@@ -443,7 +547,7 @@ function Text({ label, value, onChange }: { label: string; value: string; onChan
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<select className="task-input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([nextValue, nextLabel]) => <option key={nextValue} value={nextValue}>{nextLabel}</option>)}</select></label>;
+  return <SingleSelect label={label} options={options.map(([nextValue, nextLabel]) => ({ value: nextValue, label: nextLabel }))} value={value} onChange={onChange} />;
 }
 
 function EditorList({ children, onAdd }: { children: React.ReactNode; onAdd: () => void }) {
@@ -462,8 +566,45 @@ function updateFeature(product: Product, id: string, patch: Partial<ProductFeatu
   onChange({ ...product, features: product.features.map((feature) => feature.id === id ? { ...feature, ...patch } : feature) });
 }
 
-function updateStep(product: Product, id: string, patch: Partial<ProductFlowStep>, onChange: (product: Product) => void) {
-  onChange({ ...product, implementation: { ...product.implementation, flowSteps: product.implementation.flowSteps.map((step) => step.id === id ? { ...step, ...patch } : step) } });
+function createFeature(category: string, sortOrder: number): ProductFeature {
+  return { id: crypto.randomUUID(), name: "新しい機能", description: "", category, planIds: [], type: "standard", isPublic: true, sortOrder };
+}
+
+function createUniqueFeatureHeading(features: ProductFeature[]): string {
+  const base = "新しい見出し";
+  const names = new Set(features.map((feature) => feature.category || ""));
+  if (!names.has(base)) return base;
+  let index = 2;
+  while (names.has(`${base} ${index}`)) index += 1;
+  return `${base} ${index}`;
+}
+
+function groupFeatures(features: ProductFeature[]): Array<{ category: string; features: ProductFeature[] }> {
+  const groups = new Map<string, ProductFeature[]>();
+  features
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .forEach((feature) => {
+      const category = feature.category || "";
+      groups.set(category, [...(groups.get(category) ?? []), feature]);
+    });
+  return Array.from(groups.entries()).map(([category, groupedFeatures]) => ({ category, features: groupedFeatures }));
+}
+
+function createObjectionItem(sortOrder: number): ProductObjectionItem {
+  return {
+    id: crypto.randomUUID(),
+    category: "",
+    objection: "",
+    responseExample: "",
+    howToTell: "",
+    avoidPhrases: [],
+    sortOrder
+  };
+}
+
+function updateObjectionItem(product: Product, id: string, patch: Partial<ProductObjectionItem>, onChange: (product: Product) => void) {
+  onChange({ ...product, objectionHandbook: (product.objectionHandbook ?? []).map((item) => item.id === id ? { ...item, ...patch } : item) });
 }
 
 function updateResource(product: Product, id: string, patch: Partial<ProductResource>, onChange: (product: Product) => void) {

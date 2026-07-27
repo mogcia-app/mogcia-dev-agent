@@ -10,7 +10,7 @@ function getAdminApp() {
 
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 
   if (projectId && clientEmail && privateKey) {
     return initializeApp({
@@ -28,6 +28,27 @@ function getAdminApp() {
     projectId,
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
   });
+}
+
+function normalizePrivateKey(value?: string): string | undefined {
+  if (!value) return undefined;
+
+  let key = value.trim();
+  if (key.endsWith(",")) key = key.slice(0, -1).trim();
+  if ((key.startsWith("\"") && key.endsWith("\"")) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  if (key.endsWith(",")) key = key.slice(0, -1).trim();
+
+  key = key.replace(/\\n/g, "\n").trim();
+  const begin = key.indexOf("-----BEGIN PRIVATE KEY-----");
+  const endMarker = "-----END PRIVATE KEY-----";
+  const end = key.indexOf(endMarker);
+  if (begin >= 0 && end >= 0) {
+    return key.slice(begin, end + endMarker.length);
+  }
+
+  return key;
 }
 
 export function getAdminDb() {

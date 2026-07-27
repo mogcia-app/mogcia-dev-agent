@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
+import { splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
 import { getAdminDb, getAdminStorageBucket } from "@/lib/firebase/admin";
 import type { ConversationLog, TeleapoSpeaker } from "@/types/teleapo";
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   const db = getAdminDb();
   const recordRef = db.collection("teleapoRecords").doc(body.recordId);
   const workDir = await mkdtemp(join(tmpdir(), "mogcia-teleapo-"));
-  const inputPath = join(workDir, "input.mp4");
+  const inputPath = join(workDir, `input${detectSourceExtension(body)}`);
   const audioPath = join(workDir, "audio.mp3");
   const transcriptionModel = body.transcriptionModel || process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe";
 
@@ -112,6 +113,11 @@ async function downloadSource(body: ProcessRequest): Promise<Buffer> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+function detectSourceExtension(body: ProcessRequest): ".mp4" | ".m4a" {
+  const source = body.audioFilePath || body.audioDownloadUrl || "";
+  return source.toLowerCase().split("?")[0]?.endsWith(".m4a") ? ".m4a" : ".mp4";
+}
+
 async function transcribeAudio(audio: Buffer, model: string): Promise<OpenAiTranscriptionResponse> {
   const form = new FormData();
   form.set("model", model);
@@ -135,30 +141,32 @@ async function transcribeAudio(audio: Buffer, model: string): Promise<OpenAiTran
 
 function segmentsToLogs(segments: NonNullable<OpenAiTranscriptionResponse["segments"]>): ConversationLog[] {
   return segments
-    .map((segment, index) => ({
-      id: `log-${segment.id ?? index + 1}`,
-      speaker: normalizeSpeaker(segment.speaker),
-      text: String(segment.text ?? "").trim(),
-      startSec: typeof segment.start === "number" ? segment.start : null,
-      endSec: typeof segment.end === "number" ? segment.end : null
-    }))
-    .filter((log) => log.text.length > 0);
+    .flatMap((segment, segmentIndex) =>
+      splitTextIntoConversationBlocks(String(segment.text ?? "")).map((block, blockIndex) => ({
+        id: `log-${segment.id ?? segmentIndex + 1}-${blockIndex + 1}`,
+        speaker: normalizeSpeaker(segment.speaker),
+        text: block,
+        startSec: typeof segment.start === "number" ? segment.start : null,
+        endSec: typeof segment.end === "number" ? segment.end : null
+      }))
+    );
 }
 
 function textToLogs(text: string): ConversationLog[] {
   const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
   if (lines.length === 0) return [];
 
-  return lines.map((line, index) => {
+  const logs = lines.flatMap((line) => {
     const match = line.match(/^(営業|顧客|同席者|不明|sales|customer|participant|unknown)\s*[:：]\s*(.+)$/i);
-    return {
-      id: `log-${index + 1}`,
+    return splitTextIntoConversationBlocks(match?.[2]?.trim() || line).map((block) => ({
       speaker: normalizeSpeaker(match?.[1]),
-      text: match?.[2]?.trim() || line,
+      text: block,
       startSec: null,
       endSec: null
-    };
+    }));
   });
+
+  return logs.map((log, index) => ({ id: `log-${index + 1}`, ...log }));
 }
 
 function normalizeSpeaker(value?: string): TeleapoSpeaker {

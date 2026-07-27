@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Bookmark, Check, ChevronDown, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Trash2, Users } from "lucide-react";
+import { Archive, Bookmark, Check, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Trash2 } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -8,13 +8,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { SkeletonList } from "@/components/ui/loading";
+import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
 import { subscribeProductsMaster } from "@/lib/products";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyMeeting } from "@/types/company";
+import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, ContactMethod } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { TaskDraft } from "@/types/task";
 
@@ -29,6 +30,8 @@ const activityDirectionLabels: Record<ActivityDirection, string> = {
   internal: "社内対応",
   unknown: "未設定"
 };
+
+const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
 
 export function CompaniesPageClient() {
   const router = useRouter();
@@ -96,7 +99,7 @@ export function CompaniesPageClient() {
     const needle = q.trim().toLowerCase();
     return store.companies
       .filter((company) => company.status !== "archived")
-      .filter((company) => !needle || [company.name, company.nameKana, company.primaryContactName, company.contacts?.map((contact) => [contact.name, contact.email, contact.phone].join(" ")).join(" "), company.industry, company.address, company.phone, company.email, company.tags.join(" "), company.internalOwnerName, company.companionNames?.join(" ")].join(" ").toLowerCase().includes(needle))
+      .filter((company) => !needle || [company.name, company.nameKana, company.primaryContactName, company.contacts?.map((contact) => [contact.name, contact.role, contact.email, contact.phone, formatContactMethods(contact.contactMethods)].join(" ")).join(" "), company.industry, company.address, company.phone, company.email, company.tags.join(" "), company.internalOwnerName, company.companionNames?.join(" ")].join(" ").toLowerCase().includes(needle))
       .sort((a, b) => {
         if (sort === "name") return a.name.localeCompare(b.name, "ja");
         if (sort === "owner") return (a.internalOwnerName ?? "").localeCompare(b.internalOwnerName ?? "", "ja");
@@ -132,9 +135,9 @@ export function CompaniesPageClient() {
           </label>
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-[#6F676B]">{filtered.length}件の会社</p>
-            <select className="h-10 rounded-full border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#6F676B]" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
-              {sortOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <div className="w-48">
+              <SingleSelect options={sortOptions.map(([value, label]) => ({ value, label }))} value={sort} onChange={(value) => setSort(value as SortKey)} />
+            </div>
           </div>
           <div className="mt-4 space-y-3">
             {store.loading ? <CompanySkeleton /> : null}
@@ -172,12 +175,14 @@ export function CompaniesPageClient() {
 }
 
 function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
-  return <button className={`grid w-full grid-cols-[56px_1fr_32px] gap-3 rounded-lg border p-3 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button"><span className="grid h-14 w-14 place-items-center rounded-md bg-[#FFE4EA] text-sm font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><span className="min-w-0"><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{company.industry || "業種未設定"}</span><span className="mt-2 block text-xs font-semibold text-[#777]">担当: {company.internalOwnerName || "未設定"} / 最終接触: {company.lastContactAt?.toDate().toLocaleDateString("ja-JP") ?? "未接触"}</span></span><span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span></button>;
+  const primaryContact = getPrimaryContactLabel(company);
+
+  return <button className={`grid w-full grid-cols-[56px_1fr_32px] gap-3 rounded-lg border p-3 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button"><span className="grid h-14 w-14 place-items-center rounded-md bg-[#FFE4EA] text-sm font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><span className="min-w-0"><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{company.industry || "業種未設定"}</span>{primaryContact ? <span className="mt-2 block truncate text-xs font-semibold text-[#777]">先方: {primaryContact}</span> : null}</span><span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span></button>;
 }
 
 function CompanyDetailHeader({ company, favorite, canDelete, onFavorite, onEdit, onLog, onDelete }: { company: Company; favorite: boolean; canDelete: boolean; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void }) {
   const [menu, setMenu] = useState(false);
-  return <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div className="flex items-center gap-4"><span className="grid h-20 w-20 place-items-center rounded-md bg-[#FFE4EA] text-xl font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div><p className="mt-2 text-sm font-semibold text-[#777]">{company.industry || "業種未設定"} / {company.address || "所在地未設定"} / 担当: {company.internalOwnerName || "未設定"}</p></div></div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-full border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
+  return <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div className="flex items-center gap-4"><span className="grid h-20 w-20 place-items-center rounded-md bg-[#FFE4EA] text-xl font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div>{company.industry ? <p className="mt-2 text-sm font-semibold text-[#777]">{company.industry}</p> : null}</div></div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-full border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
 function OverviewTab({ company, tasks }: { company: Company; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }> }) {
@@ -192,17 +197,19 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
   const filtered = filter === "all" ? activityLogs : activityLogs.filter((log) => log.type === filter);
   const groups = groupByMonth(filtered);
   const selectedLog = filtered.find((log) => log.id === selectedLogId) ?? filtered[0] ?? null;
+  const emptyTitle = activityLogs.length === 0 ? "まだ活動ログがありません" : "この条件の活動ログはありません";
+  const emptyDescription = activityLogs.length === 0 ? "電話、メール、訪問、メモなどの履歴を追加すると、ここに時系列で表示されます。" : "別の種類を選ぶと、登録済みの活動ログを確認できます。";
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {(["all", "meeting", "phone", "email", "visit", "memo", "other"] as Array<ActivityLogType | "all">).map((type) => (
+        {(["all", "meeting", "phone", "email", "chat", "visit", "memo", "other"] as Array<ActivityLogType | "all">).map((type) => (
           <button className={`h-9 rounded-full px-3 text-xs font-bold ${filter === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setFilter(type)} type="button">
             {type === "all" ? "すべて" : activityTypeLabels[type]}
           </button>
         ))}
       </div>
-      {filtered.length === 0 ? <p className="rounded-lg border border-dashed border-[#F0E7E9] p-8 text-center text-sm font-bold text-[#8A8A8A]">まだ活動ログがありません</p> : null}
+      {filtered.length === 0 ? <ActivityLogEmptyCard description={emptyDescription} title={emptyTitle} /> : (
       <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-5">
           {Object.entries(groups).map(([month, items]) => (
@@ -220,13 +227,14 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
         </div>
         <ActivityLogDetail log={selectedLog} />
       </div>
-      <button className="mt-5 h-11 w-full rounded-full border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button>
+      )}
+      {filtered.length > 0 ? <button className="mt-5 h-11 w-full rounded-full border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
   );
 }
 
 function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
-  if (!log) return <div className="rounded-lg border border-dashed border-[#F0E7E9] bg-white p-8 text-center text-sm font-bold text-[#8A8A8A]">活動ログを選択してください</div>;
+  if (!log) return <ActivityLogEmptyCard description="左側のログを選択すると、日時・関係者・内容をここで確認できます。" title="活動ログを選択してください" compact />;
   return (
     <article className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -251,6 +259,20 @@ function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function ActivityLogEmptyCard({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
+  return (
+    <section className={`rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] ${compact ? "p-6" : "mb-5 p-8"}`}>
+      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#EC6F8B] shadow-sm">
+          <Mail className="h-5 w-5" />
+        </span>
+        <h3 className="mt-4 text-base font-bold text-[#2B2B2B]">{title}</h3>
+        <p className="mt-2 text-sm font-semibold leading-6 text-[#8A8186]">{description}</p>
+      </div>
+    </section>
   );
 }
 
@@ -291,30 +313,51 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     companionNames: company?.companionNames ?? [],
     productIds: company?.productIds ?? [],
     productNames: company?.productNames ?? [],
-    contacts: company?.contacts?.length ? company.contacts : [{ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", email: company?.email ?? "", phone: company?.phone ?? "" }],
+    productAccountAccess: normalizeProductAccountAccess(company?.productAccountAccess),
+    contacts: company?.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", role: "", email: company?.email ?? "", phone: company?.phone ?? "" })],
     tags: company?.tags.join(", ") ?? "",
     notes: company?.notes ?? ""
   });
-  const [companionsOpen, setCompanionsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const selectedCompanions = members.filter((member) => form.companionUserIds.includes(member.uid));
   const selectedProducts = products.filter((product) => form.productIds.includes(product.id));
-  const toggleCompanion = (member: { uid: string; name: string }) => {
-    const selected = form.companionUserIds.includes(member.uid);
-    const companionUserIds = selected ? form.companionUserIds.filter((uid) => uid !== member.uid) : [...form.companionUserIds, member.uid];
-    const companionNames = members.filter((item) => companionUserIds.includes(item.uid)).map((item) => item.name);
-    setForm({ ...form, companionUserIds, companionNames });
-  };
-  const updateContact = (contactId: string, patch: Partial<{ name: string; email: string; phone: string }>) => {
+  const hasSnsProduct = selectedProducts.some(isSnsOperationProduct);
+  const hasCommoProduct = selectedProducts.some(isCommoProduct);
+  const updateContact = (contactId: string, patch: Partial<{ name: string; role: string; email: string; phone: string; contactMethods: ContactMethod[] }>) => {
     setForm({ ...form, contacts: form.contacts.map((contact) => (contact.id === contactId ? { ...contact, ...patch } : contact)) });
   };
-  const addContact = () => setForm({ ...form, contacts: [...form.contacts, { id: crypto.randomUUID(), name: "", email: "", phone: "" }] });
+  const toggleContactMethod = (contactId: string, method: ContactMethod) => {
+    setForm((current) => ({
+      ...current,
+      contacts: current.contacts.map((contact) => {
+        if (contact.id !== contactId) return contact;
+        const methods = contact.contactMethods ?? [];
+        return { ...contact, contactMethods: methods.includes(method) ? methods.filter((item) => item !== method) : [...methods, method] };
+      })
+    }));
+  };
+  const addContact = () => setForm({ ...form, contacts: [...form.contacts, { id: crypto.randomUUID(), name: "", role: "", email: "", phone: "", contactMethods: [] }] });
   const removeContact = (contactId: string) => setForm({ ...form, contacts: form.contacts.filter((contact) => contact.id !== contactId) });
-  const toggleProduct = (productId: string) => setForm((current) => ({ ...current, productIds: current.productIds.includes(productId) ? current.productIds.filter((id) => id !== productId) : [...current.productIds, productId] }));
+  const updateProductAccount = (section: "instagram" | "tiktok" | "officialLine", key: keyof CompanyProductAccountCredential, value: string) => {
+    setForm((current) => {
+      const currentAccess = normalizeProductAccountAccess(current.productAccountAccess);
+      if (section === "officialLine") {
+        return { ...current, productAccountAccess: { ...currentAccess, commo: { officialLine: { ...currentAccess.commo?.officialLine, [key]: value } } } };
+      }
+      return { ...current, productAccountAccess: { ...currentAccess, sns: { ...currentAccess.sns, [section]: { ...currentAccess.sns?.[section], [key]: value } } } };
+    });
+  };
   const save = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    const contacts = form.contacts.map((contact) => ({ ...contact, name: contact.name.trim(), email: contact.email?.trim() ?? "", phone: contact.phone?.trim() ?? "" })).filter((contact) => contact.name || contact.email || contact.phone);
+    const contacts = form.contacts.map((contact) => ({
+      ...contact,
+      name: contact.name.trim(),
+      role: contact.role?.trim() ?? "",
+      email: contact.email?.trim() ?? "",
+      phone: contact.phone?.trim() ?? "",
+      contactMethods: contact.contactMethods ?? []
+    })).filter((contact) => contact.name || contact.role || contact.email || contact.phone);
     const primaryContact = contacts[0] ?? null;
     await onSubmit({
       ...form,
@@ -327,7 +370,8 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
       internalOwnerId: form.internalOwnerId || currentUser.id,
       internalOwnerName: form.internalOwnerName || currentUser.name,
       companionNames: selectedCompanions.map((member) => member.name),
-      productNames: selectedProducts.map((product) => product.name)
+      productNames: selectedProducts.map((product) => product.name),
+      productAccountAccess: compactProductAccountAccess(form.productAccountAccess, { sns: hasSnsProduct, commo: hasCommoProduct })
     });
     setSaving(false);
   };
@@ -339,57 +383,75 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
         <Input label="業種" value={form.industry} onChange={(industry) => setForm({ ...form, industry })} />
         <Input label="所在地" value={form.address} onChange={(address) => setForm({ ...form, address })} />
         <Input label="Webサイト" value={form.website} onChange={(website) => setForm({ ...form, website })} />
-        <Field label="関連商材">
-          <div className="grid max-h-56 gap-2 overflow-auto rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-2">
-            {products.length ? products.map((product) => <CheckboxRow checked={form.productIds.includes(product.id)} key={product.id} label={product.name} subLabel={product.tagline} onChange={() => toggleProduct(product.id)} />) : <p className="px-3 py-3 text-sm font-bold text-[#8A8186]">商材が未登録です。</p>}
+        <MultiSelect
+          emptyLabel="商材が未登録です。"
+          label="関連商材"
+          options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))}
+          placeholder="商材を選択"
+          values={form.productIds}
+          onChange={(productIds) => setForm((current) => ({ ...current, productIds }))}
+        />
+        {(hasSnsProduct || hasCommoProduct) ? (
+          <div className="grid gap-3 sm:col-span-2">
+            {hasSnsProduct ? (
+              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+                <p className="text-sm font-bold text-[#655D62]">SNS運用アカウント</p>
+                <AccountAccessRow
+                  accountLabel="Instagram アカウント名"
+                  credential={form.productAccountAccess.sns?.instagram}
+                  onChange={(key, value) => updateProductAccount("instagram", key, value)}
+                />
+                <AccountAccessRow
+                  accountLabel="TikTok アカウント名"
+                  credential={form.productAccountAccess.sns?.tiktok}
+                  onChange={(key, value) => updateProductAccount("tiktok", key, value)}
+                />
+              </div>
+            ) : null}
+            {hasCommoProduct ? (
+              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+                <p className="text-sm font-bold text-[#655D62]">commo. 連携アカウント</p>
+                <AccountAccessRow
+                  accountLabel="公式LINE アカウント名"
+                  credential={form.productAccountAccess.commo?.officialLine}
+                  onChange={(key, value) => updateProductAccount("officialLine", key, value)}
+                />
+              </div>
+            ) : null}
           </div>
-        </Field>
+        ) : null}
         <Field label="社内担当者">
           <div className="flex h-11 items-center rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
         </Field>
-        <Field label="同行者">
-          <button className="min-h-11 w-auto min-w-56 max-w-full justify-self-start rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 py-2 text-left transition hover:bg-white" onClick={() => setCompanionsOpen((current) => !current)} type="button">
-            <span className="flex items-center justify-between gap-3">
-              <span className="flex min-w-0 flex-wrap items-center gap-2">
-                <Users className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
-                {selectedCompanions.length ? selectedCompanions.map((member) => <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#D94F6E] ring-1 ring-[#F7CAD2]" key={member.uid}>{member.name}</span>) : <span className="text-sm font-bold text-[#9A9296]">同行者を選択</span>}
-              </span>
-              <ChevronDown className={`h-4 w-4 shrink-0 text-[#EC6F8B] transition ${companionsOpen ? "rotate-180" : ""}`} />
-            </span>
-          </button>
-          {companionsOpen ? (
-            <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-sm">
-              {members.length === 0 ? <p className="px-3 py-4 text-sm font-bold text-[#8A8186]">Authユーザーを取得できませんでした。</p> : null}
-              {members.filter((member) => member.uid !== form.internalOwnerId).map((member) => {
-                const checked = form.companionUserIds.includes(member.uid);
-                return (
-                  <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-bold transition ${checked ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#5E565A] hover:bg-[#FFFBFC]"}`} key={member.uid}>
-                    <input checked={checked} className="sr-only" onChange={() => toggleCompanion(member)} type="checkbox" />
-                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${checked ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : "border-[#E3D7DA] bg-white text-transparent"}`}>
-                      <Check className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate">{member.name}</span>
-                      {member.email ? <span className="block truncate text-xs text-[#8A8186]">{member.email}</span> : null}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          ) : null}
-        </Field>
+        <MultiSelect
+          emptyLabel="Authユーザーを取得できませんでした。"
+          label="同行者"
+          options={members.filter((member) => member.uid !== form.internalOwnerId).map((member) => ({ value: member.uid, label: member.name, description: member.email }))}
+          placeholder="同行者を選択"
+          values={form.companionUserIds}
+          onChange={(companionUserIds) => setForm((current) => ({ ...current, companionUserIds, companionNames: members.filter((member) => companionUserIds.includes(member.uid)).map((member) => member.name) }))}
+        />
         <Field label="先方担当者">
           <div className="grid gap-3">
             {form.contacts.map((contact, index) => (
-              <div className="grid gap-2 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-3" key={contact.id}>
+              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3" key={contact.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold text-[#8A8186]">担当者 {index + 1}</p>
+                  <p className="text-sm font-bold text-[#655D62]">{contact.name ? formatContactName(contact) : `担当者 ${index + 1}`}</p>
                   {form.contacts.length > 1 ? <button className="text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : null}
                 </div>
-                <div className="grid gap-2 md:grid-cols-3">
+                <div className="grid gap-2 md:grid-cols-2">
                   <input className="task-input" placeholder="担当者名" value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
+                  <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
                   <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
                   <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-1 text-xs font-bold text-[#8A8186]">連絡方法</span>
+                  {contactMethodOptions.map(([method, label]) => (
+                    <ContactMethodToggle checked={(contact.contactMethods ?? []).includes(method)} key={method} label={label} onClick={() => toggleContactMethod(contact.id, method)} />
+                  ))}
                 </div>
               </div>
             ))}
@@ -403,13 +465,11 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
 }
 
 function LogFormModal({ company, currentUser, existingTasks, members, onClose, onSubmit }: { company: Company; currentUser: { id: string; name: string }; existingTasks: Array<{ title: string; status: string }>; members: Array<{ uid: string; name: string; email: string }>; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addLog"]>[1], generateTasks: boolean) => Promise<void> }) {
-  const contacts = company.contacts?.length ? company.contacts : [{ id: "primary", name: company.primaryContactName ?? "", email: company.email ?? "", phone: company.phone ?? "" }].filter((contact) => contact.name || contact.email || contact.phone);
+  const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })].filter((contact) => contact.name || contact.email || contact.phone);
   const [form, setForm] = useState({ type: "phone" as ActivityLogType, direction: "outbound" as ActivityDirection, occurredAt: toDatetimeLocalValue(new Date()), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], contactNote: "", content: "", nextActionTitle: "", nextActionDue: "", aiTaskRequested: false });
   const [saving, setSaving] = useState(false);
   const selectedActors = members.filter((member) => form.actorUserIds.includes(member.uid));
   const selectedContacts = contacts.filter((contact) => form.contactIds.includes(contact.id));
-  const toggleActor = (uid: string) => setForm((current) => ({ ...current, actorUserIds: current.actorUserIds.includes(uid) ? current.actorUserIds.filter((id) => id !== uid) : [...current.actorUserIds, uid] }));
-  const toggleContact = (contactId: string) => setForm((current) => ({ ...current, contactIds: current.contactIds.includes(contactId) ? current.contactIds.filter((id) => id !== contactId) : [...current.contactIds, contactId] }));
   const save = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
@@ -423,7 +483,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
       actorUserIds: form.actorUserIds,
       actorNames: selectedActors.map((member) => member.name),
       contactIds: form.contactIds,
-      contactNames: selectedContacts.map((contact) => contact.name || contact.email || contact.phone || "先方担当者"),
+      contactNames: selectedContacts.map(formatContactName),
       contactNote: form.contactNote,
       aiTaskRequested: form.aiTaskRequested,
       nextAction: form.nextActionTitle ? { title: form.nextActionTitle, dueAt: form.nextActionDue ? Timestamp.fromDate(new Date(form.nextActionDue)) : null, assigneeId: currentUser.id } : null
@@ -433,25 +493,38 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
   return (
     <Modal title={`${company.name} のログを追加`} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select label="ログ種類" value={form.type} options={(["phone", "email", "visit", "memo", "file", "other"] as ActivityLogType[]).map((type) => [type, activityTypeLabels[type]])} onChange={(type) => setForm({ ...form, type: type as ActivityLogType })} />
+        <Select label="ログ種類" value={form.type} options={(["phone", "email", "chat", "visit", "memo", "file", "other"] as ActivityLogType[]).map((type) => [type, activityTypeLabels[type]])} onChange={(type) => setForm({ ...form, type: type as ActivityLogType })} />
         <Select label="アクション方向" value={form.direction} options={Object.entries(activityDirectionLabels)} onChange={(direction) => setForm({ ...form, direction: direction as ActivityDirection })} />
         <Input label="日時" value={form.occurredAt} type="datetime-local" onChange={(occurredAt) => setForm({ ...form, occurredAt })} />
         <Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} />
-        <Field label="社内側">
-          <div className="grid gap-2 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-2">
-            {members.map((member) => {
-              const checked = form.actorUserIds.includes(member.uid);
-              return <CheckboxRow checked={checked} key={member.uid} label={member.name} subLabel={member.email} onChange={() => toggleActor(member.uid)} />;
-            })}
-          </div>
-        </Field>
+        <MultiSelect
+          label="社内側"
+          options={members.map((member) => ({ value: member.uid, label: member.name, description: member.email }))}
+          placeholder="社内側の担当者を選択"
+          values={form.actorUserIds}
+          onChange={(actorUserIds) => setForm({ ...form, actorUserIds })}
+        />
         <Field label="先方側">
-          <div className="grid gap-2 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-2">
-            {contacts.length ? contacts.map((contact) => {
-              const checked = form.contactIds.includes(contact.id);
-              return <CheckboxRow checked={checked} key={contact.id} label={contact.name || "名前未設定"} subLabel={[contact.email, contact.phone].filter(Boolean).join(" / ")} onChange={() => toggleContact(contact.id)} />;
-            }) : <p className="px-3 py-3 text-sm font-bold text-[#8A8186]">先方担当者が未登録です。</p>}
-          </div>
+          <MultiSelect
+            emptyLabel="先方担当者が未登録です。"
+            options={contacts.map((contact) => ({ value: contact.id, label: formatContactName(contact), description: formatContactSummary(contact) }))}
+            placeholder="先方担当者を選択"
+            values={form.contactIds}
+            onChange={(contactIds) => setForm({ ...form, contactIds })}
+          />
+          {selectedContacts.length ? (
+            <div className="mt-2 rounded-md border border-[#F0E7E9] bg-white p-3">
+              <p className="text-xs font-bold text-[#8A8186]">選択中の連絡方法</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(["phone", "email", "chat", "memo"] as ActivityLogType[]).map((type) => (
+                  <button className={`h-8 rounded-full px-3 text-xs font-bold ${form.type === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setForm({ ...form, type })} type="button">
+                    {activityTypeLabels[type]}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs font-semibold leading-5 text-[#8A8186]">{selectedContacts.map((contact) => `${formatContactName(contact)}: ${formatContactMethods(contact.contactMethods) || "連絡方法未設定"}`).join(" / ")}</p>
+            </div>
+          ) : null}
         </Field>
         <Input label="相手メモ" value={form.contactNote} onChange={(contactNote) => setForm({ ...form, contactNote })} />
         <Input label="次のアクション" value={form.nextActionTitle} onChange={(nextActionTitle) => setForm({ ...form, nextActionTitle })} />
@@ -468,13 +541,11 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
 }
 
 function MeetingFormModal({ company, products, onClose, onSubmit }: { company: Company; products: Product[]; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addMeeting"]>[1], generateTasks: boolean) => Promise<void> }) {
-  const contacts = company.contacts?.length ? company.contacts : [{ id: "primary", name: company.primaryContactName ?? "", email: company.email ?? "", phone: company.phone ?? "" }].filter((contact) => contact.name || contact.email || contact.phone);
+  const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })].filter((contact) => contact.name || contact.email || contact.phone);
   const [form, setForm] = useState({ startAt: toDatetimeLocalValue(new Date()), title: "", meetingType: "in_person" as CompanyMeeting["meetingType"], productIds: [] as string[], contactIds: contacts[0]?.id ? [contacts[0].id] : [] as string[], summary: "", nextActions: "", aiTaskRequested: false });
   const [saving, setSaving] = useState(false);
   const selectedProducts = products.filter((product) => form.productIds.includes(product.id));
   const selectedContacts = contacts.filter((contact) => form.contactIds.includes(contact.id));
-  const toggleProduct = (productId: string) => setForm((current) => ({ ...current, productIds: current.productIds.includes(productId) ? current.productIds.filter((id) => id !== productId) : [...current.productIds, productId] }));
-  const toggleContact = (contactId: string) => setForm((current) => ({ ...current, contactIds: current.contactIds.includes(contactId) ? current.contactIds.filter((id) => id !== contactId) : [...current.contactIds, contactId] }));
   const save = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
@@ -485,8 +556,8 @@ function MeetingFormModal({ company, products, onClose, onSubmit }: { company: C
       productIds: form.productIds,
       productNames: selectedProducts.map((product) => product.name),
       contactIds: form.contactIds,
-      contactNames: selectedContacts.map((contact) => contact.name || contact.email || contact.phone || "先方担当者"),
-      participants: selectedContacts.map((contact) => contact.name || contact.email || contact.phone || "先方担当者"),
+      contactNames: selectedContacts.map(formatContactName),
+      participants: selectedContacts.map(formatContactName),
       summary: form.summary,
       customerQuotes: [],
       problems: [],
@@ -506,16 +577,8 @@ function MeetingFormModal({ company, products, onClose, onSubmit }: { company: C
         <Input label="打ち合わせ日時" type="datetime-local" value={form.startAt} onChange={(startAt) => setForm({ ...form, startAt })} />
         <Select label="打ち合わせ方法" value={form.meetingType} options={[["in_person", "対面"], ["online", "オンライン"], ["phone", "電話"], ["visit", "訪問"], ["other", "その他"]]} onChange={(meetingType) => setForm({ ...form, meetingType: meetingType as CompanyMeeting["meetingType"] })} />
         <Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} />
-        <Field label="関連商材">
-          <div className="grid max-h-56 gap-2 overflow-auto rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-2">
-            {products.length ? products.map((product) => <CheckboxRow checked={form.productIds.includes(product.id)} key={product.id} label={product.name} subLabel={product.tagline} onChange={() => toggleProduct(product.id)} />) : <p className="px-3 py-3 text-sm font-bold text-[#8A8186]">商材が未登録です。</p>}
-          </div>
-        </Field>
-        <Field label="先方参加者">
-          <div className="grid max-h-56 gap-2 overflow-auto rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-2">
-            {contacts.length ? contacts.map((contact) => <CheckboxRow checked={form.contactIds.includes(contact.id)} key={contact.id} label={contact.name || "名前未設定"} subLabel={[contact.email, contact.phone].filter(Boolean).join(" / ")} onChange={() => toggleContact(contact.id)} />) : <p className="px-3 py-3 text-sm font-bold text-[#8A8186]">先方担当者が未登録です。</p>}
-          </div>
-        </Field>
+        <MultiSelect emptyLabel="商材が未登録です。" label="関連商材" options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))} placeholder="商材を選択" values={form.productIds} onChange={(productIds) => setForm({ ...form, productIds })} />
+        <MultiSelect emptyLabel="先方担当者が未登録です。" label="先方参加者" options={contacts.map((contact) => ({ value: contact.id, label: formatContactName(contact), description: formatContactSummary(contact) }))} placeholder="先方参加者を選択" values={form.contactIds} onChange={(contactIds) => setForm({ ...form, contactIds })} />
         <div className="sm:col-span-2">
           <Text label="内容" value={form.summary} minHeight="min-h-64" onChange={(summary) => setForm({ ...form, summary })} />
         </div>
@@ -549,11 +612,81 @@ function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
 }
 
 function formatContacts(company: Company): string {
-  const contacts = company.contacts?.length ? company.contacts : [{ id: "primary", name: company.primaryContactName ?? "", email: company.email ?? "", phone: company.phone ?? "" }];
+  const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })];
   const rows = contacts
-    .map((contact) => [contact.name || "名前未設定", contact.email, contact.phone].filter(Boolean).join(" / "))
+    .map((contact) => [formatContactName(contact), formatContactSummary(contact)].filter(Boolean).join(" / "))
     .filter(Boolean);
   return rows.length ? rows.join("\n") : "未設定";
+}
+
+function getPrimaryContactLabel(company: Company): string {
+  const contact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
+  if (contact) return formatContactName(contact);
+  return company.primaryContactName ?? "";
+}
+
+function normalizeProductAccountAccess(access?: CompanyProductAccountAccess): CompanyProductAccountAccess {
+  return {
+    sns: {
+      instagram: access?.sns?.instagram ?? {},
+      tiktok: access?.sns?.tiktok ?? {}
+    },
+    commo: {
+      officialLine: access?.commo?.officialLine ?? {}
+    }
+  };
+}
+
+function compactProductAccountAccess(access: CompanyProductAccountAccess, enabled: { sns: boolean; commo: boolean }): CompanyProductAccountAccess {
+  const normalized = normalizeProductAccountAccess(access);
+  return {
+    ...(enabled.sns ? { sns: { instagram: cleanCredential(normalized.sns?.instagram), tiktok: cleanCredential(normalized.sns?.tiktok) } } : {}),
+    ...(enabled.commo ? { commo: { officialLine: cleanCredential(normalized.commo?.officialLine) } } : {})
+  };
+}
+
+function cleanCredential(credential?: CompanyProductAccountCredential): CompanyProductAccountCredential {
+  const next = {
+    accountName: credential?.accountName?.trim() ?? "",
+    email: credential?.email?.trim() ?? "",
+    password: credential?.password?.trim() ?? ""
+  };
+  return next.accountName || next.email || next.password ? next : {};
+}
+
+function isSnsOperationProduct(product: Product): boolean {
+  return product.name.includes("SNS運用代行");
+}
+
+function isCommoProduct(product: Product): boolean {
+  return product.name.toLowerCase().includes("commo");
+}
+
+function formatContactName(contact: { name?: string; role?: string; email?: string; phone?: string }): string {
+  const name = contact.name || contact.email || contact.phone || "名前未設定";
+  return contact.role ? `${name}（${contact.role}）` : name;
+}
+
+function normalizeContactPerson(contact: CompanyContactPerson): CompanyContactPerson {
+  return {
+    ...contact,
+    contactMethods: contact.contactMethods?.length ? contact.contactMethods : inferContactMethods(contact)
+  };
+}
+
+function inferContactMethods(contact: { email?: string; phone?: string }): ContactMethod[] {
+  return [
+    ...(contact.phone ? ["phone" as const] : []),
+    ...(contact.email ? ["email" as const] : [])
+  ];
+}
+
+function formatContactSummary(contact: CompanyContactPerson): string {
+  return [contact.email, contact.phone, formatContactMethods(contact.contactMethods)].filter(Boolean).join(" / ");
+}
+
+function formatContactMethods(methods?: ContactMethod[]): string {
+  return methods?.length ? methods.map((method) => contactMethodOptions.find(([value]) => value === method)?.[1] ?? method).join("・") : "";
 }
 
 function formatActivityParties(log: CompanyActivityLog): string {
@@ -569,6 +702,25 @@ function Input({ label, value, onChange, required = false, type = "text" }: { la
   return <label className="grid gap-2 text-sm font-bold text-[#655D62]"><span className="inline-flex items-center gap-2">{label}{required ? <span className="h-1.5 w-1.5 rounded-full bg-[#EC6F8B]" /> : null}</span><input className="task-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
+function AccountAccessRow({ accountLabel, credential, onChange }: { accountLabel: string; credential?: CompanyProductAccountCredential; onChange: (key: keyof CompanyProductAccountCredential, value: string) => void }) {
+  return (
+    <div className="grid gap-2 md:grid-cols-3">
+      <input className="task-input" placeholder={accountLabel} value={credential?.accountName ?? ""} onChange={(event) => onChange("accountName", event.target.value)} />
+      <input className="task-input" placeholder="メールアドレス" value={credential?.email ?? ""} onChange={(event) => onChange("email", event.target.value)} />
+      <input className="task-input" placeholder="パスワード" type="password" value={credential?.password ?? ""} onChange={(event) => onChange("password", event.target.value)} />
+    </div>
+  );
+}
+
+function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
+  return (
+    <button className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
+      {checked ? <Check className="h-3.5 w-3.5" /> : null}
+      {label}
+    </button>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="grid gap-2 text-sm font-bold text-[#655D62]"><span>{label}</span>{children}</div>;
 }
@@ -578,22 +730,7 @@ function Text({ label, value, onChange, minHeight = "min-h-24" }: { label: strin
 }
 
 function Select({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<select className="task-input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([nextValue, nextLabel]) => <option key={nextValue} value={nextValue}>{nextLabel}</option>)}</select></label>;
-}
-
-function CheckboxRow({ checked, label, subLabel, onChange }: { checked: boolean; label: string; subLabel?: string; onChange: () => void }) {
-  return (
-    <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-bold transition ${checked ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#5E565A] hover:bg-white"}`}>
-      <input checked={checked} className="sr-only" onChange={onChange} type="checkbox" />
-      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${checked ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : "border-[#E3D7DA] bg-white text-transparent"}`}>
-        <Check className="h-3.5 w-3.5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate">{label}</span>
-        {subLabel ? <span className="block truncate text-xs text-[#8A8186]">{subLabel}</span> : null}
-      </span>
-    </label>
-  );
+  return <SingleSelect label={label} options={options.map(([nextValue, nextLabel]) => ({ value: nextValue, label: nextLabel }))} value={value} onChange={onChange} />;
 }
 
 function CompanySkeleton() {

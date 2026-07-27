@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import { requireUserFromRequest } from "@/lib/server/auth";
-import { getUserDisplayNameById } from "@/lib/user-display";
+import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 
 export async function GET(request: Request) {
   try {
@@ -18,6 +18,9 @@ export async function GET(request: Request) {
         .sort((a, b) => a.name.localeCompare(b.name, "ja"))
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "メンバーを取得できませんでした" }, { status: 401 });
+    return NextResponse.json({
+      members: DEFAULT_WORKSPACE_MEMBERS,
+      warning: error instanceof Error ? error.message : "メンバーを取得できませんでした"
+    });
   }
 }

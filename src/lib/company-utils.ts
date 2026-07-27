@@ -20,6 +20,7 @@ export const customerRankLabels: Record<CustomerRank, string> = {
 export const activityTypeLabels: Record<ActivityLogType, string> = {
   phone: "電話",
   email: "メール",
+  chat: "チャット",
   visit: "訪問",
   meeting: "打ち合わせ",
   deal: "商談",
@@ -35,7 +36,7 @@ export const activityTypeLabels: Record<ActivityLogType, string> = {
 export function activityTone(type: ActivityLogType): string {
   if (type === "meeting" || type === "deal") return "bg-[#F7F1FF] text-[#8C61CF]";
   if (type === "phone" || type === "visit") return "bg-[#F3FAF0] text-[#5E9B61]";
-  if (type === "email") return "bg-[#EEF5FF] text-[#4F78B4]";
+  if (type === "email" || type === "chat") return "bg-[#EEF5FF] text-[#4F78B4]";
   if (type === "memo") return "bg-[#FFF6EA] text-[#D7791F]";
   if (type === "task_created" || type === "task_completed" || type === "ai_task") return "bg-[#FFF0F3] text-[#EC6F8B]";
   return "bg-[#F5F5F5] text-[#6E6E6E]";
@@ -65,6 +66,7 @@ export function createEmptyCompany(user: { id: string; name: string }): Omit<Com
     companionNames: [],
     productIds: [],
     productNames: [],
+    productAccountAccess: {},
     contacts: [],
     primaryContactId: null,
     primaryContactName: "",

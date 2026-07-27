@@ -14,6 +14,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
     if (!snapshot.exists) return NextResponse.json({ error: "not_found" }, { status: 404 });
     const data = snapshot.data();
     if (data?.userId !== user.uid && user.uid !== "TjDadmBAdVYaPEvG3ppfBLS4HGN2") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    if (!data?.audioFilePath && !data?.audioDownloadUrl) {
+      return NextResponse.json({ error: "音声ファイルがまだアップロードされていません。もう一度ファイルを選択して保存してください。" }, { status: 400 });
+    }
 
     await ref.update({
       transcriptionStatus: "extracting",

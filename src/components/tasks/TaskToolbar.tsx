@@ -2,6 +2,7 @@
 
 import { Bot, CheckCircle2, ListFilter, Pencil, SlidersHorizontal, User, UserPlus, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
+import { SingleSelect } from "@/components/ui/select";
 import type { MemberOption, TaskDueFilter, TaskPriority, TaskSort, TaskSource, TaskStatusFilter, TaskView } from "@/types/task";
 
 const viewItems: Array<{ value: TaskView; label: string; icon: typeof User }> = [
@@ -101,9 +102,9 @@ function SelectField({ label, value, options, onChange, icon }: { label: string;
     <label className="inline-flex min-h-9 items-center gap-2 rounded-full px-1 text-xs font-bold text-[#746B70]">
       {icon}
       {label}
-      <select className="rounded-full border border-[#F0DEE2] bg-[#FFFBFC] px-2 py-2 text-sm text-[#302D30] outline-none focus:border-[#EC6F8B]" value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map(([nextValue, nextLabel]) => <option key={nextValue} value={nextValue}>{nextLabel}</option>)}
-      </select>
+      <div className="min-w-28">
+        <SingleSelect options={options.map(([nextValue, nextLabel]) => ({ value: nextValue, label: nextLabel }))} value={value} onChange={onChange} />
+      </div>
     </label>
   );
 }

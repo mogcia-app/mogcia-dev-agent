@@ -21,7 +21,10 @@ export async function callCloudRunWorker<TResponse>({
   const headers = new Headers(init?.headers);
   if (process.env.WORKER_SHARED_SECRET) headers.set("x-worker-secret", process.env.WORKER_SHARED_SECRET);
   const response = await fetch(`${baseUrl}${normalizedPath}`, { ...init, headers });
-  if (!response.ok) throw new Error(`Cloud Run worker request failed: ${response.status}`);
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Cloud Run worker request failed: ${response.status}${detail ? ` ${detail.slice(0, 500)}` : ""}`);
+  }
 
   return response.json() as Promise<TResponse>;
 }

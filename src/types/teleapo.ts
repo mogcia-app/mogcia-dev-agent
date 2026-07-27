@@ -8,6 +8,9 @@ export type NextContactType = "none" | "followup_call" | "email" | "meeting_sche
 export type TranscriptionStatus = "draft" | "uploaded" | "extracting" | "transcribing" | "diarizing" | "completed" | "failed";
 export type AiAdviceStatus = "idle" | "running" | "completed" | "failed";
 export type ProspectTemperature = "high" | "middle" | "low";
+export type ProspectRank = "A" | "B+" | "B" | "B-" | "C";
+export type NextActionUrgency = "today" | "next_business_day" | "within_3_days" | "next_week" | "long_term" | "none";
+export type FollowUpMethod = "phone" | "email" | "chat" | "meeting" | "none";
 
 export interface ConversationLog {
   id: string;
@@ -20,8 +23,11 @@ export interface ConversationLog {
 export interface TeleapoAdvice {
   summary: string;
   temperature: ProspectTemperature;
+  prospectRank: ProspectRank;
   prospectScore: number;
+  rankReason: string;
   scoreReason: string;
+  nextActionUrgency: NextActionUrgency;
   customerIssues: string[];
   concerns: string[];
   meetingWarnings: string[];
@@ -40,9 +46,19 @@ export interface TeleapoAdvice {
   };
   materials: string[];
   nextActions: string[];
+  positives?: string[];
+  negatives?: string[];
+  positiveCustomerSignals?: string[];
+  hesitationSignals?: string[];
+  closingRequirements?: string[];
+  missingInformation?: string[];
+  requiredMaterials?: string[];
   gapFromTeleapo?: string[];
   closeReasons?: string[];
   lostRisks?: string[];
+  shouldFollowUp?: boolean;
+  followUpReason?: string;
+  followUpMethod?: FollowUpMethod;
   shouldFollowupCall?: boolean;
   shouldFollowupEmail?: boolean;
   followupTiming?: string;
@@ -82,6 +98,15 @@ export interface TeleapoRecord {
   location?: string;
   meetingTitle?: string;
   meetingMemo?: string;
+  diagnosisSheet?: {
+    temperature?: "S" | "A" | "B" | "C" | "";
+    biggestIssue?: string;
+    resonatedPoint?: string;
+    concerns?: string;
+    nextProposal?: string;
+    closeProbability?: string;
+    nextAction?: string;
+  };
   audioFilePath?: string | null;
   audioDownloadUrl?: string | null;
   audioDurationSec?: number | null;

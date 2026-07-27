@@ -15,6 +15,7 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable, type UploadTaskSnapshot } from "firebase/storage";
+import { splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import type { ConversationLog, ProductKnowledge, TeleapoRecord } from "@/types/teleapo";
 
@@ -52,6 +53,17 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
     location: typeof data.location === "string" ? data.location : "",
     meetingTitle: typeof data.meetingTitle === "string" ? data.meetingTitle : "",
     meetingMemo: typeof data.meetingMemo === "string" ? data.meetingMemo : "",
+    diagnosisSheet: data.diagnosisSheet && typeof data.diagnosisSheet === "object"
+      ? {
+          temperature: typeof data.diagnosisSheet.temperature === "string" ? data.diagnosisSheet.temperature : "",
+          biggestIssue: typeof data.diagnosisSheet.biggestIssue === "string" ? data.diagnosisSheet.biggestIssue : "",
+          resonatedPoint: typeof data.diagnosisSheet.resonatedPoint === "string" ? data.diagnosisSheet.resonatedPoint : "",
+          concerns: typeof data.diagnosisSheet.concerns === "string" ? data.diagnosisSheet.concerns : "",
+          nextProposal: typeof data.diagnosisSheet.nextProposal === "string" ? data.diagnosisSheet.nextProposal : "",
+          closeProbability: typeof data.diagnosisSheet.closeProbability === "string" ? data.diagnosisSheet.closeProbability : "",
+          nextAction: typeof data.diagnosisSheet.nextAction === "string" ? data.diagnosisSheet.nextAction : ""
+        }
+      : undefined,
     audioFilePath: data.audioFilePath ?? null,
     audioDownloadUrl: data.audioDownloadUrl ?? null,
     audioDurationSec: typeof data.audioDurationSec === "number" ? data.audioDurationSec : null,
@@ -129,7 +141,8 @@ export async function uploadTeleapoFile({ userId, recordId, file, onProgress }: 
   if (!storage) throw new Error("Firebase Storageが未設定です。");
   const path = `teleapoRecords/${userId}/${recordId}/${Date.now()}-${file.name}`;
   const storageRef = ref(storage, path);
-  const task = uploadBytesResumable(storageRef, file, { contentType: file.type || "video/mp4" });
+  const contentType = file.type || (file.name.toLowerCase().endsWith(".m4a") ? "audio/mp4" : "video/mp4");
+  const task = uploadBytesResumable(storageRef, file, { contentType });
   await new Promise<UploadTaskSnapshot>((resolve, reject) => {
     task.on(
       "state_changed",
@@ -142,15 +155,18 @@ export async function uploadTeleapoFile({ userId, recordId, file, onProgress }: 
 }
 
 export function parseTranscriptToLogs(text: string): ConversationLog[] {
-  return text
+  const logs = text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line, index) => {
+    .flatMap((line) => {
       const match = line.match(/^(営業|顧客|同席者|不明|sales|customer|participant|unknown)\s*[:：]\s*(.+)$/i);
       const speaker = normalizeSpeaker(match?.[1]);
-      return { id: `log-${index + 1}`, speaker, text: match?.[2] ?? line, startSec: null, endSec: null };
+      const body = match?.[2] ?? line;
+      return splitTextIntoConversationBlocks(body).map((block) => ({ speaker, text: block, startSec: null, endSec: null }));
     });
+
+  return logs.map((log, index) => ({ id: `log-${index + 1}`, ...log }));
 }
 
 function normalizeSpeaker(value?: string): ConversationLog["speaker"] {

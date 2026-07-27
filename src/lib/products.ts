@@ -96,6 +96,7 @@ function normalizeProduct(id: string, data: DocumentData): Product {
       operationFlow: data.implementation?.operationFlow ?? [],
       notes: data.implementation?.notes ?? []
     },
+    objectionHandbook: Array.isArray(data.objectionHandbook) ? data.objectionHandbook : [],
     salesSettings: {
       targetMonthlyDeals: data.salesSettings?.targetMonthlyDeals ?? null,
       defaultPlanId: data.salesSettings?.defaultPlanId ?? null,

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Check, CheckCircle2, ChevronDown, FileVideo, Mic2, Pencil, Sparkles, UploadCloud, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileVideo, Mic2, Pencil, Scissors, Sparkles, UploadCloud } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -8,7 +8,9 @@ import { Timestamp } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { AIProcessingCard, LoadingSpinner } from "@/components/ui/loading";
+import { MultiSelect, SearchSelect, SingleSelect } from "@/components/ui/select";
 import { StatusBanner } from "@/components/ui/status";
+import { splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { subscribeCompaniesMaster } from "@/lib/companies";
 import {
@@ -22,7 +24,7 @@ import {
 } from "@/lib/teleapo";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName } from "@/lib/user-display";
 import type { Company } from "@/types/company";
-import type { CallPurpose, CallResult, ConversationLog, NextContactType, ProductKnowledge, SalesDomain, TeleapoRecord, TeleapoSpeaker } from "@/types/teleapo";
+import type { CallPurpose, ConversationLog, ProductKnowledge, SalesDomain, TeleapoRecord, TeleapoSpeaker } from "@/types/teleapo";
 
 type InputMode = "teleapo_audio" | "meeting_transcript";
 
@@ -31,22 +33,6 @@ const callPurposeOptions: Array<[CallPurpose, string]> = [
   ["document_followup", "資料送付後フォロー"],
   ["inquiry", "問い合わせ対応"],
   ["referral_call", "紹介先架電"]
-];
-
-const callResultOptions: Array<[CallResult, string]> = [
-  ["appointment", "アポ獲得"],
-  ["considering", "検討"],
-  ["document_sent", "資料送付"],
-  ["no_answer", "不在"],
-  ["rejected", "拒否"],
-  ["reception_blocked", "受付止まり"]
-];
-
-const nextContactOptions: Array<[NextContactType, string]> = [
-  ["none", "なし"],
-  ["followup_call", "追っかけ電話"],
-  ["email", "メール"],
-  ["meeting_scheduled", "商談予定"]
 ];
 
 const speakerLabels: Record<TeleapoSpeaker, string> = {
@@ -66,7 +52,6 @@ export function SalesUploadWorkspace() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [record, setRecord] = useState<TeleapoRecord | null>(null);
   const [mode, setMode] = useState<InputMode>("teleapo_audio");
-  const [membersOpen, setMembersOpen] = useState(false);
   const [members, setMembers] = useState<Array<{ uid: string; name: string; email: string }>>(DEFAULT_WORKSPACE_MEMBERS);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [durationSec, setDurationSec] = useState<number | null>(null);
@@ -84,8 +69,7 @@ export function SalesUploadWorkspace() {
     productId: "",
     productName: "",
     callPurpose: "first_appointment" as CallPurpose,
-    callResult: "appointment" as CallResult,
-    nextContactType: "none" as NextContactType,
+    nextContactType: "meeting_scheduled" as const,
     industry: "",
     role: "",
     phone: "",
@@ -98,7 +82,14 @@ export function SalesUploadWorkspace() {
     transcriptText: "",
     location: "",
     meetingTitle: "",
-    meetingMemo: ""
+    meetingMemo: "",
+    diagnosisTemperature: "" as "" | "S" | "A" | "B" | "C",
+    diagnosisBiggestIssue: "",
+    diagnosisResonatedPoint: "",
+    diagnosisConcerns: "",
+    diagnosisNextProposal: "",
+    diagnosisCloseProbability: "",
+    diagnosisNextAction: ""
   });
 
   useEffect(() => {
@@ -167,27 +158,24 @@ export function SalesUploadWorkspace() {
     }));
   };
 
-  const toggleAttendee = (member: { uid: string; name: string }) => {
-    setForm((current) => {
-      const selected = current.attendeeUserIds.includes(member.uid);
-      const attendeeUserIds = selected ? current.attendeeUserIds.filter((uid) => uid !== member.uid) : [...current.attendeeUserIds, member.uid];
-      const attendeeNames = members.filter((item) => attendeeUserIds.includes(item.uid)).map((item) => item.name).join(", ");
-      return { ...current, attendeeUserIds, attendeeNames };
-    });
-  };
-
   const onFileChange = async (file: File | null) => {
     setError(null);
     setSelectedFile(file);
     setDurationSec(null);
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".mp4")) {
-      setError(".mp4 ファイルを選択してください。");
+    if (!isSupportedTeleapoFile(file)) {
+      setError(".mp4 または .m4a ファイルを選択してください。");
+      setSelectedFile(null);
       return;
     }
-    const duration = await readMediaDuration(file);
-    setDurationSec(duration);
-    if (duration > maxTeleapoDurationSec) setError("15分以内のmp4だけアップロードできます。");
+    try {
+      const duration = await readMediaDuration(file);
+      setDurationSec(duration);
+      if (duration > maxTeleapoDurationSec) setError("15分以内のmp4またはm4aだけアップロードできます。");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "ファイルの再生時間を取得できませんでした。");
+      setSelectedFile(null);
+    }
   };
 
   const submit = async () => {
@@ -210,7 +198,7 @@ export function SalesUploadWorkspace() {
         productName: form.productName.trim(),
         customerType: "new",
         callPurpose: form.callPurpose,
-        callResult: form.callResult,
+        callResult: "appointment",
         nextContactType: form.nextContactType,
         recordedAt: Timestamp.fromDate(new Date(form.recordedAt)),
         attendeeUserIds: form.attendeeUserIds,
@@ -225,6 +213,17 @@ export function SalesUploadWorkspace() {
         location: form.location.trim(),
         meetingTitle: form.meetingTitle.trim(),
         meetingMemo: form.meetingMemo.trim(),
+        diagnosisSheet: isMeeting
+          ? {
+              temperature: form.diagnosisTemperature,
+              biggestIssue: form.diagnosisBiggestIssue.trim(),
+              resonatedPoint: form.diagnosisResonatedPoint.trim(),
+              concerns: form.diagnosisConcerns.trim(),
+              nextProposal: form.diagnosisNextProposal.trim(),
+              closeProbability: form.diagnosisCloseProbability.trim(),
+              nextAction: form.diagnosisNextAction.trim()
+            }
+          : null,
         transcriptionStatus: isMeeting ? "completed" : "uploaded",
         transcriptionModel: process.env.NEXT_PUBLIC_OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
         transcriptText,
@@ -255,7 +254,7 @@ export function SalesUploadWorkspace() {
     try {
       const token = await user.getIdToken();
       const response = await fetch(`/api/teleapo/${record.id}/process`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error("話者分離の開始に失敗しました。");
+      if (!response.ok) throw new Error(await readApiError(response, "話者分離の開始に失敗しました。"));
       setMessage("Cloud Runへ処理を依頼しました。");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "処理開始に失敗しました。");
@@ -276,7 +275,7 @@ export function SalesUploadWorkspace() {
     try {
       const token = await user.getIdToken();
       const response = await fetch(`/api/teleapo/${record.id}/advice`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error("AIアドバイス生成に失敗しました。");
+      if (!response.ok) throw new Error(await readApiError(response, "AIアドバイス生成に失敗しました。"));
       setMessage("AIアドバイスを生成しました。");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "AIアドバイス生成に失敗しました。");
@@ -309,8 +308,8 @@ export function SalesUploadWorkspace() {
         description="音声アップロード、話者分離、AIアドバイスまでここで進めます。"
         actions={
         <div className="flex rounded-full border border-[#F0DEE2] bg-white p-1">
-          <button className={`h-10 rounded-full px-4 text-sm font-bold ${mode === "teleapo_audio" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("teleapo_audio")} type="button">テレアポ音声</button>
-          <button className={`h-10 rounded-full px-4 text-sm font-bold ${mode === "meeting_transcript" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("meeting_transcript")} type="button">商談後貼り付け</button>
+          <button className={`h-10 rounded-full px-4 text-sm font-bold ${mode === "teleapo_audio" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("teleapo_audio")} type="button">テレアポ</button>
+          <button className={`h-10 rounded-full px-4 text-sm font-bold ${mode === "meeting_transcript" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("meeting_transcript")} type="button">商談</button>
         </div>
         }
       />
@@ -321,12 +320,12 @@ export function SalesUploadWorkspace() {
               <button className="grid min-h-80 w-full place-items-center rounded-lg border-2 border-dashed border-[#F0DEE2] bg-[#FFFBFC] p-6 text-center" onClick={() => fileInputRef.current?.click()} type="button">
                 <span>
                   <FileVideo className="mx-auto h-12 w-12 text-[#EC6F8B]" />
-                  <span className="mt-4 block text-xl font-bold text-[#2B2B2B]">mp4を選択</span>
-                  <span className="mt-2 block text-sm font-semibold text-[#8A8186]">15分以内 / Cloud Runで音声抽出します</span>
+                  <span className="mt-4 block text-xl font-bold text-[#2B2B2B]">mp4 / m4aを選択</span>
+                  <span className="mt-2 block text-sm font-semibold text-[#8A8186]">15分以内 / 必要に応じて音声変換します</span>
                   {selectedFile ? <span className="mt-4 block rounded-full bg-[#FFF0F3] px-4 py-2 text-sm font-bold text-[#EC6F8B]">{selectedFile.name}</span> : null}
                 </span>
               </button>
-              <input accept=".mp4,video/mp4" className="hidden" ref={fileInputRef} type="file" onChange={(event) => void onFileChange(event.target.files?.[0] ?? null)} />
+              <input className="hidden" ref={fileInputRef} type="file" onChange={(event) => void onFileChange(event.target.files?.[0] ?? null)} />
               <div className="mt-4 rounded-lg bg-[#FFF8F9] p-4 text-sm font-semibold text-[#746B70]">
                 <p>再生時間: {durationSec === null ? "未取得" : `${Math.round(durationSec)}秒`}</p>
                 <p>アップロード進捗: {uploadProgress}%</p>
@@ -343,10 +342,14 @@ export function SalesUploadWorkspace() {
         <section className="rounded-lg border border-[#F0DEE2] bg-white p-5 shadow-sm">
           <div className="mb-4 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4">
             <Field label="会社一覧から反映">
-              <select className="task-input" value={form.companyId} onChange={(event) => selectCompany(event.target.value)}>
-                <option value="">未選択（手入力）</option>
-                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-              </select>
+              <SearchSelect
+                clearable
+                emptyLabel="会社が登録されていません。"
+                options={companies.map((company) => ({ value: company.id, label: company.name, description: [company.industry, company.primaryContactName].filter(Boolean).join(" / ") }))}
+                placeholder="未選択（手入力）"
+                value={form.companyId}
+                onChange={selectCompany}
+              />
             </Field>
             {selectedCompany ? (
               <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
@@ -361,17 +364,18 @@ export function SalesUploadWorkspace() {
             <Field label="担当者名" required><input className="task-input" value={form.contactName} onChange={(event) => setForm((current) => ({ ...current, contactName: event.target.value }))} /></Field>
             <Field label={mode === "teleapo_audio" ? "電話日時" : "実施日時"} required><input className="task-input" type="datetime-local" value={form.recordedAt} onChange={(event) => setForm((current) => ({ ...current, recordedAt: event.target.value }))} /></Field>
             <Field label="商材" required>
-              <select className="task-input" value={form.productId} onChange={(event) => selectProduct(event.target.value)}>
-                <option value="">選択してください</option>
-                {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-              </select>
+              <SearchSelect
+                emptyLabel="商材が未登録です。"
+                options={products.map((product) => ({ value: product.id, label: product.name }))}
+                placeholder="選択してください"
+                value={form.productId}
+                onChange={selectProduct}
+              />
               {products.length === 0 ? <input className="task-input mt-2" placeholder="商材名を直接入力" value={form.productName} onChange={(event) => setForm((current) => ({ ...current, productName: event.target.value }))} /> : null}
             </Field>
             {mode === "teleapo_audio" ? (
               <>
                 <Field label="電話目的"><Select value={form.callPurpose} options={callPurposeOptions} onChange={(value) => setForm((current) => ({ ...current, callPurpose: value as CallPurpose }))} /></Field>
-                <Field label="架電結果"><Select value={form.callResult} options={callResultOptions} onChange={(value) => setForm((current) => ({ ...current, callResult: value as CallResult }))} /></Field>
-                <Field label="次回接点予定"><Select value={form.nextContactType} options={nextContactOptions} onChange={(value) => setForm((current) => ({ ...current, nextContactType: value as NextContactType }))} /></Field>
                 <Field label="顧客区分"><input className="task-input" disabled value="新規" readOnly /></Field>
               </>
             ) : (
@@ -385,38 +389,52 @@ export function SalesUploadWorkspace() {
             <Field label="電話番号"><input className="task-input" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} /></Field>
           </div>
           <div className="mt-4 grid gap-4">
-            <Field label="同席者・共有先">
-              <button className="min-h-11 w-auto min-w-56 max-w-full justify-self-start rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 py-2 text-left transition hover:bg-white" onClick={() => setMembersOpen((current) => !current)} type="button">
-                <span className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Users className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
-                    {selectedMembers.length ? selectedMembers.map((member) => <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#D94F6E] ring-1 ring-[#F7CAD2]" key={member.uid}>{member.name}</span>) : <span className="text-sm font-bold text-[#9A9296]">メンバーを選択</span>}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 shrink-0 text-[#EC6F8B] transition ${membersOpen ? "rotate-180" : ""}`} />
-                </span>
-              </button>
-              {membersOpen ? (
-                <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-sm">
-                  {members.length === 0 ? <p className="px-3 py-4 text-sm font-bold text-[#8A8186]">Authユーザーを取得できませんでした。</p> : null}
-                  {members.map((member) => {
-                    const checked = form.attendeeUserIds.includes(member.uid);
-                    return (
-                      <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-bold transition ${checked ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#5E565A] hover:bg-[#FFFBFC]"}`} key={member.uid}>
-                        <input checked={checked} className="sr-only" onChange={() => toggleAttendee(member)} type="checkbox" />
-                        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${checked ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : "border-[#E3D7DA] bg-white text-transparent"}`}>
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate">{member.name}</span>
-                          {member.email ? <span className="block truncate text-xs text-[#8A8186]">{member.email}</span> : null}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </Field>
+            <MultiSelect
+              emptyLabel="Authユーザーを取得できませんでした。"
+              label="同席者・共有先"
+              options={members.map((member) => ({ value: member.uid, label: member.name, description: member.email }))}
+              placeholder="メンバーを選択"
+              values={form.attendeeUserIds}
+              onChange={(attendeeUserIds) => setForm((current) => ({ ...current, attendeeUserIds, attendeeNames: members.filter((member) => attendeeUserIds.includes(member.uid)).map((member) => member.name).join(", ") }))}
+            />
           </div>
+          {mode === "meeting_transcript" ? (
+            <section className="mt-5 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-[#2B2B2B]">商談診断シート</h3>
+                <p className="mt-1 text-xs font-bold text-[#8A8186]">商談後の手動評価です。AIフォロー提案の判断材料になります。</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="温度感">
+                  <Select
+                    value={form.diagnosisTemperature}
+                    options={[["", "未選択"], ["S", "S"], ["A", "A"], ["B", "B"], ["C", "C"]]}
+                    onChange={(value) => setForm((current) => ({ ...current, diagnosisTemperature: value as typeof current.diagnosisTemperature }))}
+                  />
+                </Field>
+                <Field label="成約確率">
+                  <input className="task-input" placeholder="例: 70%" value={form.diagnosisCloseProbability} onChange={(event) => setForm((current) => ({ ...current, diagnosisCloseProbability: event.target.value }))} />
+                </Field>
+                <Field label="最大の課題">
+                  <textarea className="task-input min-h-24 resize-none" value={form.diagnosisBiggestIssue} onChange={(event) => setForm((current) => ({ ...current, diagnosisBiggestIssue: event.target.value }))} />
+                </Field>
+                <Field label="刺さったポイント">
+                  <textarea className="task-input min-h-24 resize-none" value={form.diagnosisResonatedPoint} onChange={(event) => setForm((current) => ({ ...current, diagnosisResonatedPoint: event.target.value }))} />
+                </Field>
+                <Field label="懸念点">
+                  <textarea className="task-input min-h-24 resize-none" value={form.diagnosisConcerns} onChange={(event) => setForm((current) => ({ ...current, diagnosisConcerns: event.target.value }))} />
+                </Field>
+                <Field label="次回提案内容">
+                  <textarea className="task-input min-h-24 resize-none" value={form.diagnosisNextProposal} onChange={(event) => setForm((current) => ({ ...current, diagnosisNextProposal: event.target.value }))} />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="次回やること">
+                    <textarea className="task-input min-h-24 resize-none" value={form.diagnosisNextAction} onChange={(event) => setForm((current) => ({ ...current, diagnosisNextAction: event.target.value }))} />
+                  </Field>
+                </div>
+              </div>
+            </section>
+          ) : null}
           <div className="mt-4"><StatusBanner message={error} type="error" /></div>
           <button className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={!canSubmit || isSubmitting} onClick={() => void submit()} type="button">
             {isSubmitting ? <LoadingSpinner label="保存中" /> : <UploadCloud className="h-4 w-4" />}
@@ -452,6 +470,22 @@ function SpeakerWorkspace({
   const [logs, setLogs] = useState<ConversationLog[]>(record.conversationLogs);
 
   const updateLog = (id: string, patch: Partial<ConversationLog>) => setLogs((current) => current.map((log) => (log.id === id ? { ...log, ...patch } : log)));
+  const splitLog = (id: string) => {
+    setLogs((current) =>
+      current.flatMap((log) => {
+        if (log.id !== id) return [log];
+        const blocks = splitTextIntoConversationBlocks(log.text);
+        if (blocks.length <= 1) return [log];
+        return blocks.map((block, index) => ({
+          ...log,
+          id: `${log.id}-block-${Date.now()}-${index + 1}`,
+          text: block,
+          startSec: index === 0 ? log.startSec ?? null : null,
+          endSec: index === blocks.length - 1 ? log.endSec ?? null : null
+        }));
+      })
+    );
+  };
   const canAdvice = record.transcriptionStatus === "completed" && logs.length > 0;
 
   return (
@@ -489,9 +523,18 @@ function SpeakerWorkspace({
           <div className="space-y-3">
             {logs.map((log) => (
               <div className="grid gap-3 rounded-lg border border-[#F0DEE2] bg-[#FFFBFC] p-3 sm:grid-cols-[140px_1fr]" key={log.id}>
-                <select className="task-input" value={log.speaker} onChange={(event) => updateLog(log.id, { speaker: event.target.value as TeleapoSpeaker })}>
-                  {Object.entries(speakerLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
+                <div className="grid content-start gap-2">
+                  <SingleSelect options={Object.entries(speakerLabels).map(([value, label]) => ({ value, label }))} value={log.speaker} onChange={(speaker) => updateLog(log.id, { speaker: speaker as TeleapoSpeaker })} />
+                  <button
+                    className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#EC6F8B] disabled:opacity-40"
+                    disabled={splitTextIntoConversationBlocks(log.text).length <= 1}
+                    onClick={() => splitLog(log.id)}
+                    type="button"
+                  >
+                    <Scissors className="h-3.5 w-3.5" />
+                    分割
+                  </button>
+                </div>
                 <textarea className="task-input min-h-20 resize-none" value={log.text} onChange={(event) => updateLog(log.id, { text: event.target.value })} />
               </div>
             ))}
@@ -506,17 +549,35 @@ function SpeakerWorkspace({
 function AdvicePanel({ record }: { record: TeleapoRecord }) {
   const advice = record.aiAdvice;
   if (!advice) return null;
+  const prospectRank = advice.prospectRank ?? scoreToRank(advice.prospectScore);
+  const rankReason = advice.rankReason || advice.scoreReason;
   return (
     <section className="mt-5 rounded-lg border border-[#F0DEE2] bg-white p-5 shadow-sm">
       <h3 className="text-2xl font-bold text-[#2B2B2B]">AIアドバイス</h3>
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Metric title="見込み度" value={`${advice.prospectScore}/100`} />
+        <Metric title="見込みランク" value={`${prospectRank} / ${advice.prospectScore}`} />
         <Metric title="温度感" value={advice.temperature} />
-        <Metric title="次アクション" value={advice.nextActions[0] ?? "未設定"} />
+        <Metric title="追うタイミング" value={formatUrgency(advice.nextActionUrgency)} />
       </div>
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        <TextBlock title="要約" items={[advice.summary, advice.scoreReason]} />
+        <TextBlock title="要約" items={[advice.summary, rankReason]} />
         <TextBlock title="課題・懸念" items={[...advice.customerIssues, ...advice.concerns]} />
+        {record.salesDomain === "meeting" ? (
+          <>
+            <TextBlock title="良かった点" items={advice.positives ?? []} />
+            <TextBlock title="ダメだった点・弱かった点" items={advice.negatives ?? []} />
+            <TextBlock title="顧客の前向きな発言" items={advice.positiveCustomerSignals ?? []} />
+            <TextBlock title="顧客が迷っていた発言" items={advice.hesitationSignals ?? []} />
+            <TextBlock title="決まりそうな条件" items={advice.closingRequirements ?? []} />
+            <TextBlock title="足りない情報" items={advice.missingInformation ?? []} />
+            <TextBlock title="成約に必要なもの" items={[...(advice.requiredMaterials ?? []), ...(advice.additionalMaterials ?? [])]} />
+            <TextBlock title="失注リスク" items={[...(advice.lostRisks ?? []), ...(advice.closeReasons ?? []).map((item) => `成約に近い理由: ${item}`)]} />
+            <TextBlock title="フォローアップ判断" items={[advice.shouldFollowUp ? "フォローアップする" : "フォローアップしない", advice.followUpReason ?? "", `方法: ${formatFollowUpMethod(advice.followUpMethod)}`, `タイミング: ${formatUrgency(advice.nextActionUrgency)}`, advice.followupTimingReason ?? ""]} />
+            <TextBlock title="フォローアップ電話トーク" items={[advice.followupCallScript ?? ""]} />
+            <TextBlock title="フォローアップメール文面" items={[advice.followupEmail ?? ""]} />
+            <TextBlock title="次回商談で確認すること" items={advice.nextMeetingQuestions ?? []} />
+          </>
+        ) : null}
         <TextBlock title="日程調整電話" items={[...advice.scheduleCallScript.candidates.map((item) => `${item.label}: ${item.datetime}（${item.reason}）`), advice.scheduleCallScript.script]} />
         <TextBlock title="必要資料" items={advice.materials} />
         <TextBlock title="当日打ち合わせ" items={[...advice.meetingScript.greeting, ...advice.meetingScript.hearing, ...advice.meetingScript.proposal, ...advice.meetingScript.nextAction]} />
@@ -524,6 +585,33 @@ function AdvicePanel({ record }: { record: TeleapoRecord }) {
       </div>
     </section>
   );
+}
+
+function scoreToRank(score: number): string {
+  if (score >= 85) return "A";
+  if (score >= 70) return "B+";
+  if (score >= 55) return "B";
+  if (score >= 35) return "B-";
+  return "C";
+}
+
+function formatUrgency(urgency?: string): string {
+  if (urgency === "today") return "当日中";
+  if (urgency === "next_business_day") return "翌営業日";
+  if (urgency === "within_3_days") return "3営業日以内";
+  if (urgency === "next_week") return "1週間以内";
+  if (urgency === "long_term") return "長期フォロー";
+  if (urgency === "none") return "追わない";
+  return "未設定";
+}
+
+function formatFollowUpMethod(method?: string): string {
+  if (method === "phone") return "電話";
+  if (method === "email") return "メール";
+  if (method === "chat") return "チャット";
+  if (method === "meeting") return "次回商談";
+  if (method === "none") return "追わない";
+  return "未設定";
 }
 
 function ProcessSteps({ status }: { status: TeleapoRecord["transcriptionStatus"] }) {
@@ -562,7 +650,7 @@ function Field({ label, children, required = false }: { label: string; children:
 }
 
 function Select({ value, options, onChange }: { value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
-  return <select className="task-input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([nextValue, label]) => <option key={nextValue} value={nextValue}>{label}</option>)}</select>;
+  return <SingleSelect options={options.map(([nextValue, label]) => ({ value: nextValue, label }))} value={value} onChange={onChange} />;
 }
 
 function InfoCard({ title, rows }: { title: string; rows: Array<[string, string]> }) {
@@ -574,16 +662,23 @@ function Metric({ title, value }: { title: string; value: string }) {
 }
 
 function TextBlock({ title, items }: { title: string; items: string[] }) {
-  return <div className="rounded-lg border border-[#F0DEE2] bg-[#FFFBFC] p-4"><h4 className="font-bold text-[#2B2B2B]">{title}</h4><ul className="mt-3 space-y-2 text-sm font-semibold text-[#6F676B]">{items.filter(Boolean).map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}</ul></div>;
+  const visibleItems = items.filter(Boolean);
+  if (visibleItems.length === 0) return null;
+  return <div className="rounded-lg border border-[#F0DEE2] bg-[#FFFBFC] p-4"><h4 className="font-bold text-[#2B2B2B]">{title}</h4><ul className="mt-3 space-y-2 text-sm font-semibold text-[#6F676B]">{visibleItems.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}</ul></div>;
 }
 
 function toDatetimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function isSupportedTeleapoFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".mp4") || name.endsWith(".m4a") || file.type === "video/mp4" || file.type === "audio/mp4" || file.type === "audio/x-m4a";
+}
+
 async function readMediaDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
-    const media = document.createElement("video");
+    const media = document.createElement(file.type.startsWith("audio/") || file.name.toLowerCase().endsWith(".m4a") ? "audio" : "video");
     media.preload = "metadata";
     media.onloadedmetadata = () => {
       URL.revokeObjectURL(media.src);
@@ -592,4 +687,13 @@ async function readMediaDuration(file: File): Promise<number> {
     media.onerror = () => reject(new Error("再生時間を取得できませんでした。"));
     media.src = URL.createObjectURL(file);
   });
+}
+
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as { error?: string };
+    return data.error || fallback;
+  } catch {
+    return fallback;
+  }
 }
