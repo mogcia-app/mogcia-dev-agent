@@ -4,7 +4,9 @@ import {
   Timestamp,
   addDoc,
   collection,
+  deleteDoc,
   doc,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -15,7 +17,7 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable, type UploadTaskSnapshot } from "firebase/storage";
-import { splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
+import { splitConversationLogsIntoBlocks, splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import type { ConversationLog, ProductKnowledge, TeleapoRecord } from "@/types/teleapo";
 
@@ -44,6 +46,7 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
     attendeeUserIds: Array.isArray(data.attendeeUserIds) ? data.attendeeUserIds : [],
     attendeeNames: Array.isArray(data.attendeeNames) ? data.attendeeNames : [],
     industry: typeof data.industry === "string" ? data.industry : "",
+    companyAddress: typeof data.companyAddress === "string" ? data.companyAddress : "",
     role: typeof data.role === "string" ? data.role : "",
     phone: typeof data.phone === "string" ? data.phone : "",
     leadSource: typeof data.leadSource === "string" ? data.leadSource : "",
@@ -61,7 +64,17 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
           concerns: typeof data.diagnosisSheet.concerns === "string" ? data.diagnosisSheet.concerns : "",
           nextProposal: typeof data.diagnosisSheet.nextProposal === "string" ? data.diagnosisSheet.nextProposal : "",
           closeProbability: typeof data.diagnosisSheet.closeProbability === "string" ? data.diagnosisSheet.closeProbability : "",
-          nextAction: typeof data.diagnosisSheet.nextAction === "string" ? data.diagnosisSheet.nextAction : ""
+          nextAction: typeof data.diagnosisSheet.nextAction === "string" ? data.diagnosisSheet.nextAction : "",
+          finalResult: typeof data.diagnosisSheet.finalResult === "string" ? data.diagnosisSheet.finalResult : "none",
+          lossReason: typeof data.diagnosisSheet.lossReason === "string" ? data.diagnosisSheet.lossReason : "",
+          contractReason: typeof data.diagnosisSheet.contractReason === "string" ? data.diagnosisSheet.contractReason : "",
+          noPotentialReason: typeof data.diagnosisSheet.noPotentialReason === "string" ? data.diagnosisSheet.noPotentialReason : "",
+          effectiveProposal: typeof data.diagnosisSheet.effectiveProposal === "string" ? data.diagnosisSheet.effectiveProposal : "",
+          ineffectiveProposal: typeof data.diagnosisSheet.ineffectiveProposal === "string" ? data.diagnosisSheet.ineffectiveProposal : "",
+          trueCustomerIssue: typeof data.diagnosisSheet.trueCustomerIssue === "string" ? data.diagnosisSheet.trueCustomerIssue : "",
+          salesFeeling: typeof data.diagnosisSheet.salesFeeling === "string" ? data.diagnosisSheet.salesFeeling : "",
+          aiEvaluation: typeof data.diagnosisSheet.aiEvaluation === "string" ? data.diagnosisSheet.aiEvaluation : "",
+          adoptedSalesRule: typeof data.diagnosisSheet.adoptedSalesRule === "string" ? data.diagnosisSheet.adoptedSalesRule : ""
         }
       : undefined,
     audioFilePath: data.audioFilePath ?? null,
@@ -70,7 +83,8 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
     transcriptionStatus: data.transcriptionStatus ?? "draft",
     transcriptionModel: typeof data.transcriptionModel === "string" ? data.transcriptionModel : "gpt-4o-mini-transcribe",
     transcriptText: typeof data.transcriptText === "string" ? data.transcriptText : "",
-    conversationLogs: Array.isArray(data.conversationLogs) ? data.conversationLogs : [],
+    conversationLogs: Array.isArray(data.conversationLogs) ? splitConversationLogsIntoBlocks(data.conversationLogs) : [],
+    conversationLogsLocked: Boolean(data.conversationLogsLocked),
     aiAdviceStatus: data.aiAdviceStatus ?? "idle",
     aiAdviceModel: data.aiAdviceModel ?? null,
     aiAdvice: data.aiAdvice ?? null,
@@ -84,6 +98,16 @@ export function subscribeTeleapoRecord(recordId: string, onNext: (record: Teleap
   const db = getFirebaseDb();
   if (!db) return () => undefined;
   return onSnapshot(doc(db, teleapoCollection, recordId), (snapshot) => onNext(snapshot.exists() ? normalizeTeleapoRecord(snapshot.id, snapshot.data()) : null), onError);
+}
+
+export function subscribeTeleapoRecords(onNext: (records: TeleapoRecord[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db) return () => undefined;
+  return onSnapshot(
+    query(collection(db, teleapoCollection), orderBy("updatedAt", "desc"), limit(100)),
+    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeTeleapoRecord(entry.id, entry.data()))),
+    onError
+  );
 }
 
 export function subscribeProducts(onNext: (products: ProductKnowledge[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
@@ -134,6 +158,12 @@ export async function updateTeleapoRecord(recordId: string, payload: Record<stri
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await updateDoc(doc(db, teleapoCollection, recordId), { ...payload, updatedAt: serverTimestamp() });
+}
+
+export async function deleteTeleapoRecord(recordId: string): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await deleteDoc(doc(db, teleapoCollection, recordId));
 }
 
 export async function uploadTeleapoFile({ userId, recordId, file, onProgress }: { userId: string; recordId: string; file: File; onProgress: (progress: number) => void }): Promise<{ path: string; url: string }> {

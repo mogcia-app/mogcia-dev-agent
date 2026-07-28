@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
 import { TaskFormModal } from "@/components/tasks/TaskFormModal";
 import { TaskList, TaskSkeleton } from "@/components/tasks/TaskList";
 import { TaskPageHeader } from "@/components/tasks/TaskPageHeader";
-import { TaskFilterControls, TaskStatusFilters, TaskViewTabs } from "@/components/tasks/TaskToolbar";
+import { TaskProgressTimeline } from "@/components/tasks/TaskProgressTimeline";
+import { TaskViewTabs } from "@/components/tasks/TaskToolbar";
+import { SearchSelect } from "@/components/ui/select";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTasks } from "@/hooks/useTasks";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
@@ -16,50 +18,65 @@ export function TasksPageClient() {
   const workspaceOptions = useWorkspaceOptions();
   const filters = useTaskFilters(taskStore.tasks, taskStore.user?.uid ?? "");
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const visibleTasks = filters.filteredTasks;
+  const isLogView = filters.view === "log";
+  const selectedTask = useMemo(() => visibleTasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? null, [selectedTaskId, visibleTasks]);
+  const taskOptions = useMemo(
+    () => visibleTasks.map((task) => ({ value: task.id, label: task.title || "無題のタスク", description: [task.assigneeName ? `担当: ${task.assigneeName}` : "", task.status === "completed" ? "完了" : "未完了"].filter(Boolean).join(" / ") })),
+    [visibleTasks]
+  );
 
   return (
-    <div className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
+    <div className="">
       <TaskPageHeader onCreate={() => setCreateOpen(true)} />
       <div className="mt-5">
         <TaskViewTabs setFilter={filters.setFilter} view={filters.view} />
       </div>
-      <div className="mt-5 flex flex-col gap-3 2xl:flex-row 2xl:items-start 2xl:justify-between">
-        <TaskStatusFilters counts={filters.counts} setFilter={filters.setFilter} status={filters.status} />
-        <TaskFilterControls assignee={filters.assignee} due={filters.due} members={taskStore.members} priority={filters.priority} setFilter={filters.setFilter} sort={filters.sort} source={filters.source} />
-      </div>
-      {taskStore.error ? <p className="mt-4 rounded-md bg-[#FFF2F5] px-4 py-3 text-sm font-bold text-[#D94F6E]">{taskStore.error}</p> : null}
-      <div className="mt-6">
+      {taskStore.error ? <p className="mt-4 rounded-none bg-[#FFF2F5] px-4 py-3 text-sm font-bold text-[#D94F6E]">{taskStore.error}</p> : null}
+      <section className="mt-6 border border-[#EFE3E6] bg-white p-4">
         {taskStore.loading ? (
           <TaskSkeleton />
+        ) : isLogView ? (
+          <section className="space-y-4">
+            <div>
+              <SearchSelect emptyLabel="タスクがありません。" options={taskOptions} placeholder="全タスクから選択" value={selectedTask?.id ?? ""} onChange={setSelectedTaskId} />
+            </div>
+            <TaskProgressTimeline currentUserId={taskStore.user?.uid ?? ""} task={selectedTask} />
+          </section>
         ) : (
           <TaskList
             canEditTask={taskStore.canEditTask}
-            onOpen={setSelectedTask}
+            currentUserId={taskStore.user?.uid ?? ""}
+            onOpen={setEditingTask}
             onToggle={(task, completed) => void taskStore.completeTask(task, completed)}
-            tasks={filters.filteredTasks}
+            selectedTaskId={selectedTask?.id}
+            tasks={visibleTasks}
           />
         )}
-      </div>
-      <p className="mt-6 text-center text-sm font-semibold text-[#958B90]">{filters.filteredTasks.length}件を表示</p>
+        <p className="mt-6 text-center text-sm font-semibold text-[#958B90]">{visibleTasks.length}件を表示</p>
+      </section>
       {isCreateOpen ? (
-        <TaskFormModal companies={workspaceOptions.companies} currentMember={taskStore.currentMember} isAdmin={taskStore.isAdmin} meetings={workspaceOptions.meetings} members={taskStore.members} onClose={() => setCreateOpen(false)} onSubmit={taskStore.createTask} projects={workspaceOptions.projects} />
+        <TaskFormModal companies={workspaceOptions.companies} currentMember={taskStore.currentMember} meetings={workspaceOptions.meetings} members={taskStore.members} onClose={() => setCreateOpen(false)} onSubmit={taskStore.createTask} projects={workspaceOptions.projects} />
       ) : null}
       <TaskDetailDrawer
-        canDelete={selectedTask ? taskStore.canDeleteTask() : false}
-        canEdit={selectedTask ? taskStore.canEditTask(selectedTask) : false}
+        canDelete={editingTask ? taskStore.canDeleteTask() : false}
+        canEdit={editingTask ? taskStore.canEditTask(editingTask) : false}
+        currentUserId={taskStore.user?.uid ?? ""}
         isAdmin={taskStore.isAdmin}
         companies={workspaceOptions.companies}
         projects={workspaceOptions.projects}
         meetings={workspaceOptions.meetings}
         members={taskStore.members}
-        onClose={() => setSelectedTask(null)}
+        onClose={() => setEditingTask(null)}
         onDelete={taskStore.deleteTask}
         onDuplicate={taskStore.duplicateTask}
+        onChecklistChange={taskStore.updateTaskChecklist}
         onSave={taskStore.updateTask}
         onToggle={taskStore.completeTask}
-        key={selectedTask?.id ?? "closed"}
-        task={selectedTask}
+        key={editingTask?.id ?? "closed"}
+        task={editingTask}
       />
     </div>
   );

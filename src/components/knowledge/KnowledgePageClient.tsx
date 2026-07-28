@@ -82,27 +82,27 @@ export function KnowledgePageClient() {
   };
 
   return (
-    <div className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
+    <div className="">
       <PageHeader
         title="ナレッジ"
         description="営業活動の知識やノウハウを検索・共有できます"
         actions={
           <>
-            <button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しいナレッジを作成</button>
-            <button className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => exportKnowledgeCsv(filtered)} type="button"><Download className="h-4 w-4" />エクスポート</button>
+            <button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しいナレッジを作成</button>
+            <button className="inline-flex h-11 items-center gap-2 rounded-none bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => exportKnowledgeCsv(filtered)} type="button"><Download className="h-4 w-4" />エクスポート</button>
           </>
         }
       />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={store.error} type="error" /></div>
       <div className="mt-5 flex justify-center">
-        <label className="flex h-14 w-full max-w-3xl items-center gap-3 rounded-full border border-[#F0E7E9] bg-white px-5 text-sm font-bold text-[#777] shadow-sm">
+        <label className="flex h-14 w-full max-w-3xl items-center gap-3 rounded-none border border-[#F0E7E9] bg-white px-5 text-sm font-bold text-[#777] shadow-sm">
           <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="キーワードで検索（タイトル・内容・タグ・発言者など）" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
           <Search className="h-5 w-5" />
         </label>
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(360px,42%)_minmax(0,1fr)]">
-        <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
+        <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-[#6F676B]">検索結果：{filtered.length}件</p>
             <div className="w-40">
@@ -123,7 +123,7 @@ export function KnowledgePageClient() {
               />
             ))}
           </div>
-          {paged.length < filtered.length ? <button className="mt-4 h-11 w-full rounded-full border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setPage((current) => current + 1)} type="button">さらに読み込む</button> : null}
+          {paged.length < filtered.length ? <button className="mt-4 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setPage((current) => current + 1)} type="button">さらに読み込む</button> : null}
         </section>
         <section className="min-w-0">
           {selectedItem ? (
@@ -139,7 +139,7 @@ export function KnowledgePageClient() {
               onFavorite={async () => { await store.toggleFavorite(selectedItem); flash(selectedItem.favoriteUserIds.includes(store.user?.uid ?? "") ? "お気に入りから削除しました" : "お気に入りに追加しました"); }}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-[#F0E7E9] bg-white p-12 text-center text-sm font-bold text-[#8A8A8A]">左の一覧からナレッジを選択してください</div>
+            <div className="rounded-none border border-dashed border-[#F0E7E9] bg-white p-12 text-center text-sm font-bold text-[#8A8A8A]">左の一覧からナレッジを選択してください</div>
           )}
         </section>
       </div>
@@ -151,11 +151,11 @@ export function KnowledgePageClient() {
 
 function KnowledgeListItem({ item, active, favorite, onSelect, onFavorite }: { item: Knowledge; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
   return (
-    <button className={`grid w-full grid-cols-[64px_1fr_32px] gap-3 rounded-lg border p-4 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
-      <span className={`grid h-14 w-14 place-items-center rounded-md font-bold ${typeTone(item.type)}`}>{knowledgeTypeLabels[item.type].slice(0, 2)}</span>
+    <button className={`grid w-full grid-cols-[64px_1fr_32px] gap-3 rounded-none border p-4 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
+      <span className={`grid h-14 w-14 place-items-center rounded-none font-bold ${typeTone(item.type)}`}>{knowledgeTypeLabels[item.type].slice(0, 2)}</span>
       <span className="min-w-0">
         <span className="block truncate text-base font-bold text-[#2B2B2B]">{item.title}</span>
-        <span className="mt-2 flex flex-wrap gap-2"><Badge type={item.type} />{item.productNames?.slice(0, 1).map((name) => <span className="rounded-full bg-[#FFF0F3] px-2 py-1 text-xs font-bold text-[#EC6F8B]" key={name}>{name}</span>)}</span>
+        <span className="mt-2 flex flex-wrap gap-2"><Badge type={item.type} />{item.productNames?.slice(0, 1).map((name) => <span className="rounded-none bg-[#FFF0F3] px-2 py-1 text-xs font-bold text-[#EC6F8B]" key={name}>{name}</span>)}</span>
         <span className="mt-2 line-clamp-2 text-sm font-semibold text-[#777]">{item.summary || item.customerQuote || item.content || "概要未登録"}</span>
         <span className="mt-3 block text-xs font-semibold text-[#777]">{getUserDisplayNameById(item.createdBy, item.createdByName)} / {item.createdAt.toDate().toLocaleString("ja-JP")}</span>
       </span>
@@ -167,7 +167,7 @@ function KnowledgeListItem({ item, active, favorite, onSelect, onFavorite }: { i
 function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdit, onDuplicate, onArchive, onDelete }: { item: Knowledge; favorite: boolean; canEdit: boolean; canDelete: boolean; onFavorite: () => void; onEdit: () => void; onDuplicate: () => Promise<void>; onArchive: () => Promise<void>; onDelete: () => Promise<void>; }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <article className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-sm">
+    <article className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Badge type={item.type} />
@@ -180,10 +180,10 @@ function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdi
           </div>
         </div>
         <div className="relative flex gap-2">
-          <button className="grid h-10 w-10 place-items-center rounded-full border border-[#F0E7E9] text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
-          {canEdit ? <button className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button> : null}
-          <button className="grid h-10 w-10 place-items-center rounded-full border border-[#F0E7E9] text-[#6F676B]" onClick={() => setMenuOpen((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>
-          {menuOpen ? <div className="absolute right-0 top-12 z-10 grid w-44 gap-1 rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-lg"><MenuButton icon={<Copy className="h-4 w-4" />} label="複製" onClick={() => void onDuplicate()} /><MenuButton icon={<Archive className="h-4 w-4" />} label="アーカイブ" onClick={() => window.confirm("このナレッジをアーカイブしますか？") && void onArchive()} /><MenuButton icon={<MoreHorizontal className="h-4 w-4" />} label="URLをコピー" onClick={() => void navigator.clipboard.writeText(window.location.href)} />{canDelete ? <MenuButton icon={<Trash2 className="h-4 w-4" />} label="削除" onClick={() => window.confirm("このナレッジを削除しますか？") && void onDelete()} /> : null}</div> : null}
+          <button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9] text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
+          {canEdit ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button> : null}
+          <button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9] text-[#6F676B]" onClick={() => setMenuOpen((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>
+          {menuOpen ? <div className="absolute right-0 top-12 z-10 grid w-44 gap-1 rounded-none border border-[#F0E7E9] bg-white p-2 shadow-lg"><MenuButton icon={<Copy className="h-4 w-4" />} label="複製" onClick={() => void onDuplicate()} /><MenuButton icon={<Archive className="h-4 w-4" />} label="アーカイブ" onClick={() => window.confirm("このナレッジをアーカイブしますか？") && void onArchive()} /><MenuButton icon={<MoreHorizontal className="h-4 w-4" />} label="URLをコピー" onClick={() => void navigator.clipboard.writeText(window.location.href)} />{canDelete ? <MenuButton icon={<Trash2 className="h-4 w-4" />} label="削除" onClick={() => window.confirm("このナレッジを削除しますか？") && void onDelete()} /> : null}</div> : null}
         </div>
       </div>
       <div className="mt-6 grid gap-3 text-sm font-semibold text-[#2B2B2B]">
@@ -225,7 +225,7 @@ function KnowledgeFormModal({ mode, initial, products, companies, projects, meet
   };
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm">
-      <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl">
         <h2 className="text-2xl font-bold text-[#2B2B2B]">{mode === "create" ? "新しいナレッジを作成" : "ナレッジを編集"}</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Input label="タイトル 必須" value={draft.title} onChange={(title) => setDraft({ ...draft, title })} />
@@ -247,8 +247,8 @@ function KnowledgeFormModal({ mode, initial, products, companies, projects, meet
           {draft.type === "loss_reason" ? <><Text label="失注理由" value={draft.lossReason} onChange={(lossReason) => setDraft({ ...draft, lossReason })} /><Text label="改善点" value={draft.improvements} onChange={(improvements) => setDraft({ ...draft, improvements })} /></> : null}
         </div>
         <div className="mt-6 flex justify-end gap-3">
-          <button className="h-11 rounded-full border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-          <button className="h-11 rounded-full bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
+          <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
+          <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
         </div>
       </section>
     </div>
@@ -269,7 +269,7 @@ function MultiProductSelect({ products, draft, onChange }: { products: Array<{ i
 }
 
 function Badge({ type }: { type: KnowledgeType }) {
-  return <span className={`rounded-full px-3 py-1 text-xs font-bold ${typeTone(type)}`}>{knowledgeTypeLabels[type]}</span>;
+  return <span className={`rounded-none px-3 py-1 text-xs font-bold ${typeTone(type)}`}>{knowledgeTypeLabels[type]}</span>;
 }
 
 function Meta({ label, value, productId }: { label: string; value?: string | null; productId?: string }) {
@@ -284,7 +284,7 @@ function Section({ title, text }: { title: string; text?: string | null }) {
 
 function Quote({ title, text }: { title: string; text?: string | null }) {
   if (!text) return null;
-  return <section><h3 className="mb-2 text-base font-bold text-[#2B2B2B]">{title}</h3><blockquote className="rounded-md bg-[#FFF0F3] px-5 py-4 text-sm font-semibold leading-7 text-[#4C474A]">「{text}」</blockquote></section>;
+  return <section><h3 className="mb-2 text-base font-bold text-[#2B2B2B]">{title}</h3><blockquote className="rounded-none bg-[#FFF0F3] px-5 py-4 text-sm font-semibold leading-7 text-[#4C474A]">「{text}」</blockquote></section>;
 }
 
 function Bullets({ title, items }: { title: string; items?: string[] }) {
@@ -293,7 +293,7 @@ function Bullets({ title, items }: { title: string; items?: string[] }) {
 }
 
 function MenuButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button className="flex h-9 items-center gap-2 rounded-md px-2 text-sm font-bold text-[#6F676B] hover:bg-[#FFF8F9]" onClick={onClick} type="button">{icon}{label}</button>;
+  return <button className="flex h-9 items-center gap-2 rounded-none px-2 text-sm font-bold text-[#6F676B] hover:bg-[#FFF8F9]" onClick={onClick} type="button">{icon}{label}</button>;
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

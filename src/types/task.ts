@@ -3,7 +3,7 @@ import type { Timestamp } from "firebase/firestore";
 export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "cancelled";
 export type TaskPriority = "high" | "medium" | "low";
 export type TaskSource = "ai" | "manual" | "automation";
-export type TaskView = "mine" | "ai" | "manual" | "members" | "assigned";
+export type TaskView = "mine" | "ai" | "members" | "assigned" | "log";
 export type TaskStatusFilter = "all" | "open" | "today" | "hasDue" | "overdue" | "completed";
 export type TaskDueFilter = "all" | "today" | "tomorrow" | "week" | "month" | "overdue" | "none";
 export type TaskSort = "dueAsc" | "dueDesc" | "priorityDesc" | "newest" | "oldest" | "creator" | "assignee";
@@ -14,6 +14,18 @@ export interface TaskChecklistItem {
   id: string;
   title: string;
   completed: boolean;
+}
+
+export type TaskProgressLogType = "created" | "progress" | "status" | "assignee" | "completed" | "reopened";
+
+export interface TaskProgressLog {
+  id: string;
+  type: TaskProgressLogType;
+  title: string;
+  content?: string;
+  userId: string;
+  userName: string;
+  createdAt: Timestamp;
 }
 
 export interface Task {
@@ -41,6 +53,7 @@ export interface Task {
   completedAt?: Timestamp | null;
   checklist?: TaskChecklistItem[];
   comments?: string;
+  progressLogs?: TaskProgressLog[];
   sortOrder?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;

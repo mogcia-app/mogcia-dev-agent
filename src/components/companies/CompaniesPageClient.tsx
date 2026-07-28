@@ -15,7 +15,7 @@ import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils"
 import { subscribeProductsMaster } from "@/lib/products";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, ContactMethod } from "@/types/company";
+import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { TaskDraft } from "@/types/task";
 
@@ -89,6 +89,14 @@ export function CompaniesPageClient() {
     router.replace(nextPath as Route, { scroll: false });
   }, [params, pathname, router]);
 
+  const showCompanyList = useCallback(() => {
+    const search = new URLSearchParams(params.toString());
+    search.delete("id");
+    search.delete("tab");
+    const nextPath = `${pathname}${search.toString() ? `?${search.toString()}` : ""}`;
+    router.replace(nextPath as Route, { scroll: false });
+  }, [params, pathname, router]);
+
   useEffect(() => {
     if (query === q) return undefined;
     const timer = window.setTimeout(() => setRoute({ q: query }), 300);
@@ -108,10 +116,7 @@ export function CompaniesPageClient() {
       });
   }, [q, sort, store.companies]);
 
-  const selectedCompany = filtered.find((company) => company.id === selectedId) ?? filtered[0] ?? null;
-  useEffect(() => {
-    if (!selectedId && selectedCompany) setRoute({ id: selectedCompany.id, tab: selectedTab });
-  }, [selectedCompany, selectedId, selectedTab, setRoute]);
+  const selectedCompany = selectedId ? filtered.find((company) => company.id === selectedId) ?? null : null;
 
   const flash = (message: string) => {
     setToast(message);
@@ -119,17 +124,20 @@ export function CompaniesPageClient() {
   };
 
   return (
-    <div className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
-      <PageHeader
-        title="会社一覧"
-        description="取引先企業を管理・把握できます"
-        actions={<button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい会社を追加</button>}
-      />
+    <div className="">
+      {!selectedCompany ? (
+        <PageHeader
+          title="会社一覧"
+          description="取引先企業を管理・把握できます"
+          actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい会社を追加</button>}
+        />
+      ) : null}
       <StatusToast message={toast} onClose={() => setToast(null)} />
-      <div className="mt-4"><StatusBanner message={store.error} type="error" /></div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
-          <label className="flex h-11 items-center gap-2 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
+      <div className={selectedCompany ? "" : "mt-4"}><StatusBanner message={store.error} type="error" /></div>
+      <div className={selectedCompany ? "mt-0" : "mt-5"}>
+        {!selectedCompany ? (
+        <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
+          <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
             <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・業種で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             <Search className="h-4 w-4" />
           </label>
@@ -142,14 +150,14 @@ export function CompaniesPageClient() {
           <div className="mt-4 space-y-3">
             {store.loading ? <CompanySkeleton /> : null}
             {!store.loading && filtered.length === 0 ? <EmptyCompanies hasQuery={Boolean(q)} onCreate={() => setCreateOpen(true)} /> : null}
-            {filtered.map((company) => <CompanyListItem active={selectedCompany?.id === company.id} company={company} favorite={company.favoriteUserIds.includes(store.user?.uid ?? "")} key={company.id} onFavorite={() => void store.toggleFavorite(company)} onSelect={() => setRoute({ id: company.id, tab: selectedTab })} />)}
+            {filtered.map((company) => <CompanyListItem active={false} company={company} favorite={company.favoriteUserIds.includes(store.user?.uid ?? "")} key={company.id} onFavorite={() => void store.toggleFavorite(company)} onSelect={() => setRoute({ id: company.id, tab: "overview" })} />)}
           </div>
         </section>
+        ) : (
         <section className="min-w-0">
-          {selectedCompany ? (
             <div className="space-y-4">
-              <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onDelete={() => void store.deleteCompany(selectedCompany.id)} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} />
-              <div className="rounded-lg border border-[#F0E7E9] bg-white shadow-sm">
+              <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onBack={showCompanyList} onDelete={() => { void store.deleteCompany(selectedCompany.id); showCompanyList(); }} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} />
+              <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
                 <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
                 <div className="p-5">
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} tasks={store.tasks} /> : null}
@@ -162,8 +170,8 @@ export function CompaniesPageClient() {
                 </div>
               </div>
             </div>
-          ) : <div className="rounded-lg border border-dashed border-[#F0E7E9] bg-white p-12 text-center text-sm font-bold text-[#8A8A8A]">左の一覧から会社を選択してください</div>}
         </section>
+        )}
       </div>
       {createOpen ? <CompanyFormModal mode="create" currentUser={store.currentUser} members={members} products={products} onClose={() => setCreateOpen(false)} onSubmit={async (patch) => { const id = await store.createCompany(patch); setCreateOpen(false); flash("会社を作成しました"); setRoute({ id, tab: "overview" }); }} /> : null}
       {editCompany ? <CompanyFormModal company={editCompany} mode="edit" currentUser={store.currentUser} members={members} products={products} onClose={() => setEditCompany(null)} onSubmit={async (patch) => { await store.updateCompany(editCompany.id, patch); setEditCompany(null); flash("会社情報を更新しました"); }} /> : null}
@@ -177,17 +185,17 @@ export function CompaniesPageClient() {
 function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
   const primaryContact = getPrimaryContactLabel(company);
 
-  return <button className={`grid w-full grid-cols-[56px_1fr_32px] gap-3 rounded-lg border p-3 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button"><span className="grid h-14 w-14 place-items-center rounded-md bg-[#FFE4EA] text-sm font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><span className="min-w-0"><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{company.industry || "業種未設定"}</span>{primaryContact ? <span className="mt-2 block truncate text-xs font-semibold text-[#777]">先方: {primaryContact}</span> : null}</span><span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span></button>;
+  return <button className={`grid w-full grid-cols-[1fr_32px] gap-3 rounded-none border p-3 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button"><span className="min-w-0"><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{company.industry || "業種未設定"}</span>{primaryContact ? <span className="mt-2 block truncate text-xs font-semibold text-[#777]">先方: {primaryContact}</span> : null}</span><span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span></button>;
 }
 
-function CompanyDetailHeader({ company, favorite, canDelete, onFavorite, onEdit, onLog, onDelete }: { company: Company; favorite: boolean; canDelete: boolean; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void }) {
+function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite, onEdit, onLog, onDelete }: { company: Company; favorite: boolean; canDelete: boolean; onBack: () => void; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void }) {
   const [menu, setMenu] = useState(false);
-  return <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div className="flex items-center gap-4"><span className="grid h-20 w-20 place-items-center rounded-md bg-[#FFE4EA] text-xl font-bold text-[#D94F6E]">{company.name.slice(0, 2)}</span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div>{company.industry ? <p className="mt-2 text-sm font-semibold text-[#777]">{company.industry}</p> : null}</div></div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-full border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
+  return <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div>{company.industry ? <p className="mt-2 text-sm font-semibold text-[#777]">{company.industry}</p> : null}</div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-none border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-none text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
 function OverviewTab({ company, tasks }: { company: Company; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }> }) {
   const nextTask = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER))[0];
-  return <InfoGrid rows={[["会社名", company.name], ["会社名カナ", company.nameKana || "未設定"], ["業種", company.industry || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ["関連商材", company.productNames?.join(" / ") || "未設定"], ["営業担当者", company.internalOwnerName || "未設定"], ["同行者", company.companionNames?.join(" / ") || "未設定"], ["先方担当者", formatContacts(company)], ["最終接触日", company.lastContactAt?.toDate().toLocaleString("ja-JP") ?? "未接触"], ["次回アクション", nextTask ? `${nextTask.title} / ${nextTask.dueDate?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"} / ${nextTask.assigneeName ?? "未設定"}` : company.nextActionTitle || "未設定"]]} />;
+  return <InfoGrid rows={[["会社名", company.name], ["会社名カナ", company.nameKana || "未設定"], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ["関連商材", company.productNames?.join(" / ") || "未設定"], ["営業担当者", company.internalOwnerName || "未設定"], ["同行者", company.companionNames?.join(" / ") || "未設定"], ["先方担当者", formatContacts(company)], ["決裁・予算", formatDecisionInfo(company.decisionInfo)], ["commo. 営業情報", formatCommoContext(company.productSalesContext?.commo)], ["最終接触日", company.lastContactAt?.toDate().toLocaleString("ja-JP") ?? "未接触"], ["次回アクション", nextTask ? `${nextTask.title} / ${nextTask.dueDate?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"} / ${nextTask.assigneeName ?? "未設定"}` : company.nextActionTitle || "未設定"]]} />;
 }
 
 function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () => void }) {
@@ -204,7 +212,7 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
         {(["all", "meeting", "phone", "email", "chat", "visit", "memo", "other"] as Array<ActivityLogType | "all">).map((type) => (
-          <button className={`h-9 rounded-full px-3 text-xs font-bold ${filter === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setFilter(type)} type="button">
+          <button className={`h-9 rounded-none px-3 text-xs font-bold ${filter === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setFilter(type)} type="button">
             {type === "all" ? "すべて" : activityTypeLabels[type]}
           </button>
         ))}
@@ -217,7 +225,7 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
               <h3 className="mb-3 text-sm font-bold text-[#8A8186]">{month}</h3>
               <div className="space-y-2">
                 {items.map((log) => (
-                  <button className={`w-full rounded-lg border p-3 text-left text-sm font-bold transition ${selectedLog?.id === log.id ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#D94F6E]" : "border-[#F0E7E9] bg-white text-[#2B2B2B] hover:bg-[#FFFBFC]"}`} key={log.id} onClick={() => setSelectedLogId(log.id)} type="button">
+                  <button className={`w-full rounded-none border p-3 text-left text-sm font-bold transition ${selectedLog?.id === log.id ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#D94F6E]" : "border-[#F0E7E9] bg-white text-[#2B2B2B] hover:bg-[#FFFBFC]"}`} key={log.id} onClick={() => setSelectedLogId(log.id)} type="button">
                     {log.title || "無題のログ"}
                   </button>
                 ))}
@@ -228,7 +236,7 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
         <ActivityLogDetail log={selectedLog} />
       </div>
       )}
-      {filtered.length > 0 ? <button className="mt-5 h-11 w-full rounded-full border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
+      {filtered.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
   );
 }
@@ -236,10 +244,10 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
 function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
   if (!log) return <ActivityLogEmptyCard description="左側のログを選択すると、日時・関係者・内容をここで確認できます。" title="活動ログを選択してください" compact />;
   return (
-    <article className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-5">
+    <article className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-3 py-1 text-xs font-bold ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
-        <span className="rounded-full border border-[#F0E7E9] bg-white px-3 py-1 text-xs font-bold text-[#D94F6E]">{activityDirectionLabels[log.direction ?? "unknown"]}</span>
+        <span className={`rounded-none px-3 py-1 text-xs font-bold ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
+        <span className="rounded-none border border-[#F0E7E9] bg-white px-3 py-1 text-xs font-bold text-[#D94F6E]">{activityDirectionLabels[log.direction ?? "unknown"]}</span>
       </div>
       <h3 className="mt-3 text-xl font-bold text-[#2B2B2B]">{log.title || "無題のログ"}</h3>
       <dl className="mt-4 grid gap-3 text-sm font-semibold text-[#6F676B]">
@@ -249,10 +257,10 @@ function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
       </dl>
       <div className="mt-5">
         <p className="text-sm font-bold text-[#8A8186]">内容</p>
-        <p className="mt-2 min-h-32 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm font-semibold leading-6 text-[#2B2B2B]">{log.content || "内容は未登録です。"}</p>
+        <p className="mt-2 min-h-32 whitespace-pre-wrap rounded-none bg-white p-4 text-sm font-semibold leading-6 text-[#2B2B2B]">{log.content || "内容は未登録です。"}</p>
       </div>
       {log.nextAction?.title ? (
-        <div className="mt-4 rounded-lg border border-[#F0E7E9] bg-white p-4">
+        <div className="mt-4 rounded-none border border-[#F0E7E9] bg-white p-4">
           <p className="text-sm font-bold text-[#D94F6E]">次のアクション</p>
           <p className="mt-1 text-sm font-semibold text-[#2B2B2B]">{log.nextAction.title}</p>
           <p className="mt-1 text-xs font-semibold text-[#8A8A8A]">{log.nextAction.dueAt?.toDate().toLocaleString("ja-JP") ?? "期限未設定"}</p>
@@ -264,9 +272,9 @@ function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
 
 function ActivityLogEmptyCard({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
   return (
-    <section className={`rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] ${compact ? "p-6" : "mb-5 p-8"}`}>
+    <section className={`rounded-none border border-[#F0E7E9] bg-[#FFFBFC] ${compact ? "p-6" : "mb-5 p-8"}`}>
       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#EC6F8B] shadow-sm">
+        <span className="grid h-12 w-12 place-items-center rounded-none bg-white text-[#EC6F8B] shadow-sm">
           <Mail className="h-5 w-5" />
         </span>
         <h3 className="mt-4 text-base font-bold text-[#2B2B2B]">{title}</h3>
@@ -277,24 +285,24 @@ function ActivityLogEmptyCard({ title, description, compact = false }: { title: 
 }
 
 function MeetingsTab({ meetings, onCreate }: { meetings: CompanyMeeting[]; onCreate: () => void }) {
-  return <div><button className="mb-4 h-10 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">＋ 打ち合わせ情報を入力</button><div className="grid gap-3">{meetings.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">打ち合わせはまだありません。</p> : meetings.map((meeting) => <div className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={meeting.id}><p className="text-sm font-bold text-[#777]">{meeting.startAt.toDate().toLocaleString("ja-JP")} / {meeting.source === "manual" ? "手動入力" : "録音アップロード"}</p><h4 className="mt-1 font-bold text-[#2B2B2B]">{meeting.title}</h4><p className="mt-2 text-xs font-bold text-[#8A8186]">商材: {meeting.productNames?.join(" / ") || "未設定"} / 先方: {meeting.contactNames?.join(" / ") || meeting.participants?.join(" / ") || "未設定"}</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{meeting.summary || "内容未登録"}</p>{meeting.nextActions?.length ? <p className="mt-2 text-sm font-bold text-[#D94F6E]">次回アクション: {meeting.nextActions.join(" / ")}</p> : null}</div>)}</div></div>;
+  return <div><button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">＋ 打ち合わせ情報を入力</button><div className="grid gap-3">{meetings.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">打ち合わせはまだありません。</p> : meetings.map((meeting) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={meeting.id}><p className="text-sm font-bold text-[#777]">{meeting.startAt.toDate().toLocaleString("ja-JP")} / {meeting.source === "manual" ? "手動入力" : "録音アップロード"}</p><h4 className="mt-1 font-bold text-[#2B2B2B]">{meeting.title}</h4><p className="mt-2 text-xs font-bold text-[#8A8186]">商材: {meeting.productNames?.join(" / ") || "未設定"} / 先方: {meeting.contactNames?.join(" / ") || meeting.participants?.join(" / ") || "未設定"}</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{meeting.summary || "内容未登録"}</p>{meeting.nextActions?.length ? <p className="mt-2 text-sm font-bold text-[#D94F6E]">次回アクション: {meeting.nextActions.join(" / ")}</p> : null}</div>)}</div></div>;
 }
 
 function TasksTab({ tasks }: { tasks: Parameters<typeof TaskCard>[0]["task"][] }) {
-  return <div className="space-y-3">{tasks.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">会社に紐づくタスクはありません。</p> : tasks.map((task) => <TaskCard canEdit={false} key={task.id} onOpen={() => undefined} onToggle={() => undefined} task={task} />)}</div>;
+  return <div className="space-y-3">{tasks.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">会社に紐づくタスクはありません。</p> : tasks.map((task) => <TaskCard canEdit={false} currentUserId="" key={task.id} onOpen={() => undefined} onToggle={() => undefined} task={task} />)}</div>;
 }
 
 function DealsTab() {
-  return <p className="rounded-lg border border-dashed border-[#F0E7E9] p-8 text-center text-sm font-bold text-[#8A8A8A]">案件・商談は、今後の商談管理機能と接続します。</p>;
+  return <p className="rounded-none border border-dashed border-[#F0E7E9] p-8 text-center text-sm font-bold text-[#8A8A8A]">案件・商談は、今後の商談管理機能と接続します。</p>;
 }
 
 function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string; url: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number }>; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
   const [progress, setProgress] = useState(0);
-  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-bold text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}<span className="ml-3 text-xs text-[#777]">{file.createdByName ?? ""} / {file.createdAt.toDate().toLocaleString("ja-JP")}</span></a>)}</div></div>;
+  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-bold text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}<span className="ml-3 text-xs text-[#777]">{file.createdByName ?? ""} / {file.createdAt.toDate().toLocaleString("ja-JP")}</span></a>)}</div></div>;
 }
 
 function NotesTab({ memos, onCreate }: { memos: Array<{ id: string; title: string; content: string; pinned: boolean; createdByName?: string; createdAt: { toDate: () => Date } }>; onCreate: () => void }) {
-  return <div><button className="mb-4 h-10 rounded-full bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">メモを追加</button><div className="grid gap-3">{memos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : memos.sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((memo) => <div className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}><h4 className="font-bold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title}</h4><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{memo.content}</p><p className="mt-2 text-xs font-semibold text-[#777]">{memo.createdByName ?? ""} / {memo.createdAt.toDate().toLocaleString("ja-JP")}</p></div>)}</div></div>;
+  return <div><button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">メモを追加</button><div className="grid gap-3">{memos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : memos.sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((memo) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}><h4 className="font-bold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title}</h4><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{memo.content}</p><p className="mt-2 text-xs font-semibold text-[#777]">{memo.createdByName ?? ""} / {memo.createdAt.toDate().toLocaleString("ja-JP")}</p></div>)}</div></div>;
 }
 
 function CompanyFormModal({ mode, company, currentUser, members, products, onClose, onSubmit }: { mode: "create" | "edit"; company?: Company; currentUser: { id: string; name: string }; members: Array<{ uid: string; name: string; email: string }>; products: Product[]; onClose: () => void; onSubmit: (patch: Partial<Company>) => Promise<void> }) {
@@ -303,6 +311,9 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     nameKana: company?.nameKana ?? "",
     industry: company?.industry ?? "",
     companyType: company?.companyType ?? "",
+    prefecture: company?.prefecture ?? "",
+    city: company?.city ?? "",
+    region: "",
     address: company?.address ?? "",
     website: company?.website ?? "",
     status: company?.status ?? "lead",
@@ -314,6 +325,8 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     productIds: company?.productIds ?? [],
     productNames: company?.productNames ?? [],
     productAccountAccess: normalizeProductAccountAccess(company?.productAccountAccess),
+    productSalesContext: normalizeProductSalesContext(company?.productSalesContext),
+    decisionInfo: normalizeDecisionInfo(company?.decisionInfo),
     contacts: company?.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", role: "", email: company?.email ?? "", phone: company?.phone ?? "" })],
     tags: company?.tags.join(", ") ?? "",
     notes: company?.notes ?? ""
@@ -381,6 +394,8 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
         <Input label="会社名" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
         <Input label="会社名カナ" value={form.nameKana} onChange={(nameKana) => setForm({ ...form, nameKana })} />
         <Input label="業種" value={form.industry} onChange={(industry) => setForm({ ...form, industry })} />
+        <Input label="都道府県" value={form.prefecture} onChange={(prefecture) => setForm({ ...form, prefecture })} />
+        <Input label="市区町村" value={form.city} onChange={(city) => setForm({ ...form, city })} />
         <Input label="所在地" value={form.address} onChange={(address) => setForm({ ...form, address })} />
         <Input label="Webサイト" value={form.website} onChange={(website) => setForm({ ...form, website })} />
         <MultiSelect
@@ -394,7 +409,7 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
         {(hasSnsProduct || hasCommoProduct) ? (
           <div className="grid gap-3 sm:col-span-2">
             {hasSnsProduct ? (
-              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+              <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
                 <p className="text-sm font-bold text-[#655D62]">SNS運用アカウント</p>
                 <AccountAccessRow
                   accountLabel="Instagram アカウント名"
@@ -409,7 +424,7 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
               </div>
             ) : null}
             {hasCommoProduct ? (
-              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+              <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
                 <p className="text-sm font-bold text-[#655D62]">commo. 連携アカウント</p>
                 <AccountAccessRow
                   accountLabel="公式LINE アカウント名"
@@ -420,8 +435,38 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
             ) : null}
           </div>
         ) : null}
+        {hasCommoProduct ? (
+          <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 sm:col-span-2">
+            <p className="text-sm font-bold text-[#655D62]">commo. 営業分析用情報</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input label="施設規模" value={form.productSalesContext.commo?.facilityScale ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { facilityScale: value }) }))} />
+              <Input label="LINE活用状況" value={form.productSalesContext.commo?.currentLineUsage ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { currentLineUsage: value }) }))} />
+              <Input label="OTA依存度" value={form.productSalesContext.commo?.otaDependency ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { otaDependency: value }) }))} />
+              <Input label="既存CRM" value={form.productSalesContext.commo?.existingCrm ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { existingCrm: value }) }))} />
+              <Input label="予約管理方法" value={form.productSalesContext.commo?.reservationManagement ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { reservationManagement: value }) }))} />
+              <Input label="運用担当者" value={form.productSalesContext.commo?.operationOwner ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { operationOwner: value }) }))} />
+              <Input label="リピーター状況" value={form.productSalesContext.commo?.repeatCustomerStatus ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { repeatCustomerStatus: value }) }))} />
+              <Input label="休眠顧客状況" value={form.productSalesContext.commo?.dormantCustomerStatus ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { dormantCustomerStatus: value }) }))} />
+            </div>
+          </div>
+        ) : null}
+        <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 sm:col-span-2">
+          <p className="text-sm font-bold text-[#655D62]">決裁・予算情報</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="決裁者名" value={form.decisionInfo.decisionMakerName ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerName: value } }))} />
+            <Input label="決裁者役職" value={form.decisionInfo.decisionMakerRole ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerRole: value } }))} />
+            <Input label="予算感" value={form.decisionInfo.budgetRange ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, budgetRange: value } }))} />
+            <Input label="予算年度" value={form.decisionInfo.budgetYear ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, budgetYear: value } }))} />
+            <Input label="導入希望時期" value={form.decisionInfo.implementationTiming ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, implementationTiming: value } }))} />
+            <Field label="決裁者と接触済み">
+              <button className={`h-11 rounded-none border px-3 text-left text-sm font-bold ${form.decisionInfo.decisionMakerContacted ? "border-[#EC6F8B] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={() => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerContacted: !current.decisionInfo.decisionMakerContacted } }))} type="button">{form.decisionInfo.decisionMakerContacted ? "接触済み" : "未接触 / 未確認"}</button>
+            </Field>
+            <Text label="競合（1行ずつ）" value={toLines(form.decisionInfo.competitors ?? [])} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, competitors: lines(value) } }))} />
+            <Text label="稟議条件（1行ずつ）" value={toLines(form.decisionInfo.approvalConditions ?? [])} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, approvalConditions: lines(value) } }))} />
+          </div>
+        </div>
         <Field label="社内担当者">
-          <div className="flex h-11 items-center rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
+          <div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
         </Field>
         <MultiSelect
           emptyLabel="Authユーザーを取得できませんでした。"
@@ -434,28 +479,20 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
         <Field label="先方担当者">
           <div className="grid gap-3">
             {form.contacts.map((contact, index) => (
-              <div className="grid gap-3 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3" key={contact.id}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-[#655D62]">{contact.name ? formatContactName(contact) : `担当者 ${index + 1}`}</p>
-                  {form.contacts.length > 1 ? <button className="text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : null}
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <input className="task-input" placeholder="担当者名" value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
-                  <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
-                  <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-xs font-bold text-[#8A8186]">連絡方法</span>
+              <div className="grid gap-2 border-b border-[#F0E7E9] pb-3 last:border-b-0 md:grid-cols-[1fr_0.8fr_1.25fr_0.9fr_auto_auto] md:items-center" key={contact.id}>
+                <input className="task-input" placeholder={`担当者名 ${index + 1}`} value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
+                <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
+                <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
+                <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
+                <div className="flex flex-wrap items-center gap-1.5 md:min-w-[168px]">
                   {contactMethodOptions.map(([method, label]) => (
                     <ContactMethodToggle checked={(contact.contactMethods ?? []).includes(method)} key={method} label={label} onClick={() => toggleContactMethod(contact.id, method)} />
                   ))}
                 </div>
+                {form.contacts.length > 1 ? <button className="h-10 border border-[#F0E7E9] px-3 text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : <span className="hidden md:block" />}
               </div>
             ))}
-            <button className="h-10 rounded-full border border-[#F0E7E9] bg-white text-sm font-bold text-[#EC6F8B]" onClick={addContact} type="button">担当者を追加</button>
+            <button className="h-10 rounded-none border border-[#F0E7E9] bg-white text-sm font-bold text-[#EC6F8B]" onClick={addContact} type="button">担当者を追加</button>
           </div>
         </Field>
       </div>
@@ -513,11 +550,11 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
             onChange={(contactIds) => setForm({ ...form, contactIds })}
           />
           {selectedContacts.length ? (
-            <div className="mt-2 rounded-md border border-[#F0E7E9] bg-white p-3">
+            <div className="mt-2 rounded-none border border-[#F0E7E9] bg-white p-3">
               <p className="text-xs font-bold text-[#8A8186]">選択中の連絡方法</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(["phone", "email", "chat", "memo"] as ActivityLogType[]).map((type) => (
-                  <button className={`h-8 rounded-full px-3 text-xs font-bold ${form.type === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setForm({ ...form, type })} type="button">
+                  <button className={`h-8 rounded-none px-3 text-xs font-bold ${form.type === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setForm({ ...form, type })} type="button">
                     {activityTypeLabels[type]}
                   </button>
                 ))}
@@ -596,15 +633,15 @@ function MemoFormModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (
   const [form, setForm] = useState({ title: "", content: "", pinned: false });
   const [saving, setSaving] = useState(false);
   const save = async () => { setSaving(true); await onSubmit(form); setSaving(false); };
-  return <Modal title="メモを追加" onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
+  return <Modal title="メモを追加" onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-72" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><div className="mt-5">{children}</div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><div className="mt-5">{children}</div></section></div>;
 }
 
 function Actions({ saving, disabled, onClose, onSave }: { saving: boolean; disabled: boolean; onClose: () => void; onSave: () => void }) {
-  return <div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-full border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-full bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">保存</button></div>;
+  return <div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">保存</button></div>;
 }
 
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
@@ -616,6 +653,35 @@ function formatContacts(company: Company): string {
   const rows = contacts
     .map((contact) => [formatContactName(contact), formatContactSummary(contact)].filter(Boolean).join(" / "))
     .filter(Boolean);
+  return rows.length ? rows.join("\n") : "未設定";
+}
+
+function formatDecisionInfo(info?: CompanyDecisionInfo): string {
+  const normalized = normalizeDecisionInfo(info);
+  const rows = [
+    normalized.decisionMakerName || normalized.decisionMakerRole ? `決裁者: ${[normalized.decisionMakerName, normalized.decisionMakerRole].filter(Boolean).join(" / ")}` : "",
+    `接触: ${normalized.decisionMakerContacted ? "済み" : "未接触 / 未確認"}`,
+    normalized.budgetRange ? `予算感: ${normalized.budgetRange}` : "",
+    normalized.budgetYear ? `予算年度: ${normalized.budgetYear}` : "",
+    normalized.implementationTiming ? `導入希望時期: ${normalized.implementationTiming}` : "",
+    normalized.competitors?.length ? `競合: ${normalized.competitors.join(" / ")}` : "",
+    normalized.approvalConditions?.length ? `稟議条件: ${normalized.approvalConditions.join(" / ")}` : ""
+  ].filter(Boolean);
+  return rows.length ? rows.join("\n") : "未設定";
+}
+
+function formatCommoContext(context?: CompanyProductSalesContext["commo"]): string {
+  if (!context) return "未設定";
+  const rows = [
+    context.facilityScale ? `施設規模: ${context.facilityScale}` : "",
+    context.currentLineUsage ? `LINE活用: ${context.currentLineUsage}` : "",
+    context.otaDependency ? `OTA依存度: ${context.otaDependency}` : "",
+    context.existingCrm ? `既存CRM: ${context.existingCrm}` : "",
+    context.reservationManagement ? `予約管理: ${context.reservationManagement}` : "",
+    context.operationOwner ? `運用担当: ${context.operationOwner}` : "",
+    context.repeatCustomerStatus ? `リピーター: ${context.repeatCustomerStatus}` : "",
+    context.dormantCustomerStatus ? `休眠顧客: ${context.dormantCustomerStatus}` : ""
+  ].filter(Boolean);
   return rows.length ? rows.join("\n") : "未設定";
 }
 
@@ -634,6 +700,39 @@ function normalizeProductAccountAccess(access?: CompanyProductAccountAccess): Co
     commo: {
       officialLine: access?.commo?.officialLine ?? {}
     }
+  };
+}
+
+function normalizeProductSalesContext(context?: CompanyProductSalesContext): CompanyProductSalesContext {
+  return {
+    commo: {
+      facilityScale: context?.commo?.facilityScale ?? "",
+      currentLineUsage: context?.commo?.currentLineUsage ?? "",
+      otaDependency: context?.commo?.otaDependency ?? "",
+      existingCrm: context?.commo?.existingCrm ?? "",
+      reservationManagement: context?.commo?.reservationManagement ?? "",
+      repeatCustomerStatus: context?.commo?.repeatCustomerStatus ?? "",
+      dormantCustomerStatus: context?.commo?.dormantCustomerStatus ?? "",
+      operationOwner: context?.commo?.operationOwner ?? ""
+    }
+  };
+}
+
+function updateCommoContext(context: CompanyProductSalesContext, patch: NonNullable<CompanyProductSalesContext["commo"]>): CompanyProductSalesContext {
+  const normalized = normalizeProductSalesContext(context);
+  return { ...normalized, commo: { ...normalized.commo, ...patch } };
+}
+
+function normalizeDecisionInfo(info?: CompanyDecisionInfo): CompanyDecisionInfo {
+  return {
+    decisionMakerName: info?.decisionMakerName ?? "",
+    decisionMakerRole: info?.decisionMakerRole ?? "",
+    decisionMakerContacted: Boolean(info?.decisionMakerContacted),
+    budgetRange: info?.budgetRange ?? "",
+    budgetYear: info?.budgetYear ?? "",
+    implementationTiming: info?.implementationTiming ?? "",
+    competitors: info?.competitors ?? [],
+    approvalConditions: info?.approvalConditions ?? []
   };
 }
 
@@ -699,7 +798,7 @@ function formatActivityParties(log: CompanyActivityLog): string {
 }
 
 function Input({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]"><span className="inline-flex items-center gap-2">{label}{required ? <span className="h-1.5 w-1.5 rounded-full bg-[#EC6F8B]" /> : null}</span><input className="task-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-sm font-bold text-[#655D62]"><span className="inline-flex items-center gap-2">{label}{required ? <span className="h-1.5 w-1.5 rounded-none bg-[#EC6F8B]" /> : null}</span><input className="task-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function AccountAccessRow({ accountLabel, credential, onChange }: { accountLabel: string; credential?: CompanyProductAccountCredential; onChange: (key: keyof CompanyProductAccountCredential, value: string) => void }) {
@@ -714,7 +813,7 @@ function AccountAccessRow({ accountLabel, credential, onChange }: { accountLabel
 
 function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
+    <button className={`inline-flex h-8 items-center gap-1.5 rounded-none px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
       {checked ? <Check className="h-3.5 w-3.5" /> : null}
       {label}
     </button>
@@ -750,6 +849,10 @@ function groupByMonth(logs: CompanyActivityLog[]) {
 
 function lines(value: string): string[] {
   return value.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+function toLines(value?: string[]): string {
+  return (value ?? []).join("\n");
 }
 
 function toDatetimeLocalValue(date: Date): string {

@@ -62,19 +62,19 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-10">
-      <div className="absolute -right-32 -top-32 h-[480px] w-[480px] rounded-full bg-[#E9CBC8]/55" />
-      <div className="absolute -bottom-36 -left-36 h-[420px] w-[420px] rounded-full bg-[#D5B5B2]/30" />
+      <div className="absolute -right-32 -top-32 h-[480px] w-[480px] rounded-none bg-[#E9CBC8]/55" />
+      <div className="absolute -bottom-36 -left-36 h-[420px] w-[420px] rounded-none bg-[#D5B5B2]/30" />
       {isRedirecting ? <PageProgress /> : null}
 
       <section className="relative w-full max-w-[760px] rounded-[56px] border border-white/70 bg-white/90 px-6 py-10 shadow-[0_28px_90px_rgba(31,31,34,0.12)] backdrop-blur sm:px-12 sm:py-14">
         <div className="pointer-events-none absolute left-[18%] top-[16%] text-3xl font-light text-[#D5B5B2]/70">+</div>
-        <div className="pointer-events-none absolute right-[20%] top-[18%] h-4 w-4 rounded-full bg-[#E9CBC8]" />
+        <div className="pointer-events-none absolute right-[20%] top-[18%] h-4 w-4 rounded-none bg-[#E9CBC8]" />
         <div className="pointer-events-none absolute right-[15%] top-[30%] text-4xl font-light text-[#D5B5B2]/70">+</div>
 
         <div className="mx-auto flex max-w-[500px] flex-col items-center">
           <Image
             alt="MOGCIA Dev Agent"
-            className="h-[190px] w-[190px] rounded-full object-cover shadow-[0_18px_45px_rgba(185,123,128,0.18)]"
+            className="h-[190px] w-[190px] rounded-none object-cover shadow-[0_18px_45px_rgba(185,123,128,0.18)]"
             height={220}
             priority
             src="/m-dev-agent.png"
@@ -132,7 +132,7 @@ export default function LoginPage() {
                   />
                   <button
                     aria-label={isPasswordVisible ? "パスワードを隠す" : "パスワードを表示"}
-                    className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-md text-neutral-500 transition hover:bg-[#F8F4F3]"
+                    className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-none text-neutral-500 transition hover:bg-[#F8F4F3]"
                     onClick={() => setIsPasswordVisible((current) => !current)}
                     type="button"
                   >

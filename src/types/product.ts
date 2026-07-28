@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 export type ProductStatus = "active" | "draft" | "paused" | "archived";
 export type ProductType = "own_product" | "operation_service" | "web_production" | "custom_development" | "sales_package" | "other";
-export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "new" | "existing" | "resources" | "history";
+export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "new" | "existing" | "resources";
 
 export interface ProductPlan {
   id: string;
@@ -102,6 +102,7 @@ export interface Product {
   problems: string[];
   target: {
     industries: string[];
+    regions: string[];
     companySizes: string[];
     facilitySizes: string[];
     roles: string[];
@@ -110,6 +111,13 @@ export interface Product {
     unsuitableConditions: string[];
     requiredConditions: string[];
     disqualificationConditions: string[];
+    idealCustomerConditions: string[];
+    lowPotentialConditions: string[];
+    winningPatterns: string[];
+    losingPatterns: string[];
+    effectivePhrases: string[];
+    avoidPhrases: string[];
+    industryProposalAngles: Array<{ id: string; industry: string; proposalAngle: string; cautions?: string }>;
   };
   pricing: {
     displayType: "fixed" | "from" | "range" | "estimate" | "hidden";

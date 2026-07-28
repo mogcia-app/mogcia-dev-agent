@@ -59,6 +59,7 @@ function normalizeProduct(id: string, data: DocumentData): Product {
     problems: Array.isArray(data.problems) ? data.problems : [],
     target: {
       industries: data.target?.industries ?? [],
+      regions: data.target?.regions ?? [],
       companySizes: data.target?.companySizes ?? [],
       facilitySizes: data.target?.facilitySizes ?? [],
       roles: data.target?.roles ?? [],
@@ -66,7 +67,14 @@ function normalizeProduct(id: string, data: DocumentData): Product {
       suitableConditions: data.target?.suitableConditions ?? [],
       unsuitableConditions: data.target?.unsuitableConditions ?? [],
       requiredConditions: data.target?.requiredConditions ?? [],
-      disqualificationConditions: data.target?.disqualificationConditions ?? []
+      disqualificationConditions: data.target?.disqualificationConditions ?? [],
+      idealCustomerConditions: data.target?.idealCustomerConditions ?? [],
+      lowPotentialConditions: data.target?.lowPotentialConditions ?? [],
+      winningPatterns: data.target?.winningPatterns ?? [],
+      losingPatterns: data.target?.losingPatterns ?? [],
+      effectivePhrases: data.target?.effectivePhrases ?? [],
+      avoidPhrases: data.target?.avoidPhrases ?? [],
+      industryProposalAngles: data.target?.industryProposalAngles ?? []
     },
     pricing: {
       displayType: data.pricing?.displayType ?? "estimate",

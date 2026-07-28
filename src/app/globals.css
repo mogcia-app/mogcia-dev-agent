@@ -31,12 +31,32 @@ body {
   background: linear-gradient(180deg, #fffafa 0%, var(--background) 52%, #f3eceb 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-weight: 400;
+}
+
+.font-semibold {
+  font-weight: 450;
+}
+
+.font-bold {
+  font-weight: 500;
+}
+
+.font-black {
+  font-weight: 560;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
 }
 
 .task-input {
   min-height: 44px;
   width: 100%;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #f0dee2;
   background: #fffbfc;
   padding: 10px 12px;

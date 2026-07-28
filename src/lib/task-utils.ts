@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import type { MemberOption, Task, TaskDraft, TaskDueFilter, TaskPriority, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
+import type { MemberOption, Task, TaskChecklistItem, TaskDraft, TaskDueFilter, TaskPriority, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
 
 export const ADMIN_UID = "TjDadmBAdVYaPEvG3ppfBLS4HGN2";
 
@@ -54,13 +54,16 @@ export function taskToDraft(task: Task): TaskDraft {
   };
 }
 
-export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption) {
+export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption, existingChecklist: TaskChecklistItem[] = []) {
   const dueDate = parseDueDate(draft.dueDate, draft.dueTime);
   const checklist = draft.checklistText
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((title) => ({ id: `check-${crypto.randomUUID()}`, title, completed: false }));
+    .map((title) => {
+      const existing = existingChecklist.find((item) => item.title === title);
+      return { id: existing?.id ?? `check-${crypto.randomUUID()}`, title, completed: existing?.completed ?? false };
+    });
 
   return {
     title: draft.title.trim(),
@@ -70,7 +73,7 @@ export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption) 
     source: draft.source,
     aiGenerated: draft.source === "ai",
     aiReason: draft.source === "ai" ? draft.aiReason.trim() : "",
-    sourceType: draft.source === "ai" ? "other" as const : undefined,
+    sourceType: draft.source === "ai" ? "other" as const : null,
     sourceId: null,
     assigneeId: draft.assigneeId || currentUser.id,
     assigneeName: draft.assigneeName || currentUser.name,
@@ -182,10 +185,10 @@ export function filterTasks({
   return tasks.filter((task) => {
     if (view === "mine" && task.assigneeId !== currentUserId) return false;
     if (view === "ai" && task.source !== "ai") return false;
-    if (view === "manual" && task.source !== "manual") return false;
     if (view === "members" && task.assigneeId === currentUserId) return false;
     if (view === "members" && member && member !== "all" && task.assigneeId !== member) return false;
     if (view === "assigned" && !(task.createdBy === currentUserId && task.assigneeId !== currentUserId)) return false;
+    if (view === "log" && !isAdminUser(currentUserId) && !(task.assigneeId === currentUserId || task.createdBy === currentUserId)) return false;
 
     if (status === "open" && task.status === "completed") return false;
     if (status === "completed" && task.status !== "completed") return false;

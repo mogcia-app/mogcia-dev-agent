@@ -1,5 +1,5 @@
 function SkeletonLine({ className = "" }: { className?: string }) {
-  return <span className={`mogcia-skeleton block rounded-md ${className}`} />;
+  return <span className={`mogcia-skeleton block rounded-none ${className}`} />;
 }
 
 export function SkeletonCard({ lines = 4, media = false }: { lines?: number; media?: boolean }) {

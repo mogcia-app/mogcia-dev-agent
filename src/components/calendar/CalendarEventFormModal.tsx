@@ -48,25 +48,25 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm">
-      <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-[#2B2B2B]">予定を追加</h2>
-          <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-[#FFF0F3]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
+          <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF0F3]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
         <div className="grid gap-5">
           <Field label="予定名"><input className="task-input" value={draft.title} onChange={(event) => setValue("title", event.target.value)} placeholder="例: 八女上陽ゴルフ倶楽部 提案" /></Field>
           <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
             <Field label="種類"><SingleSelect options={eventTypeOptions.map(([value, label]) => ({ value, label }))} value={draft.eventType} onChange={(value) => setValue("eventType", value as CalendarEventType)} /></Field>
-            {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{currentMember.name}</div></Field>}
-            <Field label="終日"><button className={`h-11 rounded-md border px-4 text-sm font-bold ${draft.allDay ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-[#FFFBFC] text-[#655D62]"}`} onClick={() => setValue("allDay", !draft.allDay)} type="button">{draft.allDay ? "終日" : "時間指定"}</button></Field>
+            {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{currentMember.name}</div></Field>}
+            <Field label="終日"><button className={`h-11 rounded-none border px-4 text-sm font-bold ${draft.allDay ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-[#FFFBFC] text-[#655D62]"}`} onClick={() => setValue("allDay", !draft.allDay)} type="button">{draft.allDay ? "終日" : "時間指定"}</button></Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => setValue("startDate", event.target.value)} /></Field>
             <Field label="開始時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field>
           </div>
           <Field label="メモ"><textarea className="task-input min-h-24 resize-none" value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけメモできます" /></Field>
-          <button className="h-10 rounded-full border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setDetailsOpen((current) => !current)} type="button">{detailsOpen ? "詳細を閉じる" : "詳細を追加"}</button>
-          {detailsOpen ? <div className="grid gap-4 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-2">
+          <button className="h-10 rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setDetailsOpen((current) => !current)} type="button">{detailsOpen ? "詳細を閉じる" : "詳細を追加"}</button>
+          {detailsOpen ? <div className="grid gap-4 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-2">
             <Field label="場所"><input className="task-input" value={draft.location} onChange={(event) => setValue("location", event.target.value)} placeholder="会議室 / オンライン" /></Field>
             <Field label="オンラインURL"><input className="task-input" value={draft.meetingUrl} onChange={(event) => setValue("meetingUrl", event.target.value)} /></Field>
             <Field label="参加者"><input className="task-input" value={draft.attendeeNames} onChange={(event) => setValue("attendeeNames", event.target.value)} placeholder="カンマ区切り" /></Field>
@@ -76,8 +76,8 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
           </div> : null}
         </div>
         <div className="mt-6 flex justify-end gap-3">
-          <button className="h-11 rounded-full border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-          <button className="h-11 rounded-full bg-[#F47E96] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
+          <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
+          <button className="h-11 rounded-none bg-[#F47E96] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
         </div>
       </section>
     </div>

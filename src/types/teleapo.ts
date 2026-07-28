@@ -11,6 +11,8 @@ export type ProspectTemperature = "high" | "middle" | "low";
 export type ProspectRank = "A" | "B+" | "B" | "B-" | "C";
 export type NextActionUrgency = "today" | "next_business_day" | "within_3_days" | "next_week" | "long_term" | "none";
 export type FollowUpMethod = "phone" | "email" | "chat" | "meeting" | "none";
+export type AnalysisPriority = "high" | "medium" | "low";
+export type TaskStatus = "todo" | "doing" | "done";
 
 export interface ConversationLog {
   id: string;
@@ -20,9 +22,203 @@ export interface ConversationLog {
   endSec?: number | null;
 }
 
+export interface EvidenceItem {
+  text: string;
+  sourceQuote: string;
+  confidence: number;
+}
+
+export interface IssueItem {
+  title: string;
+  detail: string;
+  priority: AnalysisPriority;
+  evidence: string;
+  confirmationQuestion: string;
+  proposalConnection: string;
+}
+
+export interface ProposalItem {
+  title: string;
+  score: number;
+  reason: string;
+  talkPoint: string;
+}
+
+export interface MaterialItem {
+  name: string;
+  priority: AnalysisPriority;
+  purpose: string;
+  timing: string;
+  pages: string[];
+}
+
+export interface QuestionItem {
+  question: string;
+  purpose: string;
+  expectedAnswers: string[];
+  followUps: string[];
+}
+
+export interface ScriptBranch {
+  condition: string;
+  response: string;
+  nextAction: string;
+}
+
+export interface ScriptSection {
+  minutes: string;
+  objective: string;
+  script: string[];
+  questions: string[];
+  materials: string[];
+  branches: ScriptBranch[];
+  cautions: string[];
+}
+
+export interface ObjectionItem {
+  objection: string;
+  probability: number;
+  background: string;
+  badResponse: string;
+  recommendedResponse: string;
+  followUpQuestion: string;
+}
+
+export interface AnalysisTaskItem {
+  title: string;
+  owner: string;
+  dueDate: string;
+  priority: AnalysisPriority;
+  status: TaskStatus;
+  relatedMaterials: string[];
+  completionCondition: string;
+  aiCanGenerate: boolean;
+  manualRequired: string[];
+}
+
+export interface MeetingPreparationAnalysis {
+  overview: {
+    companyName: string;
+    contactName: string;
+    contactRole: string;
+    industry: string;
+    productName: string;
+    callDate: string;
+    audioDuration: string;
+    nextMeetingDate: string;
+    meetingStatus: string;
+    salesRep: string;
+    companyLink: string;
+  };
+  prospectScore: {
+    rank: ProspectRank;
+    score: number;
+    estimatedCloseProbability: number;
+    temperature: ProspectTemperature;
+    temperatureLabel: string;
+    meetingConversionStrength: string;
+    followUpTiming: string;
+    nextMeetingTiming: string;
+    reason: string;
+    positiveSignals: EvidenceItem[];
+    negativeSignals: EvidenceItem[];
+    missingInformation: string[];
+  };
+  contactAnalysis: {
+    type: string[];
+    decisionStyle: string;
+    salesResistance: string;
+    numericalInterest: string;
+    comprehensionLevel: string;
+    conversationControl: string;
+    interestedTopics: string[];
+    weakReactionTopics: string[];
+    communicationRecommendations: string[];
+    avoid: string[];
+    evidence: EvidenceItem[];
+    confidence: number;
+  };
+  issues: {
+    explicit: IssueItem[];
+    essential: IssueItem[];
+    latent: IssueItem[];
+  };
+  proposalStrategy: {
+    mainTheme: string;
+    winningApproach: string[];
+    proposalPriority: ProposalItem[];
+    avoidProposals: string[];
+    recommendedCaseStudies: string[];
+    recommendedMaterials: MaterialItem[];
+    firstFeature: string;
+    firstMaterial: string;
+    metricsToShow: string[];
+    cautions: string[];
+  };
+  schedulingCall: {
+    opening: string;
+    previousCallReference: string;
+    purposeConfirmation: string;
+    dateProposalScript: string;
+    durationGuide: string;
+    participantConfirmation: string;
+    meetingFormatConfirmation: string;
+    questionResponses: ScriptBranch[];
+    voicemail: string;
+    retryCall: string;
+    closing: string;
+  };
+  preparation: {
+    objectives: string[];
+    requiredResearch: AnalysisTaskItem[];
+    requiredMaterials: MaterialItem[];
+    optionalMaterials: MaterialItem[];
+    avoidMaterials: MaterialItem[];
+    requiredNumbers: string[];
+    requiredDemos: string[];
+    internalChecks: string[];
+    meetingGoal: string;
+    mustDecideByEnd: string[];
+  };
+  questions: {
+    required: QuestionItem[];
+    deepDive: QuestionItem[];
+    numerical: QuestionItem[];
+    decision: QuestionItem[];
+    closing: QuestionItem[];
+  };
+  meetingScript: {
+    opening: ScriptSection;
+    hearing: ScriptSection;
+    issueSummary: ScriptSection;
+    proposal: ScriptSection;
+    demo: ScriptSection;
+    pricing: ScriptSection;
+    closing: ScriptSection;
+  };
+  openingTalk: string;
+  proposalTalk: string;
+  objections: ObjectionItem[];
+  closingTalk: {
+    high: string;
+    middle: string;
+    low: string;
+  };
+  riskPoints: Array<{
+    title: string;
+    reason: string;
+    prevention: string;
+  }>;
+  winningPoints: string[];
+  nextActions: AnalysisTaskItem[];
+  generatedAt: string;
+  sources: string[];
+}
+
 export interface TeleapoAdvice {
   summary: string;
   temperature: ProspectTemperature;
+  temperatureReason?: string;
   prospectRank: ProspectRank;
   prospectScore: number;
   rankReason: string;
@@ -67,6 +263,7 @@ export interface TeleapoAdvice {
   followupEmail?: string;
   nextMeetingQuestions?: string[];
   additionalMaterials?: string[];
+  meetingPreparation?: MeetingPreparationAnalysis;
 }
 
 export interface TeleapoRecord {
@@ -89,6 +286,7 @@ export interface TeleapoRecord {
   attendeeUserIds?: string[];
   attendeeNames?: string[];
   industry?: string;
+  companyAddress?: string;
   role?: string;
   phone?: string;
   leadSource?: string;
@@ -106,6 +304,16 @@ export interface TeleapoRecord {
     nextProposal?: string;
     closeProbability?: string;
     nextAction?: string;
+    finalResult?: "none" | "contracted" | "considering" | "lost" | "not_target";
+    lossReason?: string;
+    contractReason?: string;
+    noPotentialReason?: string;
+    effectiveProposal?: string;
+    ineffectiveProposal?: string;
+    trueCustomerIssue?: string;
+    salesFeeling?: string;
+    aiEvaluation?: string;
+    adoptedSalesRule?: string;
   };
   audioFilePath?: string | null;
   audioDownloadUrl?: string | null;
@@ -114,6 +322,7 @@ export interface TeleapoRecord {
   transcriptionModel: string;
   transcriptText?: string;
   conversationLogs: ConversationLog[];
+  conversationLogsLocked?: boolean;
   aiAdviceStatus: AiAdviceStatus;
   aiAdviceModel?: string | null;
   aiAdvice?: TeleapoAdvice | null;

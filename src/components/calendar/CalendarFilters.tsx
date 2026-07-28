@@ -15,7 +15,7 @@ const filterItems: Array<{ key: keyof CalendarFilterState; label: string; color:
 
 export function CalendarFilters({ filters, members, member, onFilterChange, onMemberChange }: { filters: CalendarFilterState; members: MemberOption[]; member: string; onFilterChange: (key: keyof CalendarFilterState, value: boolean) => void; onMemberChange: (member: string) => void }) {
   return (
-    <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
+    <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
       <h3 className="text-sm font-bold text-[#2B2B2B]">表示フィルター</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {filterItems.map((item) => (

@@ -3,11 +3,13 @@
 import {
   BriefcaseBusiness,
   CalendarDays,
+  ChartNoAxesCombined,
   ChevronDown,
   ChevronRight,
   Home,
   LogOut,
   Package,
+  ScanSearch,
   UploadCloud,
   Building2,
   ListChecks,
@@ -46,6 +48,7 @@ const sidebarGroups: SidebarGroup[] = [
       { href: "/calendar", label: "カレンダー", icon: CalendarDays },
       { href: "/tasks", label: "タスク", icon: ListChecks },
       { href: "/products", label: "商材管理", icon: Package },
+      { href: "/products/analysis", label: "商材分析", icon: ScanSearch },
       // { href: "/knowledge", label: "ナレッジ", icon: Library },
       { href: "/settings/desktop", label: "デスクトップ連携", icon: Settings }
     ]
@@ -56,7 +59,8 @@ const sidebarGroups: SidebarGroup[] = [
     icon: BriefcaseBusiness,
     items: [
       { href: "/sales/companies", label: "会社一覧", icon: Building2 },
-      { href: "/sales/upload", label: "アップロード", icon: UploadCloud }
+      { href: "/sales/upload", label: "アップロード", icon: UploadCloud },
+      { href: "/sales/analysis", label: "分析済み一覧", icon: ChartNoAxesCombined }
     ]
   }
 ];
@@ -109,7 +113,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
       {isSigningOut ? <PageProgress /> : null}
       <aside className="flex border-b border-[#E9DAD8] bg-white/90 px-4 py-4 shadow-[0_10px_32px_rgba(31,31,34,0.05)] backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-b-0 lg:border-r lg:px-5">
         <div className="flex w-full items-center gap-3">
-          <Image alt="" className="rounded-md" height={40} src="/m-dev-agent.png" width={40} />
+          <Image alt="" className="rounded-none" height={40} src="/m-dev-agent.png" width={40} />
           <p className="text-sm font-semibold tracking-[0.08em] text-[#1F1F22]">
             MOGCIA <span className="text-[#B97B80]">Dev Agent</span>
           </p>
@@ -124,7 +128,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             return (
               <section key={group.id}>
                 <button
-                  className={`flex h-11 w-full items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
+                  className={`flex h-11 w-full items-center justify-between rounded-none px-3 text-left text-sm font-semibold transition ${
                     isGroupActive ? "bg-[#F8F4F3] text-[#1F1F22]" : "text-neutral-500 hover:bg-[#F8F4F3] hover:text-[#1F1F22]"
                   }`}
                   onClick={() => setExpandedGroups((current) => ({ ...current, [group.id]: !current[group.id] }))}
@@ -144,7 +148,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
                       const isActive = item.href === pathname;
                       return (
                         <Link
-                          className={`flex h-10 items-center gap-3 rounded-md border-l-2 px-3 text-sm transition ${
+                          className={`flex h-10 items-center gap-3 rounded-none border-l-2 px-3 text-sm transition ${
                             isActive
                               ? "border-[#B97B80] bg-[#F7F3F2] font-semibold text-[#1F1F22]"
                               : "border-transparent text-neutral-500 hover:bg-[#F8F4F3] hover:text-[#1F1F22]"
@@ -166,7 +170,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
         <div className="mt-auto hidden pt-8 lg:block">
           <button
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#E9DAD8] bg-white text-sm font-semibold text-[#B97B80] transition hover:bg-[#F7F3F2]"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-none border border-[#E9DAD8] bg-white text-sm font-semibold text-[#B97B80] transition hover:bg-[#F7F3F2]"
             onClick={() => void logout()}
             type="button"
           >

@@ -188,12 +188,12 @@ export function HomePageClient() {
   }, [dashboard.overdueTasks.length, dashboard.todayEvents.length, dashboard.todayTasks.length]);
 
   return (
-    <section className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
+    <section className="">
       <PageHeader
         title="Home"
         description={`${getUserDisplayName(user)}さんの今日の予定、タスク、要対応をまとめています。`}
         actions={
-          <Link className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(236,111,139,0.22)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
+          <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(236,111,139,0.22)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
             <Plus className="h-4 w-4" />
             新しいタスク
           </Link>
@@ -245,7 +245,7 @@ export function HomePageClient() {
 
         <div className="space-y-5">
           <Panel icon={Sparkles} title="今日の進め方">
-            <div className="rounded-lg border border-[#F7CAD2] bg-[#FFF0F3] p-4">
+            <div className="rounded-none border border-[#F7CAD2] bg-[#FFF0F3] p-4">
               <p className="text-sm font-bold leading-6 text-[#7A434D]">{guidance}</p>
             </div>
           </Panel>
@@ -275,9 +275,9 @@ export function HomePageClient() {
         {!loading && dashboard.recentItems.length === 0 ? <EmptyLine text="最近の更新はまだありません。" /> : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {dashboard.recentItems.map((item) => (
-            <Link className="rounded-lg border border-[#F0E7E9] bg-white p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFFBFC]" href={item.href} key={item.id}>
+            <Link className="rounded-none border border-[#F0E7E9] bg-white p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFFBFC]" href={item.href} key={item.id}>
               <div className="flex items-center justify-between gap-3">
-                <span className="rounded-full bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{item.label}</span>
+                <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{item.label}</span>
                 <span className="text-xs font-semibold text-[#999]">{formatDateTime(item.at)}</span>
               </div>
               <h3 className="mt-3 truncate font-bold text-[#2B2B2B]">{item.title}</h3>
@@ -292,10 +292,10 @@ export function HomePageClient() {
 
 function MetricCard({ label, value, icon: Icon }: { label: string; value: number; icon: typeof CalendarDays }) {
   return (
-    <div className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-[0_14px_34px_rgba(31,31,34,0.04)]">
+    <div className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-[0_14px_34px_rgba(31,31,34,0.04)]">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-[#777]">{label}</p>
-        <span className="grid h-9 w-9 place-items-center rounded-md bg-[#FFF0F3] text-[#EC6F8B]">
+        <span className="grid h-9 w-9 place-items-center rounded-none bg-[#FFF0F3] text-[#EC6F8B]">
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -306,7 +306,7 @@ function MetricCard({ label, value, icon: Icon }: { label: string; value: number
 
 function Panel({ title, icon: Icon, actionHref, actionLabel, className = "", children }: { title: string; icon: typeof CalendarDays; actionHref?: Route; actionLabel?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-[0_14px_44px_rgba(31,31,34,0.05)] ${className}`}>
+    <section className={`rounded-none border border-[#F0E7E9] bg-white p-5 shadow-[0_14px_44px_rgba(31,31,34,0.05)] ${className}`}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-bold text-[#2B2B2B]">
           <Icon className="h-5 w-5 text-[#EC6F8B]" />
@@ -325,14 +325,14 @@ function Panel({ title, icon: Icon, actionHref, actionLabel, className = "", chi
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return <p className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-bold text-[#8A8186]">{text}</p>;
+  return <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-bold text-[#8A8186]">{text}</p>;
 }
 
 function ScheduleRow({ time, title, description, color }: { time: string; title: string; description: string; color: "pink" | "blue" | "green" }) {
   const tone = color === "blue" ? "bg-[#F1F7FF] text-[#4F78B4]" : color === "green" ? "bg-[#F4FAEF] text-[#70A55F]" : "bg-[#FFF0F3] text-[#EC6F8B]";
   return (
-    <div className="grid gap-3 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-[72px_1fr]">
-      <span className={`grid h-11 place-items-center rounded-md text-sm font-bold ${tone}`}>{time}</span>
+    <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-[72px_1fr]">
+      <span className={`grid h-11 place-items-center rounded-none text-sm font-bold ${tone}`}>{time}</span>
       <span className="min-w-0">
         <span className="block truncate font-bold text-[#2B2B2B]">{title}</span>
         <span className="mt-1 block truncate text-sm font-semibold text-[#777]">{description}</span>
@@ -344,23 +344,23 @@ function ScheduleRow({ time, title, description, color }: { time: string; title:
 function TaskRow({ task }: { task: Task }) {
   const due = task.dueDate?.toDate();
   return (
-    <Link className="flex items-center gap-3 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-white" href={"/tasks" as Route}>
-      <span className="grid h-10 w-10 place-items-center rounded-md bg-white text-[#EC6F8B]">
+    <Link className="flex items-center gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-white" href={"/tasks" as Route}>
+      <span className="grid h-10 w-10 place-items-center rounded-none bg-white text-[#EC6F8B]">
         {task.status === "completed" ? <CheckCircle2 className="h-5 w-5" /> : <ListChecks className="h-5 w-5" />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold text-[#2B2B2B]">{task.title}</span>
         <span className="mt-1 block truncate text-sm font-semibold text-[#777]">{task.companyName || getUserDisplayNameById(task.assigneeId, task.assigneeName)}</span>
       </span>
-      <span className="rounded-full bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{due ? `${formatTaskTime(due)}まで` : "期限なし"}</span>
+      <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{due ? `${formatTaskTime(due)}まで` : "期限なし"}</span>
     </Link>
   );
 }
 
 function AttentionRow({ href, label, title }: { href: Route; label: string; title: string }) {
   return (
-    <Link className="flex items-center gap-3 rounded-lg border border-[#F7CAD2] bg-[#FFF8F9] p-3 transition hover:bg-[#FFF0F3]" href={href}>
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white text-[#EC6F8B]">
+    <Link className="flex items-center gap-3 rounded-none border border-[#F7CAD2] bg-[#FFF8F9] p-3 transition hover:bg-[#FFF0F3]" href={href}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-none bg-white text-[#EC6F8B]">
         <AlertCircle className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">

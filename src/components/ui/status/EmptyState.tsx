@@ -21,7 +21,7 @@ export function EmptyState({
       <h3 className="mt-4 text-lg font-bold text-[#222]">{title}</h3>
       {description ? <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[#888]">{description}</p> : null}
       {actionLabel && onAction ? (
-        <button className="mt-5 h-11 rounded-full bg-[#F45F7A] px-5 text-sm font-bold text-white shadow-[0_12px_26px_rgba(244,95,122,0.18)]" onClick={onAction} type="button">
+        <button className="mt-5 h-11 rounded-none bg-[#F45F7A] px-5 text-sm font-bold text-white shadow-[0_12px_26px_rgba(244,95,122,0.18)]" onClick={onAction} type="button">
           {actionLabel}
         </button>
       ) : null}

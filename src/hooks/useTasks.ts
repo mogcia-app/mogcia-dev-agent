@@ -4,8 +4,8 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { ADMIN_UID, isAdminUser } from "@/lib/task-utils";
-import { createTask, deleteTask, duplicateTask, setTaskCompleted, subscribeTasks, updateTask } from "@/lib/tasks";
-import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
+import { createTask, deleteTask, duplicateTask, setTaskCompleted, subscribeTasks, updateTask, updateTaskChecklist } from "@/lib/tasks";
+import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
 
 export function useTasks() {
@@ -50,6 +50,7 @@ export function useTasks() {
 
   const members = useMemo<MemberOption[]>(() => {
     const memberMap = new Map<string, string>();
+    DEFAULT_WORKSPACE_MEMBERS.forEach((member) => memberMap.set(member.uid, member.name));
     if (user) memberMap.set(user.uid, getUserDisplayName(user));
     if (ADMIN_UID) memberMap.set(ADMIN_UID, getUserDisplayNameById(ADMIN_UID));
     tasks.forEach((task) => {
@@ -78,6 +79,7 @@ export function useTasks() {
     canDeleteTask,
     createTask: (draft: TaskDraft) => createTask(draft, currentMember),
     updateTask: (taskId: string, draft: TaskDraft) => updateTask(taskId, draft, currentMember),
+    updateTaskChecklist,
     completeTask: setTaskCompleted,
     deleteTask,
     duplicateTask: (task: Task) => duplicateTask(task, currentMember)

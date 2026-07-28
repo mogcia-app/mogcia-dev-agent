@@ -13,13 +13,13 @@ export function MonthCalendar({ month, selectedDate, items, onMonthChange, onSel
   const moveMonth = (amount: number) => onMonthChange(new Date(month.getFullYear(), month.getMonth() + amount, 1));
 
   return (
-    <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
+    <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <button className="grid h-10 w-10 place-items-center rounded-md bg-white text-[#6E666A] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => moveMonth(-1)} type="button" aria-label="前月"><ChevronLeft className="h-5 w-5" /></button>
+        <button className="grid h-10 w-10 place-items-center rounded-none bg-white text-[#6E666A] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => moveMonth(-1)} type="button" aria-label="前月"><ChevronLeft className="h-5 w-5" /></button>
         <h3 className="text-xl font-bold text-[#2B2B2B]">{formatMonthTitle(month)}</h3>
         <div className="flex items-center gap-2">
-          <button className="h-10 rounded-full bg-white px-4 text-sm font-bold text-[#F47E96] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => { const today = new Date(); onMonthChange(today); onSelectDate(today); }} type="button">今日</button>
-          <button className="grid h-10 w-10 place-items-center rounded-md bg-white text-[#6E666A] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => moveMonth(1)} type="button" aria-label="翌月"><ChevronRight className="h-5 w-5" /></button>
+          <button className="h-10 rounded-none bg-white px-4 text-sm font-bold text-[#F47E96] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => { const today = new Date(); onMonthChange(today); onSelectDate(today); }} type="button">今日</button>
+          <button className="grid h-10 w-10 place-items-center rounded-none bg-white text-[#6E666A] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => moveMonth(1)} type="button" aria-label="翌月"><ChevronRight className="h-5 w-5" /></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-2 text-center text-sm font-bold text-[#6E666A]">

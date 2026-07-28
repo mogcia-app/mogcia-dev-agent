@@ -1,7 +1,7 @@
 "use client";
 
 import { SearchSelect, SingleSelect } from "@/components/ui/select";
-import type { MemberOption, TaskDraft, TaskPriority, TaskSource, TaskStatus } from "@/types/task";
+import type { MemberOption, TaskDraft, TaskStatus } from "@/types/task";
 import type { CompanyOption, MeetingOption, ProjectOption } from "@/types/workspace-records";
 
 type DraftKey = keyof TaskDraft;
@@ -14,6 +14,7 @@ export function TaskFormFields({
   meetings,
   readOnly,
   canAssign,
+  currentUserId,
   onChange
 }: {
   draft: TaskDraft;
@@ -23,6 +24,7 @@ export function TaskFormFields({
   meetings: MeetingOption[];
   readOnly: boolean;
   canAssign: boolean;
+  currentUserId?: string;
   onChange: (draft: TaskDraft) => void;
 }) {
   const setValue = (key: DraftKey, value: string) => onChange({ ...draft, [key]: value });
@@ -30,6 +32,8 @@ export function TaskFormFields({
     const member = members.find((entry) => entry.id === value);
     onChange({ ...draft, assigneeId: value, assigneeName: member?.name ?? value });
   };
+  const selectedAssignee = members.find((member) => member.id === draft.assigneeId);
+  const isAssignedToOtherMember = Boolean(draft.assigneeId && currentUserId && draft.assigneeId !== currentUserId);
   const filteredProjects = draft.companyId ? projects.filter((project) => project.companyId === draft.companyId) : projects;
   const filteredMeetings = draft.projectId ? meetings.filter((meeting) => meeting.projectId === draft.projectId) : meetings;
   const onCompanyChange = (value: string) => {
@@ -53,20 +57,15 @@ export function TaskFormFields({
       <Field label="説明">
         <textarea className="task-input min-h-24 resize-none" disabled={readOnly} value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="作業内容や依頼背景" />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4">
         <Field label="状態">
           <SingleSelect disabled={readOnly} options={[["todo", "未着手"], ["in_progress", "進行中"], ["waiting", "待機中"], ["completed", "完了"], ["cancelled", "キャンセル"]].map(([value, label]) => ({ value, label }))} value={draft.status} onChange={(value) => setValue("status", value as TaskStatus)} />
-        </Field>
-        <Field label="優先度">
-          <SingleSelect disabled={readOnly} options={[["high", "高"], ["medium", "中"], ["low", "低"]].map(([value, label]) => ({ value, label }))} value={draft.priority} onChange={(value) => setValue("priority", value as TaskPriority)} />
-        </Field>
-        <Field label="作成元">
-          <SingleSelect disabled={readOnly} options={[["manual", "手動"], ["ai", "AI作成"], ["automation", "自動"]].map(([value, label]) => ({ value, label }))} value={draft.source} onChange={(value) => setValue("source", value as TaskSource)} />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="担当者">
           <SearchSelect disabled={readOnly || !canAssign} options={members.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={onAssigneeChange} />
+          {isAssignedToOtherMember ? <span className="text-xs font-semibold text-[#EC6F8B]">保存すると{selectedAssignee?.name ?? draft.assigneeName}さんのタスク欄に表示されます。</span> : null}
         </Field>
         <Field label="期限日">
           <input className="task-input" disabled={readOnly} type="date" value={draft.dueDate} onChange={(event) => setValue("dueDate", event.target.value)} />
@@ -94,8 +93,8 @@ export function TaskFormFields({
       <Field label="チェックリスト">
         <textarea className="task-input min-h-20 resize-none" disabled={readOnly} value={draft.checklistText} onChange={(event) => setValue("checklistText", event.target.value)} placeholder="1行に1項目" />
       </Field>
-      <Field label="コメント">
-        <textarea className="task-input min-h-20 resize-none" disabled={readOnly} value={draft.comments} onChange={(event) => setValue("comments", event.target.value)} placeholder="メモや共有事項" />
+      <Field label="進捗状況">
+        <textarea className="task-input min-h-28 resize-none" disabled={readOnly} value={draft.comments} onChange={(event) => setValue("comments", event.target.value)} placeholder="今どこまで進んでいるか、詰まっていること、次にやること" />
       </Field>
     </div>
   );

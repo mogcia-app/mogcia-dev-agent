@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Download, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
+import { Download, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,6 +20,18 @@ const salesSceneLabels: Record<ProductSalesScene, string> = {
   meeting: "打ち合わせ時"
 };
 
+const productTabDescriptions: Record<ProductTab, string> = {
+  basic: "商材の概要と提供価値",
+  target: "AIが参照する顧客条件",
+  pricing: "料金・契約まわり",
+  features: "機能の見出しと詳細",
+  implementation: "反論と切り返し",
+  sales: "営業全体の基準",
+  new: "新規提案の進め方",
+  existing: "成約後・既存向け方針",
+  resources: "提案資料・デモ"
+};
+
 export function ProductsPageClient() {
   const store = useProducts();
   const router = useRouter();
@@ -30,10 +42,13 @@ export function ProductsPageClient() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const [reordering, setReordering] = useState(false);
 
   const setProductRoute = useCallback((id: string, tab: ProductTab) => {
     router.replace(`${pathname}?id=${id}&tab=${tab}` as Route, { scroll: false });
+  }, [pathname, router]);
+
+  const showProductList = useCallback(() => {
+    router.replace(pathname as Route, { scroll: false });
   }, [pathname, router]);
 
   useEffect(() => {
@@ -52,44 +67,27 @@ export function ProductsPageClient() {
       .sort((a, b) => (a.sortOrder || Number.MAX_SAFE_INTEGER) - (b.sortOrder || Number.MAX_SAFE_INTEGER) || b.updatedAt.toMillis() - a.updatedAt.toMillis());
   }, [debouncedQuery, store.products]);
 
-  const selectedProduct = selectedId ? store.products.find((product) => product.id === selectedId) ?? null : filtered[0] ?? null;
-  const canReorder = store.canEdit && !debouncedQuery.trim();
-
-  useEffect(() => {
-    if (!selectedId && selectedProduct) setProductRoute(selectedProduct.id, selectedTab);
-  }, [selectedId, selectedProduct, selectedTab, setProductRoute]);
-
-  const moveProduct = async (productId: string, direction: -1 | 1) => {
-    const currentIndex = filtered.findIndex((product) => product.id === productId);
-    const nextIndex = currentIndex + direction;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= filtered.length) return;
-    const nextProducts = [...filtered];
-    [nextProducts[currentIndex], nextProducts[nextIndex]] = [nextProducts[nextIndex], nextProducts[currentIndex]];
-    setReordering(true);
-    try {
-      await store.reorderProducts(nextProducts);
-    } finally {
-      setReordering(false);
-    }
-  };
-
+  const selectedProduct = selectedId ? store.products.find((product) => product.id === selectedId) ?? null : null;
   return (
-    <div className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
-      <PageHeader
-        title="商材管理"
-        description="自社の提供商材を管理できます"
-        actions={
-          <>
-            <button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい商材を追加</button>
-            <button className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => exportProductsCsv(filtered)} type="button"><Download className="h-4 w-4" />エクスポート</button>
-          </>
-        }
-      />
-      <div className="mt-4"><StatusBanner message={store.error} type="error" /></div>
-      <div className="mt-5 grid items-stretch gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
-        <section className="h-full rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
+    <div>
+      {!selectedProduct ? (
+        <PageHeader
+          title="商材管理"
+          description="自社の提供商材を管理できます"
+          actions={
+            <>
+              <button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい商材を追加</button>
+              <button className="inline-flex h-11 items-center gap-2 rounded-none bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" onClick={() => exportProductsCsv(filtered)} type="button"><Download className="h-4 w-4" />エクスポート</button>
+            </>
+          }
+        />
+      ) : null}
+      <div className={selectedProduct ? "" : "mt-4"}><StatusBanner message={store.error} type="error" /></div>
+      <div className={selectedProduct ? "mt-0" : "mt-5"}>
+        {!selectedProduct ? (
+        <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <div>
-            <label className="flex h-11 items-center gap-2 rounded-md border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
+            <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
               <Search className="h-4 w-4" />
               <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="商材名で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             </label>
@@ -97,31 +95,26 @@ export function ProductsPageClient() {
           <div className="mt-4 space-y-3">
             {store.loading ? <ProductSkeleton /> : null}
             {!store.loading && filtered.length === 0 ? <EmptyProducts onCreate={() => setCreateOpen(true)} /> : null}
-            {filtered.map((product, index) => (
+            {filtered.map((product) => (
               <ProductListItem
                 key={product.id}
                 product={product}
-                active={selectedProduct?.id === product.id}
-                canMoveDown={canReorder && index < filtered.length - 1}
-                canMoveUp={canReorder && index > 0}
-                moving={reordering}
-                onMoveDown={() => void moveProduct(product.id, 1)}
-                onMoveUp={() => void moveProduct(product.id, -1)}
-                onSelect={() => setProductRoute(product.id, selectedTab)}
+                active={false}
+                onSelect={() => setProductRoute(product.id, "basic")}
               />
             ))}
           </div>
         </section>
-        <section className="min-w-0 xl:h-full xl:min-h-0">
-          {selectedProduct ? (
+        ) : (
+        <section className="min-w-0">
             <ProductDetail
+              onBack={showProductList}
               canEdit={store.canEdit}
               isAdmin={store.isAdmin}
-              key={selectedProduct.id}
+              key={`${selectedProduct.id}-${productTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}`}
               onDelete={async () => {
                 await store.deleteProduct(selectedProduct.id);
-                const nextProduct = filtered.find((product) => product.id !== selectedProduct.id);
-                if (nextProduct) setProductRoute(nextProduct.id, selectedTab);
+                showProductList();
               }}
               onSave={(tab, patch) => store.updateProduct(selectedProduct.id, tab, patch)}
               onTabChange={(tab) => setProductRoute(selectedProduct.id, tab)}
@@ -129,10 +122,8 @@ export function ProductsPageClient() {
               tab={productTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}
               user={store.currentUser}
             />
-          ) : (
-            <div className="rounded-lg border border-dashed border-[#F0E7E9] bg-white p-12 text-center text-sm font-bold text-[#8A8A8A]">左の一覧から商材を選択してください</div>
-          )}
         </section>
+        )}
       </div>
       {isCreateOpen ? <CreateProductModal onClose={() => setCreateOpen(false)} onCreate={async (input) => { const id = await store.createProduct(input); setQuery(""); setDebouncedQuery(""); setCreateOpen(false); setProductRoute(id, "basic"); }} /> : null}
     </div>
@@ -144,14 +135,14 @@ function ProductIcon({ product, size }: { product: Product; size: "sm" | "lg" })
   if (product.iconUrl) {
     // Firebase Storageの任意URLを小さな商材アイコンとして表示するため、ここは通常のimgを使う。
     // eslint-disable-next-line @next/next/no-img-element
-    return <img alt="" className={`${className} rounded-md object-cover ring-1 ring-[#F0E7E9]`} src={product.iconUrl} />;
+    return <img alt="" className={`${className} rounded-none object-cover ring-1 ring-[#F0E7E9]`} src={product.iconUrl} />;
   }
-  return <span className={`grid ${className} place-items-center rounded-md bg-[#EC6F8B] font-bold text-white`}>{product.name.slice(0, 2)}</span>;
+  return <span className={`grid ${className} place-items-center rounded-none bg-[#EC6F8B] font-bold text-white`}>{product.name.slice(0, 2)}</span>;
 }
 
-function ProductListItem({ product, active, canMoveUp, canMoveDown, moving, onSelect, onMoveUp, onMoveDown }: { product: Product; active: boolean; canMoveUp: boolean; canMoveDown: boolean; moving: boolean; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void }) {
+function ProductListItem({ product, active, onSelect }: { product: Product; active: boolean; onSelect: () => void }) {
   return (
-    <div className={`grid w-full grid-cols-[1fr_32px] items-center gap-2 rounded-lg border p-2 ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`}>
+    <div className={`grid w-full rounded-none border p-2 ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`}>
       <button className="grid min-w-0 grid-cols-[56px_1fr] items-center gap-3 p-1 text-left" onClick={onSelect} type="button">
         <ProductIcon product={product} size="sm" />
         <span className="min-w-0">
@@ -160,26 +151,25 @@ function ProductListItem({ product, active, canMoveUp, canMoveDown, moving, onSe
           <span className="mt-2 block text-xs font-semibold text-[#999]">更新日: {product.updatedAt.toDate().toLocaleDateString("ja-JP")}</span>
         </span>
       </button>
-      <div className="grid gap-1">
-        <button aria-label={`${product.name}を上へ`} className="grid h-7 w-7 place-items-center rounded-md border border-[#F0E7E9] bg-white text-[#EC6F8B] disabled:cursor-not-allowed disabled:opacity-30" disabled={!canMoveUp || moving} onClick={onMoveUp} type="button"><ChevronUp className="h-4 w-4" /></button>
-        <button aria-label={`${product.name}を下へ`} className="grid h-7 w-7 place-items-center rounded-md border border-[#F0E7E9] bg-white text-[#EC6F8B] disabled:cursor-not-allowed disabled:opacity-30" disabled={!canMoveDown || moving} onClick={onMoveDown} type="button"><ChevronDown className="h-4 w-4" /></button>
-      </div>
     </div>
   );
 }
 
-function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSave, onDelete }: { product: Product; tab: ProductTab; canEdit: boolean; isAdmin: boolean; user: { id: string; name: string }; onTabChange: (tab: ProductTab) => void; onSave: (tab: ProductTab, patch: Partial<Product>) => Promise<void>; onDelete: () => Promise<void>; }) {
+function ProductDetail({ product, tab, canEdit, isAdmin, user, onBack, onTabChange, onSave, onDelete }: { product: Product; tab: ProductTab; canEdit: boolean; isAdmin: boolean; user: { id: string; name: string }; onBack: () => void; onTabChange: (tab: ProductTab) => void; onSave: (tab: ProductTab, patch: Partial<Product>) => Promise<void>; onDelete: () => Promise<void>; }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(product);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const currentTab = productTabs.find((item) => item.value === tab) ?? productTabs[0];
+  const activeTab = productTabs.find((item) => item.value === tab) ?? productTabs[0];
 
   const save = async () => {
     setSaving(true);
-    await onSave(tab, draft);
-    setSaving(false);
-    setEditing(false);
+    try {
+      await onSave(tab, draft);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async () => {
@@ -193,12 +183,13 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSa
   };
 
   return (
-    <div className="grid h-full min-h-0 gap-4 xl:grid-rows-[auto_minmax(0,1fr)]">
-      <section className="rounded-lg border border-[#F0E7E9] bg-white p-4 shadow-sm">
+    <div className="grid min-h-[calc(100vh-120px)] gap-4 xl:grid-rows-[auto_minmax(0,1fr)]">
+      <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <ProductIcon product={product} size="lg" />
             <div>
+              <button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-2xl font-bold text-[#2B2B2B]">{product.name}</h3>
               </div>
@@ -206,38 +197,61 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onTabChange, onSa
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canEdit ? <button className="h-10 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
-            {isAdmin ? <button className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
-            {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />提案資料を開く</a> : null}
-            {product.resources.find((resource) => resource.type === "demo" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "demo" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer">デモを見る</a> : null}
+            {canEdit ? <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
+            {isAdmin ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
+            {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />提案資料を開く</a> : null}
+            {product.resources.find((resource) => resource.type === "demo" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "demo" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer">デモを見る</a> : null}
           </div>
         </div>
       </section>
-      <section className="flex min-h-0 flex-col rounded-lg border border-[#F0E7E9] bg-white shadow-sm">
-        <div className="flex overflow-x-auto border-b border-[#F0E7E9]">
-          {productTabs.map((item) => <button className={`grid h-14 shrink-0 place-items-center px-4 text-sm font-bold ${tab === item.value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={item.value} onClick={() => onTabChange(item.value)} title={item.aiPurpose} type="button"><span>{item.label}</span><span className="text-[10px] font-bold text-[#B89AA2]">AI参照</span></button>)}
-        </div>
-        <div className="border-b border-[#F0E7E9] bg-[#FFFBFC] px-5 py-3">
-          <p className="text-xs font-bold text-[#EC6F8B]">AI参照用途</p>
-          <p className="mt-1 text-sm font-semibold leading-6 text-[#6F676B]">{currentTab.aiPurpose}</p>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto p-5">
-          {editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
-          {editing ? (
-            <div className="mt-5 flex justify-end gap-3">
-              <button className="h-11 rounded-full border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={() => { setDraft(product); setEditing(false); }} type="button">キャンセル</button>
-              <button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button"><Save className="h-4 w-4" />保存</button>
+      <section className="flex min-h-[calc(100vh-280px)] flex-col rounded-none border border-[#F0E7E9] bg-white shadow-sm">
+        <ProductSectionNav activeTab={tab} onTabChange={onTabChange} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-col gap-3 border-b border-[#F0E7E9] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 className="mt-1 text-xl font-bold text-[#2B2B2B]">{activeTab.label}</h4>
+              <p className="mt-1 text-sm font-semibold text-[#8A8A8A]">{productTabDescriptions[activeTab.value]}</p>
             </div>
-          ) : null}
+            {editing ? (
+              <div className="flex justify-end gap-3">
+                <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={() => { setDraft(product); setEditing(false); }} type="button">キャンセル</button>
+                <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button>
+              </div>
+            ) : canEdit ? (
+              <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">この項目を編集</button>
+            ) : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-5 xl:p-6">
+            {editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
+          </div>
         </div>
       </section>
     </div>
   );
 }
 
+function ProductSectionNav({ activeTab, onTabChange }: { activeTab: ProductTab; onTabChange: (tab: ProductTab) => void }) {
+  return (
+    <nav className="border-b border-[#F0E7E9] px-4 py-3" aria-label="商材情報タブ">
+      <div className="flex gap-2 overflow-x-auto">
+        {productTabs.map((item) => (
+          <button
+            className={`h-9 shrink-0 rounded-none px-4 text-sm font-bold transition ${activeTab === item.value ? "bg-[#EC6F8B] text-white shadow-sm" : "bg-[#FFFBFC] text-[#6F676B] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]"}`}
+            key={item.value}
+            onClick={() => onTabChange(item.value)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: ProductTab; isAdmin: boolean }) {
   if (tab === "basic") return <InfoGrid rows={[["商材名", product.name], ["商材種別", productTypeLabels[product.productType]], ...(product.tagline ? [["一言説明", product.tagline]] as Array<[string, string]> : []), ["概要", product.summary || "未設定"], ["提供価値", product.values.join(" / ") || "未設定"], ["解決する課題", product.problems.join(" / ") || "未設定"], ["商材責任者", getUserDisplayNameById(product.ownerId, product.ownerName)], ["作成日", product.createdAt.toDate().toLocaleString("ja-JP")], ["最終更新日", product.updatedAt.toDate().toLocaleString("ja-JP")]]} />;
-  if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"]]} />;
+  if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["ターゲット地域", product.target.regions.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"], ["刺さりやすい顧客条件", product.target.idealCustomerConditions.join(" / ") || "未設定"], ["見込みが薄い条件", product.target.lowPotentialConditions.join(" / ") || "未設定"], ["勝ちパターン", product.target.winningPatterns.join(" / ") || "未設定"], ["失注パターン", product.target.losingPatterns.join(" / ") || "未設定"], ["刺さった言葉", product.target.effectivePhrases.join(" / ") || "未設定"], ["避ける表現", product.target.avoidPhrases.join(" / ") || "未設定"], ["業種別提案角度", product.target.industryProposalAngles.map((item) => `${item.industry}: ${item.proposalAngle}${item.cautions ? `（注意: ${item.cautions}）` : ""}`).join("\n") || "未設定"]]} />;
   if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", product.pricing.displayType], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金プラン", product.pricing.plans.map((plan) => `${plan.name}: 初期 ${yen(plan.initialFee)} / 月額 ${yen(plan.monthlyFee)}`).join(" / ") || "未設定"]]} />;
   if (tab === "features") return <FeatureReadView product={product} />;
   if (tab === "implementation") return <ObjectionHandbookReadView product={product} />;
@@ -245,7 +259,7 @@ function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: Pro
   if (tab === "new") return <SalesPlaybookReadView product={product} segment="new" />;
   if (tab === "existing") return <SalesPlaybookReadView product={product} segment="existing" />;
   if (tab === "resources") return <Cards title="資料・デモ" items={product.resources.map((resource) => `${resource.title} / ${resource.type} / ${resource.visibility}`)} />;
-  return <ProductHistory productId={product.id} />;
+  return null;
 }
 
 function SalesSettingsReadView({ product }: { product: Product }) {
@@ -258,7 +272,7 @@ function ObjectionHandbookReadView({ product }: { product: Product }) {
   return (
     <div className="grid gap-4">
       {items.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((item) => (
-        <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
+        <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
           <p className="text-xs font-bold text-[#EC6F8B]">{item.category || "カテゴリ未設定"}</p>
           <h3 className="mt-2 text-lg font-bold text-[#2B2B2B]">{item.objection || "反論未設定"}</h3>
           <InfoGrid rows={[["回答例", item.responseExample || "未設定"], ["伝え方", item.howToTell || "未設定"], ["避ける表現", item.avoidPhrases?.join("\n") || "未設定"]]} />
@@ -293,7 +307,7 @@ function SalesPlaybookReadView({ product, segment }: { product: Product; segment
 function ProductEditForm({ draft, tab, isAdmin, user, onChange }: { draft: Product; tab: ProductTab; isAdmin: boolean; user: { id: string; name: string }; onChange: (product: Product) => void }) {
   const set = (patch: Partial<Product>) => onChange({ ...draft, ...patch });
   if (tab === "basic") return <BasicProductEditor draft={draft} onChange={onChange} />;
-  if (tab === "target") return <div className="grid gap-4 sm:grid-cols-2"><Text label="対象業種" value={toLines(draft.target.industries)} onChange={(value) => set({ target: { ...draft.target, industries: fromLines(value) } })} /><Text label="対象企業規模" value={toLines(draft.target.companySizes)} onChange={(value) => set({ target: { ...draft.target, companySizes: fromLines(value) } })} /><Text label="想定担当者" value={toLines(draft.target.roles)} onChange={(value) => set({ target: { ...draft.target, roles: fromLines(value) } })} /><Text label="想定決裁者" value={toLines(draft.target.decisionMakerRoles)} onChange={(value) => set({ target: { ...draft.target, decisionMakerRoles: fromLines(value) } })} /><Text label="向いている企業" value={toLines(draft.target.suitableConditions)} onChange={(value) => set({ target: { ...draft.target, suitableConditions: fromLines(value) } })} /><Text label="向いていない企業" value={toLines(draft.target.unsuitableConditions)} onChange={(value) => set({ target: { ...draft.target, unsuitableConditions: fromLines(value) } })} /><Text label="導入条件" value={toLines(draft.target.requiredConditions)} onChange={(value) => set({ target: { ...draft.target, requiredConditions: fromLines(value) } })} /><Text label="対象外条件" value={toLines(draft.target.disqualificationConditions)} onChange={(value) => set({ target: { ...draft.target, disqualificationConditions: fromLines(value) } })} /></div>;
+  if (tab === "target") return <TargetEditor draft={draft} onChange={onChange} />;
   if (tab === "pricing") return <PricingEditor draft={draft} isAdmin={isAdmin} onChange={onChange} />;
   if (tab === "features") return <FeatureEditor draft={draft} onChange={onChange} />;
   if (tab === "implementation") return <ObjectionHandbookEditor draft={draft} onChange={onChange} />;
@@ -301,7 +315,53 @@ function ProductEditForm({ draft, tab, isAdmin, user, onChange }: { draft: Produ
   if (tab === "new") return <SalesPlaybookEditor draft={draft} segment="new" onChange={onChange} />;
   if (tab === "existing") return <SalesPlaybookEditor draft={draft} segment="existing" onChange={onChange} />;
   if (tab === "resources") return <ResourceEditor draft={draft} user={user} onChange={onChange} />;
-  return <p className="text-sm font-bold text-[#8A8A8A]">変更履歴は編集できません。</p>;
+  return null;
+}
+
+function EditGroup({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
+      <div className="mb-4">
+        <h5 className="text-base font-bold text-[#2B2B2B]">{title}</h5>
+        {description ? <p className="mt-1 text-sm font-semibold leading-5 text-[#8A8A8A]">{description}</p> : null}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
+function TargetEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
+  const updateTarget = (patch: Partial<Product["target"]>) => onChange({ ...draft, target: { ...draft.target, ...patch } });
+  return (
+    <div className="grid gap-4">
+      <EditGroup title="誰に売るか" description="業種・地域・規模・担当者など、商材分析で絞り込みに使う条件です。">
+        <Text label="対象業種" value={toLines(draft.target.industries)} onChange={(value) => updateTarget({ industries: fromLines(value) })} />
+        <Text label="ターゲット地域" value={toLines(draft.target.regions)} onChange={(value) => updateTarget({ regions: fromLines(value) })} />
+        <Text label="対象企業規模" value={toLines(draft.target.companySizes)} onChange={(value) => updateTarget({ companySizes: fromLines(value) })} />
+        <Text label="想定担当者" value={toLines(draft.target.roles)} onChange={(value) => updateTarget({ roles: fromLines(value) })} />
+        <Text label="想定決裁者" value={toLines(draft.target.decisionMakerRoles)} onChange={(value) => updateTarget({ decisionMakerRoles: fromLines(value) })} />
+      </EditGroup>
+      <EditGroup title="向いている条件・対象外条件" description="商談前の見込み判定や、AIの提案方針に使います。">
+        <Text label="向いている企業" value={toLines(draft.target.suitableConditions)} onChange={(value) => updateTarget({ suitableConditions: fromLines(value) })} />
+        <Text label="向いていない企業" value={toLines(draft.target.unsuitableConditions)} onChange={(value) => updateTarget({ unsuitableConditions: fromLines(value) })} />
+        <Text label="導入条件" value={toLines(draft.target.requiredConditions)} onChange={(value) => updateTarget({ requiredConditions: fromLines(value) })} />
+        <Text label="対象外条件" value={toLines(draft.target.disqualificationConditions)} onChange={(value) => updateTarget({ disqualificationConditions: fromLines(value) })} />
+        <Text label="刺さりやすい顧客条件" value={toLines(draft.target.idealCustomerConditions)} onChange={(value) => updateTarget({ idealCustomerConditions: fromLines(value) })} />
+        <Text label="見込みが薄い条件" value={toLines(draft.target.lowPotentialConditions)} onChange={(value) => updateTarget({ lowPotentialConditions: fromLines(value) })} />
+      </EditGroup>
+      <EditGroup title="勝ち負けパターン・言葉" description="音声分析や営業アドバイスで、AIが参照する営業ルールです。">
+        <Text label="勝ちパターン" value={toLines(draft.target.winningPatterns)} onChange={(value) => updateTarget({ winningPatterns: fromLines(value) })} />
+        <Text label="失注パターン" value={toLines(draft.target.losingPatterns)} onChange={(value) => updateTarget({ losingPatterns: fromLines(value) })} />
+        <Text label="刺さった言葉" value={toLines(draft.target.effectivePhrases)} onChange={(value) => updateTarget({ effectivePhrases: fromLines(value) })} />
+        <Text label="避ける表現" value={toLines(draft.target.avoidPhrases)} onChange={(value) => updateTarget({ avoidPhrases: fromLines(value) })} />
+      </EditGroup>
+      <EditGroup title="業種別の提案角度" description="ゴルフ場・ホテル・美容など、業種ごとの刺さり方を分けて保存できます。">
+        <div className="sm:col-span-2">
+          <IndustryAnglesEditor draft={draft} onChange={onChange} />
+        </div>
+      </EditGroup>
+    </div>
+  );
 }
 
 function BasicProductEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
@@ -324,10 +384,10 @@ function BasicProductEditor({ draft, onChange }: { draft: Product; onChange: (pr
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
         <p className="mb-2 text-sm font-bold text-[#655D62]">アイコン</p>
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4">
+        <div className="flex flex-wrap items-center gap-4 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
           <ProductIcon product={draft} size="lg" />
           <div className="grid gap-2">
-            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]">
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]">
               <FileUp className="h-4 w-4" />
               アイコンをアップロード
               <input accept="image/*" className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadIcon(file); }} />
@@ -347,14 +407,46 @@ function BasicProductEditor({ draft, onChange }: { draft: Product; onChange: (pr
   );
 }
 
+function IndustryAnglesEditor({ draft, onChange }: { draft: Product; onChange: (product: Product) => void }) {
+  const items = draft.target.industryProposalAngles ?? [];
+  const update = (id: string, patch: Partial<Product["target"]["industryProposalAngles"][number]>) => {
+    onChange({ ...draft, target: { ...draft.target, industryProposalAngles: items.map((item) => (item.id === id ? { ...item, ...patch } : item)) } });
+  };
+  const add = () => {
+    onChange({ ...draft, target: { ...draft.target, industryProposalAngles: [...items, { id: crypto.randomUUID(), industry: "", proposalAngle: "", cautions: "" }] } });
+  };
+  const remove = (id: string) => {
+    onChange({ ...draft, target: { ...draft.target, industryProposalAngles: items.filter((item) => item.id !== id) } });
+  };
+  return (
+    <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-bold text-[#655D62]">業種別の提案角度</p>
+        <button className="h-9 rounded-none border border-[#F0E7E9] bg-white px-3 text-xs font-bold text-[#EC6F8B]" onClick={add} type="button">追加</button>
+      </div>
+      <div className="mt-3 grid gap-3">
+        {items.map((item) => (
+          <div className="grid gap-2 rounded-none border border-[#F0E7E9] bg-white p-3 md:grid-cols-[160px_1fr_1fr_auto]" key={item.id}>
+            <input className="task-input" placeholder="業種" value={item.industry} onChange={(event) => update(item.id, { industry: event.target.value })} />
+            <input className="task-input" placeholder="提案角度" value={item.proposalAngle} onChange={(event) => update(item.id, { proposalAngle: event.target.value })} />
+            <input className="task-input" placeholder="注意点" value={item.cautions ?? ""} onChange={(event) => update(item.id, { cautions: event.target.value })} />
+            <button className="h-11 rounded-none border border-[#F0E7E9] px-3 text-xs font-bold text-[#D94F6E]" onClick={() => remove(item.id)} type="button">削除</button>
+          </div>
+        ))}
+        {items.length === 0 ? <p className="rounded-none border border-dashed border-[#F0E7E9] bg-white p-4 text-sm font-bold text-[#8A8A8A]">ゴルフ場向け、ホテル向けなど、業種ごとの提案角度を登録できます。</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function PricingEditor({ draft, isAdmin, onChange }: { draft: Product; isAdmin: boolean; onChange: (product: Product) => void }) {
   const setPricing = (pricing: Product["pricing"]) => onChange({ ...draft, pricing });
   const addPlan = () => setPricing({ ...draft.pricing, plans: [...draft.pricing.plans, { id: crypto.randomUUID(), name: "新しいプラン", features: [], recommended: false, isActive: true, sortOrder: draft.pricing.plans.length }] });
-  return <div className="grid gap-4 sm:grid-cols-2"><Input label="初期費用" value={String(draft.pricing.initialFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, initialFee: numberOrNull(value) })} /><Input label="月額費用" value={String(draft.pricing.monthlyFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, monthlyFee: numberOrNull(value) })} /><Input label="最低契約期間（月）" value={String(draft.pricing.minimumContractMonths ?? "")} onChange={(value) => setPricing({ ...draft.pricing, minimumContractMonths: numberOrNull(value) })} /><Input label="支払い条件" value={draft.pricing.paymentTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, paymentTerms: value })} />{isAdmin ? <><Input label="原価" value={String(draft.pricing.cost ?? "")} onChange={(value) => setPricing({ ...draft.pricing, cost: numberOrNull(value) })} /><Input label="粗利目安（%）" value={String(draft.pricing.grossMarginRate ?? "")} onChange={(value) => setPricing({ ...draft.pricing, grossMarginRate: numberOrNull(value) })} /></> : null}<div className="sm:col-span-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addPlan} type="button">料金プランを追加</button><div className="mt-3 grid gap-3">{draft.pricing.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onChange={(next) => setPricing({ ...draft.pricing, plans: draft.pricing.plans.map((item) => item.id === plan.id ? next : item) })} />)}</div></div></div>;
+  return <div className="grid gap-4 sm:grid-cols-2"><Input label="初期費用" value={String(draft.pricing.initialFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, initialFee: numberOrNull(value) })} /><Input label="月額費用" value={String(draft.pricing.monthlyFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, monthlyFee: numberOrNull(value) })} /><Input label="最低契約期間（月）" value={String(draft.pricing.minimumContractMonths ?? "")} onChange={(value) => setPricing({ ...draft.pricing, minimumContractMonths: numberOrNull(value) })} /><Input label="支払い条件" value={draft.pricing.paymentTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, paymentTerms: value })} />{isAdmin ? <><Input label="原価" value={String(draft.pricing.cost ?? "")} onChange={(value) => setPricing({ ...draft.pricing, cost: numberOrNull(value) })} /><Input label="粗利目安（%）" value={String(draft.pricing.grossMarginRate ?? "")} onChange={(value) => setPricing({ ...draft.pricing, grossMarginRate: numberOrNull(value) })} /></> : null}<div className="sm:col-span-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addPlan} type="button">料金プランを追加</button><div className="mt-3 grid gap-3">{draft.pricing.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onChange={(next) => setPricing({ ...draft.pricing, plans: draft.pricing.plans.map((item) => item.id === plan.id ? next : item) })} />)}</div></div></div>;
 }
 
 function PlanRow({ plan, onChange }: { plan: ProductPlan; onChange: (plan: ProductPlan) => void }) {
-  return <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3"><input className="task-input" value={plan.name} onChange={(event) => onChange({ ...plan, name: event.target.value })} /><input className="task-input" placeholder="初期費用" value={plan.initialFee ?? ""} onChange={(event) => onChange({ ...plan, initialFee: numberOrNull(event.target.value) })} /><input className="task-input" placeholder="月額" value={plan.monthlyFee ?? ""} onChange={(event) => onChange({ ...plan, monthlyFee: numberOrNull(event.target.value) })} /></div>;
+  return <div className="grid gap-2 rounded-none border border-[#F0E7E9] p-3 sm:grid-cols-3"><input className="task-input" value={plan.name} onChange={(event) => onChange({ ...plan, name: event.target.value })} /><input className="task-input" placeholder="初期費用" value={plan.initialFee ?? ""} onChange={(event) => onChange({ ...plan, initialFee: numberOrNull(event.target.value) })} /><input className="task-input" placeholder="月額" value={plan.monthlyFee ?? ""} onChange={(event) => onChange({ ...plan, monthlyFee: numberOrNull(event.target.value) })} /></div>;
 }
 
 function FeatureReadView({ product }: { product: Product }) {
@@ -363,11 +455,11 @@ function FeatureReadView({ product }: { product: Product }) {
   return (
     <div className="grid gap-5">
       {groups.map((group) => (
-        <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
+        <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
           <h3 className="text-lg font-bold text-[#2B2B2B]">{group.category || "見出し未設定"}</h3>
           <div className="mt-3 grid gap-2">
             {group.features.map((feature) => (
-              <div className="rounded-md bg-white px-4 py-3 ring-1 ring-[#F0E7E9]" key={feature.id}>
+              <div className="rounded-none bg-white px-4 py-3 ring-1 ring-[#F0E7E9]" key={feature.id}>
                 <p className="font-bold text-[#2B2B2B]">{feature.name || "機能名未設定"}</p>
                 {feature.description ? <p className="mt-1 text-sm font-semibold leading-6 text-[#6F676B]">{feature.description}</p> : null}
                 <p className="mt-2 text-xs font-bold text-[#EC6F8B]">{feature.type === "standard" ? "標準機能" : "オプション"}</p>
@@ -396,28 +488,28 @@ function FeatureEditor({ draft, onChange }: { draft: Product; onChange: (product
 
   return (
     <div>
-      <button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addHeading} type="button">見出しを追加</button>
+      <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addHeading} type="button">見出しを追加</button>
       <div className="mt-3 grid gap-4">
         {groups.length ? groups.map((group) => (
-          <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
+          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <input className="task-input sm:max-w-sm" placeholder="見出し" value={group.category} onChange={(event) => updateHeading(group.category, event.target.value)} />
-              <button className="h-10 rounded-full border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => addFeature(group.category)} type="button">機能を追加</button>
+              <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => addFeature(group.category)} type="button">機能を追加</button>
             </div>
             <div className="mt-3 grid gap-3">
               {group.features.map((feature) => (
-                <div className="grid gap-2 rounded-md border border-[#F0E7E9] bg-white p-3" key={feature.id}>
+                <div className="grid gap-2 rounded-none border border-[#F0E7E9] bg-white p-3" key={feature.id}>
                   <div className="grid gap-2 lg:grid-cols-[1fr_180px_auto]">
                     <input className="task-input" placeholder="機能名（小見出し）" value={feature.name} onChange={(event) => updateFeature(draft, feature.id, { name: event.target.value }, onChange)} />
                     <SingleSelect options={[{ value: "standard", label: "標準機能" }, { value: "option", label: "オプション" }]} value={feature.type} onChange={(type) => updateFeature(draft, feature.id, { type: type as ProductFeature["type"] }, onChange)} />
-                    <button className="h-11 rounded-md border border-[#F0E7E9] px-3 text-sm font-bold text-[#D94F6E]" onClick={() => removeFeature(feature.id)} type="button">削除</button>
+                    <button className="h-11 rounded-none border border-[#F0E7E9] px-3 text-sm font-bold text-[#D94F6E]" onClick={() => removeFeature(feature.id)} type="button">削除</button>
                   </div>
-                  <textarea className="task-input min-h-20 resize-none" placeholder="機能の説明" value={feature.description ?? ""} onChange={(event) => updateFeature(draft, feature.id, { description: event.target.value }, onChange)} />
+                  <textarea className="task-input min-h-32 resize-y leading-6" placeholder="機能の説明" value={feature.description ?? ""} onChange={(event) => updateFeature(draft, feature.id, { description: event.target.value }, onChange)} />
                 </div>
               ))}
             </div>
           </section>
-        )) : <p className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">見出しを追加して、機能を整理できます。</p>}
+        )) : <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">見出しを追加して、機能を整理できます。</p>}
       </div>
     </div>
   );
@@ -430,22 +522,22 @@ function ObjectionHandbookEditor({ draft, onChange }: { draft: Product; onChange
 
   return (
     <div>
-      <button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={add} type="button">反論を追加</button>
+      <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={add} type="button">反論を追加</button>
       <div className="mt-3 grid gap-4">
         {items.length ? items.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((item) => (
-          <section className="rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
+          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={item.id}>
             <div className="grid gap-3 lg:grid-cols-[180px_1fr_auto]">
               <input className="task-input" placeholder="カテゴリ（料金など）" value={item.category} onChange={(event) => updateObjectionItem(draft, item.id, { category: event.target.value }, onChange)} />
               <input className="task-input" placeholder="よくある反論" value={item.objection} onChange={(event) => updateObjectionItem(draft, item.id, { objection: event.target.value }, onChange)} />
-              <button className="h-11 rounded-md border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#D94F6E]" onClick={() => remove(item.id)} type="button">削除</button>
+              <button className="h-11 rounded-none border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#D94F6E]" onClick={() => remove(item.id)} type="button">削除</button>
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <textarea className="task-input min-h-28 resize-none" placeholder="回答例" value={item.responseExample} onChange={(event) => updateObjectionItem(draft, item.id, { responseExample: event.target.value }, onChange)} />
-              <textarea className="task-input min-h-28 resize-none" placeholder="伝え方" value={item.howToTell ?? ""} onChange={(event) => updateObjectionItem(draft, item.id, { howToTell: event.target.value }, onChange)} />
-              <textarea className="task-input min-h-24 resize-none lg:col-span-2" placeholder="避ける表現（1行ずつ）" value={toLines(item.avoidPhrases ?? [])} onChange={(event) => updateObjectionItem(draft, item.id, { avoidPhrases: fromLines(event.target.value) }, onChange)} />
+              <textarea className="task-input min-h-40 resize-y leading-6" placeholder="回答例" value={item.responseExample} onChange={(event) => updateObjectionItem(draft, item.id, { responseExample: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-40 resize-y leading-6" placeholder="伝え方" value={item.howToTell ?? ""} onChange={(event) => updateObjectionItem(draft, item.id, { howToTell: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-36 resize-y leading-6 lg:col-span-2" placeholder="避ける表現（1行ずつ）" value={toLines(item.avoidPhrases ?? [])} onChange={(event) => updateObjectionItem(draft, item.id, { avoidPhrases: fromLines(event.target.value) }, onChange)} />
             </div>
           </section>
-        )) : <p className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">料金・効果・運用負担など、よく出る反論を追加できます。</p>}
+        )) : <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">料金・効果・運用負担など、よく出る反論を追加できます。</p>}
       </div>
     </div>
   );
@@ -501,9 +593,9 @@ function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; seg
 
 function SalesSceneTabs({ scene, onSceneChange }: { scene: ProductSalesScene; onSceneChange: (scene: ProductSalesScene) => void }) {
   return (
-    <div className="inline-flex rounded-full border border-[#F0E7E9] bg-[#FFFBFC] p-1">
+    <div className="inline-flex rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-1">
       {(Object.keys(salesSceneLabels) as ProductSalesScene[]).map((value) => (
-        <button className={`h-9 rounded-full px-4 text-sm font-bold ${scene === value ? "bg-[#EC6F8B] text-white shadow-sm" : "text-[#6F676B]"}`} key={value} onClick={() => onSceneChange(value)} type="button">
+        <button className={`h-9 rounded-none px-4 text-sm font-bold ${scene === value ? "bg-[#EC6F8B] text-white shadow-sm" : "text-[#6F676B]"}`} key={value} onClick={() => onSceneChange(value)} type="button">
           {salesSceneLabels[value]}
         </button>
       ))}
@@ -514,28 +606,51 @@ function SalesSceneTabs({ scene, onSceneChange }: { scene: ProductSalesScene; on
 function ResourceEditor({ draft, user, onChange }: { draft: Product; user: { id: string; name: string }; onChange: (product: Product) => void }) {
   const [progress, setProgress] = useState(0);
   const addUrl = () => onChange({ ...draft, resources: [...draft.resources, { id: crypto.randomUUID(), title: "新しい資料", type: "proposal", url: "", visibility: "internal", createdBy: user.id, createdAt: draft.updatedAt, updatedAt: draft.updatedAt }] });
-  return <div><div className="flex gap-2"><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addUrl} type="button">URL資料を追加</button><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]"><FileUp className="h-4 w-4" />ファイル<input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} /></label>{progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}</div><div className="mt-3 grid gap-3">{draft.resources.map((resource) => <div className="grid gap-2 rounded-md border border-[#F0E7E9] p-3 sm:grid-cols-3" key={resource.id}><input className="task-input" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} /><input className="task-input" value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} /><SingleSelect options={[{ value: "internal", label: "社内限定" }, { value: "sales", label: "営業担当のみ" }, { value: "client_shareable", label: "クライアント共有可" }, { value: "public", label: "一般公開" }]} value={resource.visibility} onChange={(visibility) => updateResource(draft, resource.id, { visibility: visibility as ProductResource["visibility"] }, onChange)} /></div>)}</div></div>;
-}
-
-function ProductHistory({ productId }: { productId: string }) {
-  const [logs, setLogs] = useState<Array<{ id: string; actorName?: string; action: string; targetTab: string; createdAt?: { toDate: () => Date } }>>([]);
-  useEffect(() => {
-    void import("@/lib/products").then(({ subscribeProductChangeLogs }) => subscribeProductChangeLogs(productId, setLogs, () => setLogs([])));
-  }, [productId]);
-  return <div className="space-y-3">{logs.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">変更履歴はまだありません。</p> : logs.map((log) => <div className="rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3" key={log.id}><p className="font-bold text-[#2B2B2B]">{log.action}</p><p className="mt-1 text-sm font-semibold text-[#777]">{log.actorName || "不明"} / {log.targetTab} / {log.createdAt?.toDate().toLocaleString("ja-JP") ?? ""}</p></div>)}</div>;
+  return <div><div className="flex gap-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addUrl} type="button">URL資料を追加</button><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]"><FileUp className="h-4 w-4" />ファイル<input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} /></label>{progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}</div><div className="mt-3 grid gap-3">{draft.resources.map((resource) => <div className="grid gap-2 rounded-none border border-[#F0E7E9] p-3 sm:grid-cols-3" key={resource.id}><input className="task-input" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} /><input className="task-input" value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} /><SingleSelect options={[{ value: "internal", label: "社内限定" }, { value: "sales", label: "営業担当のみ" }, { value: "client_shareable", label: "クライアント共有可" }, { value: "public", label: "一般公開" }]} value={resource.visibility} onChange={(visibility) => updateResource(draft, resource.id, { visibility: visibility as ProductResource["visibility"] }, onChange)} /></div>)}</div></div>;
 }
 
 function CreateProductModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">) => Promise<void> }) {
   const [form, setForm] = useState({ name: "", productType: "own_product" as ProductType, tagline: "", status: "active" as ProductStatus });
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">新しい商材を追加</h2><div className="mt-5 grid gap-4"><Input label="商材名" value={form.name} onChange={(name) => setForm({ ...form, name })} /><SelectField label="商材種別" value={form.productType} options={Object.entries(productTypeLabels)} onChange={(value) => setForm({ ...form, productType: value as ProductType })} /><Input label="一言説明" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} /></div><div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-full border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-full bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!form.name.trim()} onClick={() => void onCreate({ ...form, displayName: form.name, categoryNames: [] })} type="button">作成</button></div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">新しい商材を追加</h2><div className="mt-5 grid gap-4"><Input label="商材名" value={form.name} onChange={(name) => setForm({ ...form, name })} /><SelectField label="商材種別" value={form.productType} options={Object.entries(productTypeLabels)} onChange={(value) => setForm({ ...form, productType: value as ProductType })} /><Input label="一言説明" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} /></div><div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!form.name.trim()} onClick={() => void onCreate({ ...form, displayName: form.name, categoryNames: [] })} type="button">作成</button></div></section></div>;
 }
 
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
-  return <div className="grid gap-4">{rows.map(([label, value]) => <div className="grid gap-2 md:grid-cols-[160px_1fr]" key={label}><p className="text-sm font-bold text-[#777]">{label}</p><p className="whitespace-pre-wrap text-sm font-semibold leading-6 text-[#2B2B2B]">{value}</p></div>)}</div>;
+  return (
+    <div className="overflow-hidden rounded-none border border-[#F0E7E9] bg-white">
+      {rows.map(([label, value]) => (
+        <section className="grid gap-2 border-b border-[#F0E7E9] px-4 py-3 last:border-b-0 md:grid-cols-[150px_minmax(0,1fr)]" key={label}>
+          <p className="text-sm font-bold text-[#8A8A8A]">{label}</p>
+          <ReadableValue value={value} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ReadableValue({ value }: { value: string }) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "未設定") return <p className="text-sm font-bold text-[#B2AAAE]">未設定</p>;
+  const parts = trimmed.includes("\n") ? trimmed.split("\n") : trimmed.split(" / ");
+  const cleanParts = parts.map((part) => part.trim()).filter(Boolean);
+  if (cleanParts.length > 1 && cleanParts.every((part) => part.length <= 48)) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {cleanParts.map((part, index) => <span className="rounded-none bg-[#FFFBFC] px-3 py-1 text-xs font-bold text-[#5F575C] ring-1 ring-[#F0E7E9]" key={`${part}-${index}`}>{part}</span>)}
+      </div>
+    );
+  }
+  if (cleanParts.length > 1) {
+    return (
+      <ul className="grid gap-1.5">
+        {cleanParts.map((part, index) => <li className="text-sm font-semibold leading-6 text-[#2B2B2B]" key={`${part}-${index}`}>・{part}</li>)}
+      </ul>
+    );
+  }
+  return <p className="whitespace-pre-wrap text-sm font-semibold leading-6 text-[#2B2B2B]">{trimmed}</p>;
 }
 
 function Cards({ title, items }: { title: string; items: string[] }) {
-  return <div><h4 className="mb-3 font-bold text-[#2B2B2B]">{title}</h4><div className="grid gap-3">{items.length ? items.map((item) => <p className="rounded-md border border-[#F0E7E9] bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]" key={item}>{item}</p>) : <p className="text-sm font-bold text-[#8A8A8A]">未登録です。</p>}</div></div>;
+  return <div><h4 className="mb-3 font-bold text-[#2B2B2B]">{title}</h4><div className="overflow-hidden rounded-none border border-[#F0E7E9] bg-white">{items.length ? items.map((item, index) => <p className="border-b border-[#F0E7E9] px-4 py-3 text-sm font-semibold leading-6 text-[#6F676B] last:border-b-0" key={`${item}-${index}`}>{item}</p>) : <p className="px-4 py-3 text-sm font-bold text-[#8A8A8A]">未登録です。</p>}</div></div>;
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -543,7 +658,7 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
 }
 
 function Text({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<textarea className="task-input min-h-24 resize-none" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<textarea className="task-input min-h-40 resize-y leading-6" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
@@ -551,7 +666,7 @@ function SelectField({ label, value, options, onChange }: { label: string; value
 }
 
 function EditorList({ children, onAdd }: { children: React.ReactNode; onAdd: () => void }) {
-  return <div><button className="h-10 rounded-full border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={onAdd} type="button">追加</button><div className="mt-3 grid gap-3">{children}</div></div>;
+  return <div><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={onAdd} type="button">追加</button><div className="mt-3 grid gap-3">{children}</div></div>;
 }
 
 function ProductSkeleton() {

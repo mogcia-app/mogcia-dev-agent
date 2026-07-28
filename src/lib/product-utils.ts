@@ -1,17 +1,16 @@
 import { Timestamp } from "firebase/firestore";
 import type { Product, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab, ProductType } from "@/types/product";
 
-export const productTabs: Array<{ value: ProductTab; label: string; aiPurpose: string }> = [
-  { value: "basic", label: "基本情報", aiPurpose: "AIが商材概要、提供価値、解決できる課題を理解するための参照情報" },
-  { value: "target", label: "ターゲット", aiPurpose: "AIが提案すべき顧客、向き不向き、決裁者像を判断するための参照情報" },
-  { value: "pricing", label: "料金・契約", aiPurpose: "AIが見積・契約条件・費用面の反論対応を作るための参照情報" },
-  { value: "features", label: "機能", aiPurpose: "AIが顧客課題に対して使う機能やオプションを選ぶための参照情報" },
-  { value: "implementation", label: "反論想定", aiPurpose: "AIが料金・効果・運用負担などの反論に対して回答例と避ける表現を選ぶための参照情報" },
-  { value: "sales", label: "営業設定", aiPurpose: "AIが商談時間、受注期間、反論カテゴリ、失注理由を判断するための共通参照情報" },
-  { value: "new", label: "新規", aiPurpose: "AIが新規顧客への提案方針、ヒアリング、トーク、必要資料を作るための参照情報" },
-  { value: "existing", label: "既存", aiPurpose: "AIが成約後・既存顧客への進め方、追加提案、運用フォローを作るための参照情報" },
-  { value: "resources", label: "資料・デモ", aiPurpose: "AIが次に送る資料、提案書、事例、デモ候補を選ぶための参照情報" },
-  { value: "history", label: "変更履歴", aiPurpose: "AI参照情報の更新経緯を確認するための履歴" }
+export const productTabs: Array<{ value: ProductTab; label: string }> = [
+  { value: "basic", label: "基本情報" },
+  { value: "target", label: "ターゲット" },
+  { value: "pricing", label: "料金・契約" },
+  { value: "features", label: "機能" },
+  { value: "implementation", label: "反論想定" },
+  { value: "sales", label: "営業設定" },
+  { value: "new", label: "新規" },
+  { value: "existing", label: "既存" },
+  { value: "resources", label: "資料・デモ" }
 ];
 
 export const productStatusLabels: Record<ProductStatus, string> = {
@@ -68,6 +67,7 @@ export function createDefaultProduct(user: { id: string; name: string }, input: 
     problems: [],
     target: {
       industries: [],
+      regions: [],
       companySizes: [],
       facilitySizes: [],
       roles: [],
@@ -75,7 +75,14 @@ export function createDefaultProduct(user: { id: string; name: string }, input: 
       suitableConditions: [],
       unsuitableConditions: [],
       requiredConditions: [],
-      disqualificationConditions: []
+      disqualificationConditions: [],
+      idealCustomerConditions: [],
+      lowPotentialConditions: [],
+      winningPatterns: [],
+      losingPatterns: [],
+      effectivePhrases: [],
+      avoidPhrases: [],
+      industryProposalAngles: []
     },
     pricing: {
       displayType: "estimate",

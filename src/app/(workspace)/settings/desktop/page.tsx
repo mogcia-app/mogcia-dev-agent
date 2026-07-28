@@ -87,7 +87,7 @@ export default function DesktopSettingsPage() {
   };
 
   return (
-    <section className="rounded-lg bg-[#FFF8F9]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,222,226,0.72)] sm:p-6">
+    <section className="">
       <PageHeader title="デスクトップ連携" description="CLIや常設デスクトップウィジェットからMOGCIAへ安全に接続します。" />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-5"><StatusBanner message={error} type="error" /></div>
@@ -99,7 +99,7 @@ export default function DesktopSettingsPage() {
             <h2 className="font-bold">デスクトップアクセストークン</h2>
           </div>
           <p className="mt-2 text-sm font-semibold text-[#777]">このトークンは今だけ表示されます。CLIまたはデスクトップウィジェットの設定へ登録してください。</p>
-          <code className="mt-4 block break-all rounded-lg bg-[#FCF9F9] p-4 text-sm font-bold text-[#222]">{issuedToken}</code>
+          <code className="mt-4 block break-all rounded-none bg-[#FCF9F9] p-4 text-sm font-bold text-[#222]">{issuedToken}</code>
         </div>
       ) : null}
 
@@ -110,7 +110,7 @@ export default function DesktopSettingsPage() {
             端末名
             <input className="task-input" placeholder="MacBook Neo" value={deviceName} onChange={(event) => setDeviceName(event.target.value)} />
           </label>
-          <button className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={saving || !deviceName.trim()} onClick={() => void createDevice()} type="button">
+          <button className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={saving || !deviceName.trim()} onClick={() => void createDevice()} type="button">
             {saving ? <LoadingSpinner label="登録中" /> : <Plus className="h-4 w-4" />}
             新しい端末を追加
           </button>
@@ -130,9 +130,9 @@ export default function DesktopSettingsPage() {
                   <p className="font-bold text-[#222]">{device.deviceName}</p>
                   <p className="mt-1 text-xs font-semibold text-[#888]">作成日: {new Date(device.createdAt).toLocaleString("ja-JP")}</p>
                 </div>
-                <span className={`h-fit rounded-full px-3 py-1 text-center text-xs font-bold ${device.status === "active" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#F5ECEE] text-[#888]"}`}>{device.status === "active" ? "有効" : "無効"}</span>
+                <span className={`h-fit rounded-none px-3 py-1 text-center text-xs font-bold ${device.status === "active" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#F5ECEE] text-[#888]"}`}>{device.status === "active" ? "有効" : "無効"}</span>
                 <p className="text-xs font-semibold text-[#888]">最終利用: {device.lastUsedAt ? new Date(device.lastUsedAt).toLocaleString("ja-JP") : "未利用"}</p>
-                <button className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-[#F7CAD2] text-sm font-bold text-[#D94F6E] disabled:opacity-40" disabled={device.status === "revoked"} onClick={() => void revokeDevice(device.id)} type="button">
+                <button className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F7CAD2] text-sm font-bold text-[#D94F6E] disabled:opacity-40" disabled={device.status === "revoked"} onClick={() => void revokeDevice(device.id)} type="button">
                   <Trash2 className="h-4 w-4" />
                   無効化
                 </button>

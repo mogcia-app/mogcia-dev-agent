@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { countByStatus, filterTasks, sortTasks } from "@/lib/task-utils";
 import type { Task, TaskDueFilter, TaskPriority, TaskSort, TaskSource, TaskStatusFilter, TaskView } from "@/types/task";
 
-const taskViews: TaskView[] = ["mine", "ai", "manual", "members", "assigned"];
+const taskViews: TaskView[] = ["mine", "ai", "members", "assigned", "log"];
 const taskStatuses: TaskStatusFilter[] = ["all", "open", "today", "hasDue", "overdue", "completed"];
 const dueFilters: TaskDueFilter[] = ["all", "today", "tomorrow", "week", "month", "overdue", "none"];
 const sortOptions: TaskSort[] = ["dueAsc", "dueDesc", "priorityDesc", "newest", "oldest", "creator", "assignee"];

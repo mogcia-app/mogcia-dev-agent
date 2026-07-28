@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Trash2, X } from "lucide-react";
+import { Check, Copy, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { taskToDraft } from "@/lib/task-utils";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
@@ -17,9 +17,11 @@ export function TaskDetailDrawer({
   canEdit,
   canDelete,
   isAdmin,
+  currentUserId,
   onClose,
   onSave,
   onToggle,
+  onChecklistChange,
   onDelete,
   onDuplicate
 }: {
@@ -31,13 +33,16 @@ export function TaskDetailDrawer({
   canEdit: boolean;
   canDelete: boolean;
   isAdmin: boolean;
+  currentUserId?: string;
   onClose: () => void;
   onSave: (taskId: string, draft: TaskDraft) => Promise<void>;
   onToggle: (task: Task, completed: boolean) => Promise<void>;
+  onChecklistChange?: (task: Task, checklist: NonNullable<Task["checklist"]>) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
   onDuplicate: (task: Task) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<TaskDraft | null>(task ? taskToDraft(task) : null);
+  const [checklist, setChecklist] = useState(task?.checklist ?? []);
   const [saving, setSaving] = useState(false);
 
   if (!task || !draft) return null;
@@ -45,15 +50,25 @@ export function TaskDetailDrawer({
   const save = async () => {
     if (!draft.title.trim()) return;
     setSaving(true);
-    await onSave(task.id, draft);
-    setSaving(false);
-    onClose();
+    try {
+      await onSave(task.id, draft);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async () => {
     if (!window.confirm("このタスクを削除しますか？")) return;
     await onDelete(task.id);
     onClose();
+  };
+
+  const toggleChecklist = async (itemId: string) => {
+    if (!canEdit || !onChecklistChange) return;
+    const nextChecklist = checklist.map((item) => item.id === itemId ? { ...item, completed: !item.completed } : item);
+    setChecklist(nextChecklist);
+    await onChecklistChange(task, nextChecklist);
   };
 
   return (
@@ -66,18 +81,33 @@ export function TaskDetailDrawer({
             <p className="mt-2 text-xs font-semibold text-[#8A8186]">作成者: {getUserDisplayNameById(task.createdBy, task.createdByName)} / 更新: {task.updatedAt.toDate().toLocaleString("ja-JP")}</p>
             {task.completedAt ? <p className="mt-1 text-xs font-semibold text-[#70A55F]">完了: {task.completedAt.toDate().toLocaleString("ja-JP")}</p> : null}
           </div>
-          <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-[#FFF2F5]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
+          <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF2F5]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
-        <TaskFormFields canAssign={isAdmin} companies={companies} draft={draft} meetings={meetings} members={members} onChange={setDraft} projects={projects} readOnly={!canEdit} />
-        {!canEdit ? <p className="mt-4 rounded-md bg-[#FFF7F8] px-4 py-3 text-sm font-semibold text-[#8A6A70]">他メンバーのタスクは閲覧のみです。</p> : null}
+        <TaskFormFields canAssign={canEdit || isAdmin} companies={companies} currentUserId={currentUserId} draft={draft} meetings={meetings} members={members} onChange={setDraft} projects={projects} readOnly={!canEdit} />
+        {checklist.length ? (
+          <section className="mt-5 border border-[#EFE3E6] bg-white p-4">
+            <p className="text-sm font-semibold text-[#655D62]">チェックリスト</p>
+            <div className="mt-3 space-y-2">
+              {checklist.map((item) => (
+                <button className={`flex w-full items-center gap-3 border px-3 py-2 text-left text-sm font-medium ${item.completed ? "border-[#E1DDE0] bg-[#F7F7F7] text-[#8A8A8A]" : "border-[#F0DEE2] bg-white text-[#2D2A2C]"}`} disabled={!canEdit} key={item.id} onClick={() => void toggleChecklist(item.id)} type="button">
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center border ${item.completed ? "border-[#EC6F8B] bg-[#FFF2F5] text-[#EC6F8B]" : "border-[#D7CACE] bg-white text-transparent"}`}>
+                    <Check className="h-4 w-4" />
+                  </span>
+                  <span className={item.completed ? "line-through" : ""}>{item.title}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {!canEdit ? <p className="mt-4 rounded-none bg-[#FFF7F8] px-4 py-3 text-sm font-semibold text-[#8A6A70]">他メンバーのタスクは閲覧のみです。</p> : null}
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">
-            <button className="inline-flex h-11 items-center gap-2 rounded-full border border-[#F0DEE2] px-4 text-sm font-bold text-[#6F676B]" onClick={() => void onDuplicate(task)} type="button"><Copy className="h-4 w-4" />複製</button>
-            {canDelete ? <button className="inline-flex h-11 items-center gap-2 rounded-full border border-[#F6CBD2] px-4 text-sm font-bold text-[#E65A78]" onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />削除</button> : null}
+            <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F0DEE2] px-4 text-sm font-bold text-[#6F676B]" onClick={() => void onDuplicate(task)} type="button"><Copy className="h-4 w-4" />複製</button>
+            {canDelete ? <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F6CBD2] px-4 text-sm font-bold text-[#E65A78]" onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />削除</button> : null}
           </div>
           <div className="flex gap-2">
-            <button className="h-11 rounded-full border border-[#F0DEE2] px-5 text-sm font-bold text-[#6F676B]" onClick={() => void onToggle(task, task.status !== "completed")} disabled={!canEdit} type="button">{task.status === "completed" ? "未完了に戻す" : "完了にする"}</button>
-            <button className="h-11 rounded-full bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!canEdit || saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
+            <button className="h-11 rounded-none border border-[#F0DEE2] px-5 text-sm font-bold text-[#6F676B]" onClick={() => void onToggle(task, task.status !== "completed")} disabled={!canEdit} type="button">{task.status === "completed" ? "未完了に戻す" : "完了にする"}</button>
+            <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!canEdit || saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
           </div>
         </div>
       </aside>

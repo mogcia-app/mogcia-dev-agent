@@ -16,6 +16,9 @@ export interface Company {
   companyType?: string;
   postalCode?: string;
   address?: string;
+  prefecture?: string;
+  city?: string;
+  region?: string;
   phone?: string;
   email?: string;
   website?: string;
@@ -31,6 +34,8 @@ export interface Company {
   productIds?: string[];
   productNames?: string[];
   productAccountAccess?: CompanyProductAccountAccess;
+  productSalesContext?: CompanyProductSalesContext;
+  decisionInfo?: CompanyDecisionInfo;
   contacts?: CompanyContactPerson[];
   primaryContactId?: string | null;
   primaryContactName?: string | null;
@@ -45,6 +50,34 @@ export interface Company {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   archivedAt?: Timestamp | null;
+}
+
+export type DealFinalResult = "none" | "contracted" | "considering" | "lost" | "not_target";
+
+export interface CompanyDecisionInfo {
+  decisionMakerName?: string;
+  decisionMakerRole?: string;
+  decisionMakerContacted?: boolean;
+  budgetRange?: string;
+  budgetYear?: string;
+  implementationTiming?: string;
+  competitors?: string[];
+  approvalConditions?: string[];
+}
+
+export interface CompanyProductSalesContext {
+  commo?: CommoCompanyContext;
+}
+
+export interface CommoCompanyContext {
+  facilityScale?: string;
+  currentLineUsage?: string;
+  otaDependency?: string;
+  existingCrm?: string;
+  reservationManagement?: string;
+  repeatCustomerStatus?: string;
+  dormantCustomerStatus?: string;
+  operationOwner?: string;
 }
 
 export interface CompanyProductAccountAccess {
@@ -125,10 +158,25 @@ export interface CompanyMeeting {
   uploadedRecording: boolean;
   aiTaskRequested: boolean;
   generatedTaskIds?: string[];
+  dealFinalResult?: DealFinalResult;
+  manualEvaluation?: CompanyManualEvaluation;
   createdBy: string;
   createdByName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface CompanyManualEvaluation {
+  lossReason?: string;
+  contractReason?: string;
+  noPotentialReason?: string;
+  effectiveProposal?: string;
+  ineffectiveProposal?: string;
+  trueCustomerIssue?: string;
+  salesFeeling?: string;
+  aiEvaluation?: string;
+  adoptedSalesRule?: string;
+  source?: "manual" | "ai" | "confirmed";
 }
 
 export interface CompanyFile {

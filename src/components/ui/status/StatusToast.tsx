@@ -24,7 +24,7 @@ export function StatusToast({
       <Icon className="h-5 w-5 shrink-0" />
       <span className="min-w-0 flex-1">{message}</span>
       {onClose ? (
-        <button className="grid h-7 w-7 place-items-center rounded-md hover:bg-[#FCF9F9]" onClick={onClose} type="button" aria-label="閉じる">
+        <button className="grid h-7 w-7 place-items-center rounded-none hover:bg-[#FCF9F9]" onClick={onClose} type="button" aria-label="閉じる">
           <X className="h-4 w-4" />
         </button>
       ) : null}

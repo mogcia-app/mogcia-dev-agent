@@ -21,3 +21,14 @@ export function getUserDisplayNameById(uid?: string | null, fallback?: string | 
   if (!uid) return fallback || "未設定";
   return USER_DISPLAY_NAMES[uid] || fallback || uid;
 }
+
+export function getUserFamilyNameById(uid?: string | null, fallback?: string | null): string {
+  const displayName = getUserDisplayNameById(uid, fallback);
+  return extractFamilyName(displayName);
+}
+
+export function extractFamilyName(displayName: string): string {
+  const normalized = displayName.trim();
+  if (!normalized || normalized === "未設定") return normalized || "未設定";
+  return normalized.split(/\s+/)[0] || normalized;
+}

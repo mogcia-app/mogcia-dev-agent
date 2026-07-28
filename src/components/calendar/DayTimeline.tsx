@@ -20,7 +20,7 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
   }, []);
 
   return (
-    <section className="rounded-lg border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
+    <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-baseline gap-4">
           <h3 className="text-xl font-bold text-[#2B2B2B]">{isToday ? "今日の予定" : "予定"}</h3>
@@ -36,7 +36,7 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
         </div>
       ) : null}
       {timedItems.length === 0 && allDayItems.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[#F0E7E9] bg-[#FFFBFC] px-5 py-12 text-center">
+        <div className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] px-5 py-12 text-center">
           <p className="text-lg font-bold text-[#2B2B2B]">この日の予定はありません</p>
           <p className="mt-2 text-sm font-semibold text-[#8A8A8A]">新しい予定を追加するか、別の日を選択してください。</p>
         </div>
@@ -47,7 +47,7 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
               {view === "timeline" ? (
                 <>
                   <p className="pt-3 text-sm font-bold text-[#2B2B2B]">{formatTime(item.startAt)}</p>
-                  <span className={`mt-5 h-2.5 w-2.5 rounded-full ${item.category === "manual_task" ? "bg-[#4F78B4]" : item.category === "meeting" ? "bg-[#67B667]" : "bg-[#F47E96]"}`} />
+                  <span className={`mt-5 h-2.5 w-2.5 rounded-none ${item.category === "manual_task" ? "bg-[#4F78B4]" : item.category === "meeting" ? "bg-[#67B667]" : "bg-[#F47E96]"}`} />
                 </>
               ) : null}
               <TimelineEventCard item={item} onOpen={onOpen} />

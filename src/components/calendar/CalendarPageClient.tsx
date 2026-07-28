@@ -15,7 +15,7 @@ import { useCalendarItems } from "@/hooks/useCalendarItems";
 import { useSelectedDate } from "@/hooks/useSelectedDate";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
 import { isSameCalendarDate } from "@/lib/calendar-utils";
-import { setTaskCompleted, updateTask } from "@/lib/tasks";
+import { setTaskCompleted, updateTask, updateTaskChecklist } from "@/lib/tasks";
 import type { CalendarItem } from "@/types/calendar";
 import type { Task, TaskDraft } from "@/types/task";
 
@@ -54,9 +54,9 @@ export function CalendarPageClient() {
   const taskCanEdit = (task: Task) => calendar.isAdmin || task.assigneeId === calendar.user?.uid || task.createdBy === calendar.user?.uid;
 
   return (
-    <div className="rounded-lg bg-[#FFF9FA]/70 p-4 shadow-[inset_0_0_0_1px_rgba(240,231,233,0.72)] sm:p-5">
+    <div className="">
       <CalendarPageHeader onCreate={() => setCreateOpen(true)} />
-      {calendar.error ? <p className="mt-4 rounded-md bg-[#FFF0F3] px-4 py-3 text-sm font-bold text-[#D94F6E]">{calendar.error}</p> : null}
+      {calendar.error ? <p className="mt-4 rounded-none bg-[#FFF0F3] px-4 py-3 text-sm font-bold text-[#D94F6E]">{calendar.error}</p> : null}
       {calendar.loading ? (
         <div className="mt-5"><CalendarSkeleton /></div>
       ) : (
@@ -76,6 +76,7 @@ export function CalendarPageClient() {
       <TaskDetailDrawer
         canDelete={false}
         canEdit={selectedTask ? taskCanEdit(selectedTask) : false}
+        currentUserId={calendar.currentMember.id}
         isAdmin={calendar.isAdmin}
         key={selectedTask?.id ?? "no-task"}
         companies={workspaceOptions.companies}
@@ -85,6 +86,7 @@ export function CalendarPageClient() {
         onClose={() => setSelectedItem(null)}
         onDelete={async () => undefined}
         onDuplicate={async () => undefined}
+        onChecklistChange={updateTaskChecklist}
         onSave={(taskId: string, draft: TaskDraft) => updateTask(taskId, draft, calendar.currentMember)}
         onToggle={setTaskCompleted}
         task={selectedTask && selectedItem && isSameCalendarDate(selectedItem.startAt, selected.selectedDate) ? selectedTask : selectedTask}
