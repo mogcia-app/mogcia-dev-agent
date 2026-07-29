@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import type { MemberOption, Task, TaskChecklistItem, TaskDraft, TaskDueFilter, TaskPriority, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
+import type { MemberOption, Task, TaskDraft, TaskDueFilter, TaskPriority, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
 
 export const ADMIN_UID = "TjDadmBAdVYaPEvG3ppfBLS4HGN2";
 
@@ -54,16 +54,8 @@ export function taskToDraft(task: Task): TaskDraft {
   };
 }
 
-export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption, existingChecklist: TaskChecklistItem[] = []) {
+export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption) {
   const dueDate = parseDueDate(draft.dueDate, draft.dueTime);
-  const checklist = draft.checklistText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((title) => {
-      const existing = existingChecklist.find((item) => item.title === title);
-      return { id: existing?.id ?? `check-${crypto.randomUUID()}`, title, completed: existing?.completed ?? false };
-    });
 
   return {
     title: draft.title.trim(),
@@ -85,7 +77,7 @@ export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption, 
     meetingId: draft.meetingId || null,
     meetingTitle: draft.meetingTitle.trim() || null,
     dueDate,
-    checklist,
+    checklist: [],
     comments: draft.comments.trim()
   };
 }

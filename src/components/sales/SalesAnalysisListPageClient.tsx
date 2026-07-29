@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
 import { EmptyState, StatusBanner } from "@/components/ui/status";
@@ -41,6 +41,7 @@ type DealGroup = {
 
 export function SalesAnalysisListPageClient() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const recordId = searchParams.get("recordId");
   const dealId = searchParams.get("dealId");
   const [activeTab, setActiveTab] = useState<AnalysisTab>("before");
@@ -115,21 +116,27 @@ export function SalesAnalysisListPageClient() {
           try {
             const token = await user.getIdToken();
             const response = await fetch(`/api/teleapo/${selectedRecord.id}/advice`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-            if (!response.ok) throw new Error("AIアドバイス生成に失敗しました。");
-            setMessage("AIアドバイスを生成しました。");
+            if (!response.ok) throw new Error("分析結果の作成に失敗しました。");
+            setMessage("分析結果を作成しました。");
+            router.replace(`/sales/analysis?dealId=${createDealId(selectedRecord)}` as Route);
           } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : "AIアドバイス生成に失敗しました。");
+            setError(nextError instanceof Error ? nextError.message : "分析結果の作成に失敗しました。");
           } finally {
             setGeneratingAdvice(false);
           }
         }}
         onSaveLogs={async (logs: ConversationLog[]) => {
+          if (!user) return false;
           try {
             await updateTeleapoRecord(selectedRecord.id, { conversationLogs: sanitizeConversationLogs(logs), conversationLogsLocked: true, transcriptionStatus: "completed" });
-            setMessage("話者ラベルを保存しました。");
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/teleapo/${selectedRecord.id}/advice`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+            if (!response.ok) throw new Error("分析結果の作成に失敗しました。");
+            setMessage("分析済み一覧に反映しました。");
+            router.replace(`/sales/analysis?dealId=${createDealId(selectedRecord)}` as Route);
             return true;
           } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : "話者ラベルの保存に失敗しました。");
+            setError(nextError instanceof Error ? nextError.message : "分析済み一覧への反映に失敗しました。");
             return false;
           }
         }}
@@ -164,7 +171,7 @@ export function SalesAnalysisListPageClient() {
       </div>
       <section className="mt-5 rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
         {loading ? <SkeletonList count={6} media /> : null}
-        {!loading && dealGroups.length === 0 ? <EmptyState title="分析済みの案件がありません" description="アップロード後に話者分離またはAIアドバイスまで進めると、ここに表示されます。" /> : null}
+        {!loading && dealGroups.length === 0 ? <EmptyState title="分析済みの案件がありません" description="アップロード後に話者分離を保存すると、ここに表示されます。" /> : null}
         <div className="grid gap-3">
           {dealGroups.map((deal) => (
             <DealCard
@@ -272,7 +279,7 @@ function DealOverviewTab({ deal }: { deal: DealGroup }) {
           <IssueCompact analysis={latestAnalysis} />
         </Panel>
         <Panel title="決裁・予算情報">
-          <InfoRows rows={[["決裁者", "未確認"], ["決裁者接触", "未確認"], ["予算", "未確認"], ["導入時期", latestAnalysis?.prospectScore.nextMeetingTiming], ["競合", "未確認"], ["稟議条件", "未確認"]]} />
+          <InfoRows rows={[["決裁者", "未確認"], ["決裁者接触", "未確認"], ["予算", "未確認"], ["導入時期", formatUrgency(latestAnalysis?.prospectScore.nextMeetingTiming)], ["競合", "未確認"], ["稟議条件", "未確認"]]} />
         </Panel>
       </div>
       <Panel title="案件タイムライン">
@@ -383,13 +390,24 @@ function AfterMeetingTab({ deal }: { deal: DealGroup }) {
   if (!latestMeeting) return <EmptyState title="商談後データがありません" description="商談後アップロードを追加すると、振り返りを表示できます。" />;
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <Panel title="商談要約"><BulletList items={[latestMeeting.aiAdvice?.summary, latestMeeting.meetingMemo, latestMeeting.transcriptText?.slice(0, 240)].filter(Boolean) as string[]} empty="未確認" /></Panel>
-      <Panel title="新たに判明した事実"><BulletList items={latestMeeting.aiAdvice?.missingInformation ?? []} empty="未確認" /></Panel>
-      <Panel title="興味を示した内容"><BulletList items={latestMeeting.aiAdvice?.positiveCustomerSignals ?? []} empty="未確認" /></Panel>
-      <Panel title="営業パフォーマンス分析"><InfoRows rows={[["発言比率", "推定"], ["質問数", "推定"], ["深掘り質問数", "推定"], ["決裁者確認", "未確認"], ["予算確認", "未確認"], ["クロージング", latestMeeting.aiAdvice?.shouldFollowUp ? "実施推奨" : "未確認"]]} /></Panel>
+      <Panel title="商談後の見込み診断"><InfoRows rows={[["最新ランク", latestMeeting.aiAdvice?.prospectRank], ["最新スコア", latestMeeting.aiAdvice?.prospectScore?.toString()], ["フォロー判断", latestMeeting.aiAdvice?.shouldFollowUp ? "フォローアップする" : "追わない"], ["フォロー時期", formatUrgency(latestMeeting.aiAdvice?.nextActionUrgency) || formatUrgency(latestMeeting.aiAdvice?.followupTiming)], ["判定理由", latestMeeting.aiAdvice?.rankReason], ["フォロー理由", latestMeeting.aiAdvice?.followUpReason]]} /></Panel>
+      <Panel title="次の追客方針"><InfoRows rows={[["方法", formatFollowUpMethod(latestMeeting.aiAdvice?.followUpMethod)], ["いつ追うか", formatUrgency(latestMeeting.aiAdvice?.nextActionUrgency) || formatUrgency(latestMeeting.aiAdvice?.followupTiming)], ["理由", latestMeeting.aiAdvice?.followupTimingReason], ["次回推奨", latestMeeting.aiAdvice?.followUpReason]]} /></Panel>
+      <Panel title="商談要約"><BulletList items={[latestMeeting.aiAdvice?.summary].filter(Boolean) as string[]} empty="未確認" /></Panel>
       <Panel title="良かった点"><BulletList items={latestMeeting.aiAdvice?.positives ?? []} empty="未確認" /></Panel>
-      <Panel title="改善点"><BulletList items={latestMeeting.aiAdvice?.negatives ?? []} empty="未確認" /></Panel>
-      <Panel title="商談後の見込み診断"><InfoRows rows={[["最新ランク", latestMeeting.aiAdvice?.prospectRank], ["最新スコア", latestMeeting.aiAdvice?.prospectScore?.toString()], ["フォロー時期", formatUrgency(latestMeeting.aiAdvice?.nextActionUrgency) || formatUrgency(latestMeeting.aiAdvice?.followupTiming)], ["上昇理由", latestMeeting.aiAdvice?.rankReason], ["受注阻害要因", latestMeeting.aiAdvice?.lostRisks?.join(" / ")], ["次回推奨", latestMeeting.aiAdvice?.followUpReason]]} /></Panel>
+      <Panel title="ダメだった点・弱かった点"><BulletList items={latestMeeting.aiAdvice?.negatives ?? []} empty="未確認" /></Panel>
+      <Panel title="顧客が前向きだった発言"><BulletList items={latestMeeting.aiAdvice?.positiveCustomerSignals ?? []} empty="未確認" /></Panel>
+      <Panel title="顧客が迷っていた発言"><BulletList items={latestMeeting.aiAdvice?.hesitationSignals ?? []} empty="未確認" /></Panel>
+      <Panel title="決まりそうな条件"><BulletList items={latestMeeting.aiAdvice?.closingRequirements ?? []} empty="未確認" /></Panel>
+      <Panel title="足りない情報"><BulletList items={latestMeeting.aiAdvice?.missingInformation ?? []} empty="未確認" /></Panel>
+      <Panel title="失注リスク"><BulletList items={latestMeeting.aiAdvice?.lostRisks ?? []} empty="未確認" /></Panel>
+      <Panel title="追っかけ方針"><InfoRows rows={[
+        ["フォローする理由", latestMeeting.aiAdvice?.followUpReason],
+        ["いつするか", formatUrgency(latestMeeting.aiAdvice?.nextActionUrgency) || formatUrgency(latestMeeting.aiAdvice?.followupTiming)],
+        ["タイミングの理由", latestMeeting.aiAdvice?.followupTimingReason],
+        ["方法", formatFollowUpMethod(latestMeeting.aiAdvice?.followUpMethod)],
+        ["電話で伝えること", latestMeeting.aiAdvice?.followupCallScript],
+        ["メール文面", latestMeeting.aiAdvice?.followupEmail]
+      ]} /></Panel>
     </div>
   );
 }
@@ -550,7 +568,7 @@ function ScoreTimeline({ records }: { records: TeleapoRecord[] }) {
   return (
     <div className="space-y-3">
       {records.map((record) => (
-        <Link className="grid grid-cols-[1fr_auto] gap-3 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#6F676B]" href={`/sales/analysis?recordId=${record.id}` as Route} key={record.id}>
+        <Link className="grid grid-cols-[1fr_auto] gap-3 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#6F676B]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route} key={record.id}>
           <span>{recordKindLabel(record)}後</span>
           <span className="text-[#EC6F8B]">{record.aiAdvice?.prospectRank ?? record.aiAdvice?.meetingPreparation?.prospectScore.rank ?? "未確認"} / {record.aiAdvice?.prospectScore ?? record.aiAdvice?.meetingPreparation?.prospectScore.score ?? "-"}</span>
         </Link>
@@ -574,7 +592,7 @@ function DealTimeline({ records }: { records: TeleapoRecord[] }) {
             <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{record.aiAdvice?.summary || record.transcriptText || "要約未作成"}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
               <span className="rounded-none bg-white px-2.5 py-1 text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.aiAdvice?.prospectRank ?? "未確認"} / {record.aiAdvice?.prospectScore ?? "-"}</span>
-              <Link className="rounded-none bg-white px-2.5 py-1 text-[#6F676B] ring-1 ring-[#F0E7E9]" href={`/sales/analysis?recordId=${record.id}` as Route}>分析結果を開く</Link>
+              <Link className="rounded-none bg-white px-2.5 py-1 text-[#6F676B] ring-1 ring-[#F0E7E9]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route}>分析結果を開く</Link>
               <Link className="rounded-none bg-white px-2.5 py-1 text-[#6F676B] ring-1 ring-[#F0E7E9]" href={`/sales/analysis?recordId=${record.id}#conversation-log` as Route}>文字起こし</Link>
             </div>
             {record.audioDownloadUrl ? <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} /> : null}
@@ -598,7 +616,7 @@ function ComparisonTable({ base, detailed = false, target }: { base: TeleapoReco
     ["刺さる提案", base.aiAdvice?.meetingPreparation?.proposalStrategy.mainTheme, target.aiAdvice?.meetingPreparation?.proposalStrategy.mainTheme],
     ["決裁者", "未確認", "未確認"],
     ["予算", "未確認", "未確認"],
-    ["導入時期", base.aiAdvice?.meetingPreparation?.prospectScore.nextMeetingTiming, target.aiAdvice?.meetingPreparation?.prospectScore.nextMeetingTiming],
+    ["導入時期", formatUrgency(base.aiAdvice?.meetingPreparation?.prospectScore.nextMeetingTiming), formatUrgency(target.aiAdvice?.meetingPreparation?.prospectScore.nextMeetingTiming)],
     ["懸念", base.aiAdvice?.concerns?.join(" / "), target.aiAdvice?.concerns?.join(" / ")],
     ["次回アクション", base.aiAdvice?.nextActions?.join(" / "), target.aiAdvice?.nextActions?.join(" / ")]
   ];
@@ -737,6 +755,15 @@ function formatUrgency(urgency?: string): string {
   return urgency;
 }
 
+function formatFollowUpMethod(method?: string): string {
+  if (method === "phone") return "電話";
+  if (method === "email") return "メール";
+  if (method === "chat") return "チャット";
+  if (method === "meeting") return "次回商談";
+  if (method === "none") return "追わない";
+  return "未確認";
+}
+
 function formatScheduleCandidate(candidate: { label: string; datetime: string; reason: string }): string {
   const parsed = new Date(candidate.datetime);
   const dateText = Number.isNaN(parsed.getTime())
@@ -766,7 +793,7 @@ function AnalysisRecordCard({ record }: { record: TeleapoRecord }) {
   const summary = record.aiAdvice?.summary || record.transcriptText || "分析内容を確認できます。";
 
   return (
-    <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] lg:grid-cols-[1fr_auto]" href={`/sales/analysis?recordId=${record.id}` as Route}>
+    <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] lg:grid-cols-[1fr_auto]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>

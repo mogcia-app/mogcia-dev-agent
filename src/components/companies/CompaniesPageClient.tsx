@@ -1,7 +1,8 @@
 "use client";
 
-import { Archive, Bookmark, Check, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Trash2 } from "lucide-react";
+import { Archive, Bookmark, CalendarDays, Check, CheckCircle2, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,11 +14,13 @@ import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
 import { subscribeProductsMaster } from "@/lib/products";
+import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { TaskDraft } from "@/types/task";
+import type { TeleapoRecord } from "@/types/teleapo";
 
 type SortKey = "lastContact" | "updated" | "name" | "owner";
 type TabKey = "overview" | "timeline" | "deals" | "meetings" | "tasks" | "files" | "notes";
@@ -52,6 +55,7 @@ export function CompaniesPageClient() {
   const [toast, setToast] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ uid: string; name: string; email: string }>>(DEFAULT_WORKSPACE_MEMBERS);
   const [products, setProducts] = useState<Product[]>([]);
+  const [analysisRecords, setAnalysisRecords] = useState<TeleapoRecord[]>([]);
 
   useEffect(() => {
     if (!store.user) return undefined;
@@ -76,6 +80,11 @@ export function CompaniesPageClient() {
   useEffect(() => {
     if (!store.user) return undefined;
     return subscribeProductsMaster((nextProducts) => setProducts(nextProducts.filter((product) => product.status !== "archived")), () => setProducts([]));
+  }, [store.user]);
+
+  useEffect(() => {
+    if (!store.user) return undefined;
+    return subscribeTeleapoRecords(setAnalysisRecords, () => setAnalysisRecords([]));
   }, [store.user]);
 
   const setRoute = useCallback((next: { id?: string | null; tab?: TabKey; q?: string }) => {
@@ -160,9 +169,9 @@ export function CompaniesPageClient() {
               <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
                 <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
                 <div className="p-5">
-                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} tasks={store.tasks} /> : null}
+                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} products={products} tasks={store.tasks} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab logs={store.logs} onMore={() => setLogLimit((current) => current + 30)} /> : null}
-                  {selectedTab === "deals" ? <DealsTab /> : null}
+                  {selectedTab === "deals" ? <DealsTab company={selectedCompany} records={analysisRecords} /> : null}
                   {selectedTab === "meetings" ? <MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
@@ -193,9 +202,29 @@ function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite,
   return <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div>{company.industry ? <p className="mt-2 text-sm font-semibold text-[#777]">{company.industry}</p> : null}</div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-none border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-none text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
-function OverviewTab({ company, tasks }: { company: Company; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }> }) {
+function OverviewTab({ company, products, tasks }: { company: Company; products: Product[]; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }> }) {
   const nextTask = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER))[0];
-  return <InfoGrid rows={[["会社名", company.name], ["会社名カナ", company.nameKana || "未設定"], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ["関連商材", company.productNames?.join(" / ") || "未設定"], ["営業担当者", company.internalOwnerName || "未設定"], ["同行者", company.companionNames?.join(" / ") || "未設定"], ["先方担当者", formatContacts(company)], ["決裁・予算", formatDecisionInfo(company.decisionInfo)], ["commo. 営業情報", formatCommoContext(company.productSalesContext?.commo)], ["最終接触日", company.lastContactAt?.toDate().toLocaleString("ja-JP") ?? "未接触"], ["次回アクション", nextTask ? `${nextTask.title} / ${nextTask.dueDate?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"} / ${nextTask.assigneeName ?? "未設定"}` : company.nextActionTitle || "未設定"]]} />;
+  const hasCommoProduct = companyHasCommoProduct(company, products);
+  const rows: Array<[string, string]> = [
+    ["会社名", company.name],
+    ["業種", company.industry || "未設定"],
+    ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"],
+    ["所在地", company.address || "未設定"],
+    ["Webサイト", company.website || "未設定"],
+    ["関連商材", company.productNames?.join(" / ") || "未設定"],
+    ["営業担当者", company.internalOwnerName || "未設定"],
+    ["同行者", company.companionNames?.join(" / ") || "未設定"],
+    ["先方担当者", formatContacts(company)],
+    ["決裁・予算", formatDecisionInfo(company.decisionInfo)],
+  ];
+  if (hasCommoProduct) {
+    rows.push(["commo. 営業情報", formatCommoContext(company.productSalesContext?.commo)]);
+  }
+  rows.push(
+    ["最終接触日", company.lastContactAt?.toDate().toLocaleString("ja-JP") ?? "未接触"],
+    ["次回アクション", nextTask ? `${nextTask.title} / ${nextTask.dueDate?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"} / ${nextTask.assigneeName ?? "未設定"}` : company.nextActionTitle || "未設定"]
+  );
+  return <InfoGrid rows={rows} />;
 }
 
 function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () => void }) {
@@ -292,8 +321,56 @@ function TasksTab({ tasks }: { tasks: Parameters<typeof TaskCard>[0]["task"][] }
   return <div className="space-y-3">{tasks.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">会社に紐づくタスクはありません。</p> : tasks.map((task) => <TaskCard canEdit={false} currentUserId="" key={task.id} onOpen={() => undefined} onToggle={() => undefined} task={task} />)}</div>;
 }
 
-function DealsTab() {
-  return <p className="rounded-none border border-dashed border-[#F0E7E9] p-8 text-center text-sm font-bold text-[#8A8A8A]">案件・商談は、今後の商談管理機能と接続します。</p>;
+function DealsTab({ company, records }: { company: Company; records: TeleapoRecord[] }) {
+  const companyRecords = records
+    .filter((record) => record.companyId === company.id || (!record.companyId && record.customerName === company.name))
+    .sort((left, right) => right.recordedAt.toMillis() - left.recordedAt.toMillis());
+
+  if (companyRecords.length === 0) {
+    return (
+      <div className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-8 text-center">
+        <p className="text-sm font-bold text-[#2B2B2B]">分析済みの案件・商談はまだありません。</p>
+        <p className="mt-2 text-sm font-semibold text-[#8A8186]">/sales/upload で会社一覧から反映してアップロードすると、ここに表示されます。</p>
+        <Link className="mt-4 inline-flex h-10 items-center justify-center rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" href={"/sales/upload" as Route}>アップロードへ</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {companyRecords.map((record) => (
+        <AnalysisDealCard key={record.id} record={record} />
+      ))}
+    </div>
+  );
+}
+
+function AnalysisDealCard({ record }: { record: TeleapoRecord }) {
+  const hasAdvice = record.aiAdviceStatus === "completed" && Boolean(record.aiAdvice);
+  const score = record.aiAdvice?.prospectScore ?? record.aiAdvice?.meetingPreparation?.prospectScore.score ?? null;
+  const rank = record.aiAdvice?.prospectRank ?? record.aiAdvice?.meetingPreparation?.prospectScore.rank ?? "";
+  const summary = record.aiAdvice?.summary || record.aiAdvice?.meetingPreparation?.proposalStrategy.winningApproach.join(" / ") || record.transcriptText || "分析内容を確認できます。";
+  return (
+    <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] lg:grid-cols-[1fr_auto]" href={`/sales/analysis?recordId=${record.id}` as Route}>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+          <span className={`inline-flex items-center gap-1 rounded-none px-2.5 py-1 text-xs font-bold ${hasAdvice ? "bg-[#EC6F8B] text-white" : "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]"}`}>
+            {hasAdvice ? <Sparkles className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            {hasAdvice ? "AI分析済み" : "話者分離済み"}
+          </span>
+          {rank || score !== null ? <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">{[rank, score !== null ? `${score}点` : ""].filter(Boolean).join(" / ")}</span> : null}
+        </div>
+        <h4 className="mt-3 truncate text-lg font-bold text-[#2B2B2B]">{record.productName || "商材未設定"}</h4>
+        <p className="mt-1 text-sm font-semibold text-[#777]">{record.contactName || "先方担当者未設定"} / {record.userName || "担当未設定"}</p>
+        <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{summary}</p>
+      </div>
+      <div className="grid content-between gap-3 text-sm font-bold text-[#8A8186] lg:min-w-48 lg:text-right">
+        <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />{record.recordedAt.toDate().toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" })}</span>
+        <span>{record.conversationLogs.length}ブロック</span>
+      </div>
+    </Link>
+  );
 }
 
 function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string; url: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number }>; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
@@ -392,7 +469,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     <Modal title={mode === "create" ? "新しい会社を追加" : "会社情報を編集"} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label="会社名" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
-        <Input label="会社名カナ" value={form.nameKana} onChange={(nameKana) => setForm({ ...form, nameKana })} />
         <Input label="業種" value={form.industry} onChange={(industry) => setForm({ ...form, industry })} />
         <Input label="都道府県" value={form.prefecture} onChange={(prefecture) => setForm({ ...form, prefecture })} />
         <Input label="市区町村" value={form.city} onChange={(city) => setForm({ ...form, city })} />
@@ -479,17 +555,21 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
         <Field label="先方担当者">
           <div className="grid gap-3">
             {form.contacts.map((contact, index) => (
-              <div className="grid gap-2 border-b border-[#F0E7E9] pb-3 last:border-b-0 md:grid-cols-[1fr_0.8fr_1.25fr_0.9fr_auto_auto] md:items-center" key={contact.id}>
-                <input className="task-input" placeholder={`担当者名 ${index + 1}`} value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
-                <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
-                <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
-                <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
-                <div className="flex flex-wrap items-center gap-1.5 md:min-w-[168px]">
+              <div className="grid gap-2 border-b border-[#F0E7E9] pb-3 last:border-b-0" key={contact.id}>
+                <div className="grid gap-2 md:grid-cols-[minmax(220px,1.2fr)_minmax(160px,0.8fr)]">
+                  <input className="task-input" placeholder={`担当者名 ${index + 1}`} value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
+                  <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
+                </div>
+                <div className="grid gap-2 md:grid-cols-[minmax(240px,1fr)_minmax(180px,0.8fr)]">
+                  <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
+                  <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   {contactMethodOptions.map(([method, label]) => (
                     <ContactMethodToggle checked={(contact.contactMethods ?? []).includes(method)} key={method} label={label} onClick={() => toggleContactMethod(contact.id, method)} />
                   ))}
+                  {form.contacts.length > 1 ? <button className="h-8 border border-[#F0E7E9] px-3 text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : null}
                 </div>
-                {form.contacts.length > 1 ? <button className="h-10 border border-[#F0E7E9] px-3 text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : <span className="hidden md:block" />}
               </div>
             ))}
             <button className="h-10 rounded-none border border-[#F0E7E9] bg-white text-sm font-bold text-[#EC6F8B]" onClick={addContact} type="button">担当者を追加</button>
@@ -633,7 +713,7 @@ function MemoFormModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (
   const [form, setForm] = useState({ title: "", content: "", pinned: false });
   const [saving, setSaving] = useState(false);
   const save = async () => { setSaving(true); await onSubmit(form); setSaving(false); };
-  return <Modal title="メモを追加" onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-72" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
+  return <Modal title="メモを追加" onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-[36rem]" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
@@ -761,6 +841,11 @@ function isCommoProduct(product: Product): boolean {
   return product.name.toLowerCase().includes("commo");
 }
 
+function companyHasCommoProduct(company: Company, products: Product[]): boolean {
+  const selectedProducts = products.filter((product) => company.productIds?.includes(product.id));
+  return selectedProducts.some(isCommoProduct) || Boolean(company.productNames?.some((name) => name.toLowerCase().includes("commo")));
+}
+
 function formatContactName(contact: { name?: string; role?: string; email?: string; phone?: string }): string {
   const name = contact.name || contact.email || contact.phone || "名前未設定";
   return contact.role ? `${name}（${contact.role}）` : name;
@@ -806,14 +891,14 @@ function AccountAccessRow({ accountLabel, credential, onChange }: { accountLabel
     <div className="grid gap-2 md:grid-cols-3">
       <input className="task-input" placeholder={accountLabel} value={credential?.accountName ?? ""} onChange={(event) => onChange("accountName", event.target.value)} />
       <input className="task-input" placeholder="メールアドレス" value={credential?.email ?? ""} onChange={(event) => onChange("email", event.target.value)} />
-      <input className="task-input" placeholder="パスワード" type="password" value={credential?.password ?? ""} onChange={(event) => onChange("password", event.target.value)} />
+      <input className="task-input" placeholder="パスワード" value={credential?.password ?? ""} onChange={(event) => onChange("password", event.target.value)} />
     </div>
   );
 }
 
 function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={`inline-flex h-8 items-center gap-1.5 rounded-none px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
+    <button className={`inline-flex h-8 min-w-16 items-center justify-center gap-1.5 rounded-none px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
       {checked ? <Check className="h-3.5 w-3.5" /> : null}
       {label}
     </button>

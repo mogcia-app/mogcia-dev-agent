@@ -297,6 +297,7 @@ export interface TeleapoRecord {
   meetingTitle?: string;
   meetingMemo?: string;
   diagnosisSheet?: {
+    meetingPhase?: "first" | "second" | "pre_contract" | "continued" | "";
     temperature?: "S" | "A" | "B" | "C" | "";
     biggestIssue?: string;
     resonatedPoint?: string;

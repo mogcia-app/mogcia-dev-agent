@@ -15,7 +15,7 @@ import { useCalendarItems } from "@/hooks/useCalendarItems";
 import { useSelectedDate } from "@/hooks/useSelectedDate";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
 import { isSameCalendarDate } from "@/lib/calendar-utils";
-import { setTaskCompleted, updateTask, updateTaskChecklist } from "@/lib/tasks";
+import { setTaskCompleted, updateTask } from "@/lib/tasks";
 import type { CalendarItem } from "@/types/calendar";
 import type { Task, TaskDraft } from "@/types/task";
 
@@ -80,13 +80,10 @@ export function CalendarPageClient() {
         isAdmin={calendar.isAdmin}
         key={selectedTask?.id ?? "no-task"}
         companies={workspaceOptions.companies}
-        projects={workspaceOptions.projects}
-        meetings={workspaceOptions.meetings}
         members={calendar.members}
         onClose={() => setSelectedItem(null)}
         onDelete={async () => undefined}
         onDuplicate={async () => undefined}
-        onChecklistChange={updateTaskChecklist}
         onSave={(taskId: string, draft: TaskDraft) => updateTask(taskId, draft, calendar.currentMember)}
         onToggle={setTaskCompleted}
         task={selectedTask && selectedItem && isSameCalendarDate(selectedItem.startAt, selected.selectedDate) ? selectedTask : selectedTask}

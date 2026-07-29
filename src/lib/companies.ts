@@ -1,6 +1,6 @@
 "use client";
 
-import { Timestamp, addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
+import { Timestamp, addDoc, collection, collectionGroup, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import { createEmptyCompany } from "@/lib/company-utils";
@@ -102,6 +102,12 @@ export function subscribeCompanyActivityLogs(companyId: string, count: number, o
   const db = getFirebaseDb();
   if (!db) return () => undefined;
   return onSnapshot(query(collection(db, companiesCollection, companyId, "activityLogs"), orderBy("occurredAt", "desc"), limit(count)), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeLog(entry.id, entry.data()))), onError);
+}
+
+export function subscribeRecentCompanyActivityLogs(count: number, onNext: (logs: CompanyActivityLog[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db) return () => undefined;
+  return onSnapshot(query(collectionGroup(db, "activityLogs"), orderBy("occurredAt", "desc"), limit(count)), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeLog(entry.id, entry.data()))), onError);
 }
 
 export function subscribeCompanyMeetings(companyId: string, onNext: (meetings: CompanyMeeting[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {

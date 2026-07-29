@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { draftToTaskPayload } from "@/lib/task-utils";
-import type { MemberOption, Task, TaskChecklistItem, TaskDraft, TaskProgressLog, TaskProgressLogType } from "@/types/task";
+import type { MemberOption, Task, TaskDraft, TaskProgressLog, TaskProgressLogType } from "@/types/task";
 
 const TASKS_COLLECTION = "tasks";
 
@@ -84,7 +84,7 @@ function normalizeTask(id: string, data: DocumentData): Task {
     meetingTitle: data.meetingTitle ?? null,
     dueDate: data.dueDate instanceof Timestamp ? data.dueDate : null,
     completedAt: data.completedAt instanceof Timestamp ? data.completedAt : null,
-    checklist: normalizeChecklist(data.checklist),
+    checklist: [],
     comments: typeof data.comments === "string" ? data.comments : "",
     progressLogs: normalizeProgressLogs(data.progressLogs),
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
@@ -154,7 +154,7 @@ export async function updateTask(taskId: string, draft: TaskDraft, currentUser: 
 
   const statusPatch = draft.status === "completed" ? { completedAt: serverTimestamp() } : { completedAt: null };
   await updateDoc(taskRef, {
-    ...draftToTaskPayload(draft, currentUser, normalizeChecklist(currentData.checklist)),
+    ...draftToTaskPayload(draft, currentUser),
     ...statusPatch,
     progressLogs: nextLogs,
     updatedAt: serverTimestamp()
@@ -176,35 +176,10 @@ export async function setTaskCompleted(task: Task, completed: boolean): Promise<
   });
 }
 
-export async function updateTaskChecklist(task: Task, checklist: TaskChecklistItem[]): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-
-  await updateDoc(doc(db, TASKS_COLLECTION, task.id), {
-    checklist,
-    updatedAt: serverTimestamp()
-  });
-}
-
 export async function deleteTask(taskId: string): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await deleteDoc(doc(db, TASKS_COLLECTION, taskId));
-}
-
-function normalizeChecklist(value: unknown): TaskChecklistItem[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry) => {
-    if (!entry || typeof entry !== "object") return [];
-    const data = entry as Record<string, unknown>;
-    const title = typeof data.title === "string" ? data.title.trim() : "";
-    if (!title) return [];
-    return [{
-      id: typeof data.id === "string" ? data.id : `check-${crypto.randomUUID()}`,
-      title,
-      completed: Boolean(data.completed)
-    }];
-  });
 }
 
 export async function duplicateTask(task: Task, currentUser: MemberOption & { uid: string }): Promise<void> {

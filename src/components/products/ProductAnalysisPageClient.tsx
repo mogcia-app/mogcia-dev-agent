@@ -483,9 +483,9 @@ function analyzeProduct(product: Product, records: TeleapoRecord[]): ProductAnal
       detail: "料金・効果・運用負担などの回答例がAIの切り返しに反映されます。"
     },
     {
-      label: "資料・デモ",
+      label: "サイト・資料",
       score: Math.min(100, product.resources.length * 16),
-      detail: "提案資料、料金表、事例、デモURLがあると商談準備に出せます。"
+      detail: "サイトURL、提案資料、料金表、事例資料があると商談準備に出せます。"
     },
     {
       label: "営業プレイブック",
@@ -622,7 +622,7 @@ function buildMissingItems(product: Product, sections: ProductAnalysis["sections
   if (product.target.winningPatterns.length === 0) missing.push("勝ちパターン");
   if (product.target.losingPatterns.length === 0) missing.push("失注パターン");
   if (product.objectionHandbook.length === 0) missing.push("反論想定");
-  if (product.resources.length === 0) missing.push("提案資料・デモ");
+  if (product.resources.length === 0) missing.push("サイト・資料");
   sections.filter((section) => section.score < 35).forEach((section) => missing.push(`${section.label}の入力補強`));
   return Array.from(new Set(missing)).slice(0, 8);
 }

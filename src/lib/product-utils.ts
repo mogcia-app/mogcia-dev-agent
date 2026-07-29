@@ -10,7 +10,7 @@ export const productTabs: Array<{ value: ProductTab; label: string }> = [
   { value: "sales", label: "営業設定" },
   { value: "new", label: "新規" },
   { value: "existing", label: "既存" },
-  { value: "resources", label: "資料・デモ" }
+  { value: "resources", label: "サイト・資料" }
 ];
 
 export const productStatusLabels: Record<ProductStatus, string> = {

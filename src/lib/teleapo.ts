@@ -58,6 +58,7 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
     meetingMemo: typeof data.meetingMemo === "string" ? data.meetingMemo : "",
     diagnosisSheet: data.diagnosisSheet && typeof data.diagnosisSheet === "object"
       ? {
+          meetingPhase: typeof data.diagnosisSheet.meetingPhase === "string" ? data.diagnosisSheet.meetingPhase : "",
           temperature: typeof data.diagnosisSheet.temperature === "string" ? data.diagnosisSheet.temperature : "",
           biggestIssue: typeof data.diagnosisSheet.biggestIssue === "string" ? data.diagnosisSheet.biggestIssue : "",
           resonatedPoint: typeof data.diagnosisSheet.resonatedPoint === "string" ? data.diagnosisSheet.resonatedPoint : "",

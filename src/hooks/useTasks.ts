@@ -4,7 +4,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { ADMIN_UID, isAdminUser } from "@/lib/task-utils";
-import { createTask, deleteTask, duplicateTask, setTaskCompleted, subscribeTasks, updateTask, updateTaskChecklist } from "@/lib/tasks";
+import { createTask, deleteTask, duplicateTask, setTaskCompleted, subscribeTasks, updateTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
 
@@ -79,7 +79,6 @@ export function useTasks() {
     canDeleteTask,
     createTask: (draft: TaskDraft) => createTask(draft, currentMember),
     updateTask: (taskId: string, draft: TaskDraft) => updateTask(taskId, draft, currentMember),
-    updateTaskChecklist,
     completeTask: setTaskCompleted,
     deleteTask,
     duplicateTask: (task: Task) => duplicateTask(task, currentMember)

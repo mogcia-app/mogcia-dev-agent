@@ -13,23 +13,33 @@ import { createDefaultSalesPlaybooks, productTabs, productTypeLabels, toLines, f
 import { addResourceFile, uploadProductIcon } from "@/lib/products";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import { useProducts } from "@/hooks/useProducts";
-import type { Product, ProductCustomerSegment, ProductFeature, ProductObjectionItem, ProductPlan, ProductResource, ProductSalesPlaybookEntry, ProductSalesScene, ProductStatus, ProductTab, ProductType } from "@/types/product";
+import type { Product, ProductCustomerSegment, ProductFeature, ProductObjectionItem, ProductPlan, ProductResource, ProductSalesPlaybookEntry, ProductStatus, ProductTab, ProductType } from "@/types/product";
 
-const salesSceneLabels: Record<ProductSalesScene, string> = {
-  teleapo: "テレアポ時",
-  meeting: "打ち合わせ時"
+const pricingDisplayTypeLabels: Record<Product["pricing"]["displayType"], string> = {
+  fixed: "固定料金",
+  from: "下限料金から",
+  range: "料金範囲",
+  estimate: "見積もり",
+  hidden: "非公開"
 };
 
-const productTabDescriptions: Record<ProductTab, string> = {
-  basic: "商材の概要と提供価値",
-  target: "AIが参照する顧客条件",
-  pricing: "料金・契約まわり",
-  features: "機能の見出しと詳細",
-  implementation: "反論と切り返し",
-  sales: "営業全体の基準",
-  new: "新規提案の進め方",
-  existing: "成約後・既存向け方針",
-  resources: "提案資料・デモ"
+const resourceTypeLabels: Record<ProductResource["type"], string> = {
+  website: "サイトURL",
+  proposal: "提案資料",
+  pricing: "料金表",
+  service_document: "サービス資料",
+  demo: "デモ",
+  simulation: "シミュレーション",
+  case_document: "事例資料",
+  contract_template: "契約書テンプレート",
+  other: "その他"
+};
+
+const resourceVisibilityLabels: Record<ProductResource["visibility"], string> = {
+  internal: "社内限定",
+  sales: "営業担当のみ",
+  client_shareable: "クライアント共有可",
+  public: "一般公開"
 };
 
 export function ProductsPageClient() {
@@ -160,8 +170,6 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onBack, onTabChan
   const [draft, setDraft] = useState(product);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const activeTab = productTabs.find((item) => item.value === tab) ?? productTabs[0];
-
   const save = async () => {
     setSaving(true);
     try {
@@ -199,30 +207,26 @@ function ProductDetail({ product, tab, canEdit, isAdmin, user, onBack, onTabChan
           <div className="flex flex-wrap gap-2">
             {canEdit ? <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
             {isAdmin ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
-            {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />提案資料を開く</a> : null}
-            {product.resources.find((resource) => resource.type === "demo" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "demo" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer">デモを見る</a> : null}
+            {product.resources.find((resource) => resource.type === "website" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "website" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />サイトを開く</a> : null}
+            {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />資料を開く</a> : null}
           </div>
         </div>
       </section>
       <section className="flex min-h-[calc(100vh-280px)] flex-col rounded-none border border-[#F0E7E9] bg-white shadow-sm">
         <ProductSectionNav activeTab={tab} onTabChange={onTabChange} />
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex flex-col gap-3 border-b border-[#F0E7E9] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h4 className="mt-1 text-xl font-bold text-[#2B2B2B]">{activeTab.label}</h4>
-              <p className="mt-1 text-sm font-semibold text-[#8A8A8A]">{productTabDescriptions[activeTab.value]}</p>
-            </div>
-            {editing ? (
-              <div className="flex justify-end gap-3">
-                <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={() => { setDraft(product); setEditing(false); }} type="button">キャンセル</button>
-                <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button>
-              </div>
-            ) : canEdit ? (
-              <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">この項目を編集</button>
-            ) : null}
-          </div>
           <div className="min-h-0 flex-1 overflow-auto p-5 xl:p-6">
             {editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
+            <div className="mt-6 flex justify-end gap-3 border-t border-[#F0E7E9] pt-5">
+              {editing ? (
+                <>
+                  <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={() => { setDraft(product); setEditing(false); }} type="button">キャンセル</button>
+                  <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button>
+                </>
+              ) : canEdit ? (
+                <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">この項目を編集</button>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>
@@ -252,18 +256,54 @@ function ProductSectionNav({ activeTab, onTabChange }: { activeTab: ProductTab; 
 function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: ProductTab; isAdmin: boolean }) {
   if (tab === "basic") return <InfoGrid rows={[["商材名", product.name], ["商材種別", productTypeLabels[product.productType]], ...(product.tagline ? [["一言説明", product.tagline]] as Array<[string, string]> : []), ["概要", product.summary || "未設定"], ["提供価値", product.values.join(" / ") || "未設定"], ["解決する課題", product.problems.join(" / ") || "未設定"], ["商材責任者", getUserDisplayNameById(product.ownerId, product.ownerName)], ["作成日", product.createdAt.toDate().toLocaleString("ja-JP")], ["最終更新日", product.updatedAt.toDate().toLocaleString("ja-JP")]]} />;
   if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["ターゲット地域", product.target.regions.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"], ["刺さりやすい顧客条件", product.target.idealCustomerConditions.join(" / ") || "未設定"], ["見込みが薄い条件", product.target.lowPotentialConditions.join(" / ") || "未設定"], ["勝ちパターン", product.target.winningPatterns.join(" / ") || "未設定"], ["失注パターン", product.target.losingPatterns.join(" / ") || "未設定"], ["刺さった言葉", product.target.effectivePhrases.join(" / ") || "未設定"], ["避ける表現", product.target.avoidPhrases.join(" / ") || "未設定"], ["業種別提案角度", product.target.industryProposalAngles.map((item) => `${item.industry}: ${item.proposalAngle}${item.cautions ? `（注意: ${item.cautions}）` : ""}`).join("\n") || "未設定"]]} />;
-  if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", product.pricing.displayType], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金プラン", product.pricing.plans.map((plan) => `${plan.name}: 初期 ${yen(plan.initialFee)} / 月額 ${yen(plan.monthlyFee)}`).join(" / ") || "未設定"]]} />;
+  if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金メモ", product.pricing.notes || "未設定"], ["料金プラン", formatPricingPlans(product.pricing.plans)]]} />;
   if (tab === "features") return <FeatureReadView product={product} />;
   if (tab === "implementation") return <ObjectionHandbookReadView product={product} />;
   if (tab === "sales") return <SalesSettingsReadView product={product} />;
   if (tab === "new") return <SalesPlaybookReadView product={product} segment="new" />;
   if (tab === "existing") return <SalesPlaybookReadView product={product} segment="existing" />;
-  if (tab === "resources") return <Cards title="資料・デモ" items={product.resources.map((resource) => `${resource.title} / ${resource.type} / ${resource.visibility}`)} />;
+  if (tab === "resources") return <ResourceReadView product={product} />;
   return null;
+}
+
+function formatPricingPlans(plans: ProductPlan[]): string {
+  if (plans.length === 0) return "未設定";
+  return plans
+    .map((plan) => {
+      const fees = [
+        `初期 ${yen(plan.initialFee)}`,
+        `月額 ${yen(plan.monthlyFee)}`,
+        plan.oneTimeFee ? `単発 ${yen(plan.oneTimeFee)}` : ""
+      ].filter(Boolean).join(" / ");
+      const flags = [plan.recommended ? "推奨" : "", plan.isActive ? "表示中" : "非表示"].filter(Boolean).join(" / ");
+      return [plan.name, fees, plan.description, plan.features.join("・"), flags].filter(Boolean).join("\n");
+    })
+    .join("\n\n");
 }
 
 function SalesSettingsReadView({ product }: { product: Product }) {
   return <InfoGrid rows={[["想定商談時間", product.salesSettings.expectedMeetingMinutes ? `${product.salesSettings.expectedMeetingMinutes}分` : "未設定"], ["想定受注期間", product.salesSettings.expectedSalesCycleDays ? `${product.salesSettings.expectedSalesCycleDays}日` : "未設定"], ["営業ステージ", product.salesSettings.salesStages.join(" / ") || "未設定"], ["よくある反論カテゴリ", product.salesSettings.objectionCategories.join(" / ") || "未設定"], ["失注理由カテゴリ", product.salesSettings.lossReasonCategories.join(" / ") || "未設定"]]} />;
+}
+
+function ResourceReadView({ product }: { product: Product }) {
+  if (product.resources.length === 0) return <Cards title="サイト・資料" items={[]} />;
+  return (
+    <div className="grid gap-3">
+      {product.resources.map((resource) => (
+        <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={resource.id}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[#EC6F8B]">{resourceTypeLabels[resource.type] ?? "その他"} / {resourceVisibilityLabels[resource.visibility] ?? "未設定"}</p>
+              <h3 className="mt-2 truncate text-lg font-bold text-[#2B2B2B]">{resource.title || "タイトル未設定"}</h3>
+              {resource.description ? <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{resource.description}</p> : null}
+            </div>
+            {resource.url ? <a className="inline-flex h-10 shrink-0 items-center justify-center rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" href={resource.url} rel="noreferrer" target="_blank">開く</a> : null}
+          </div>
+          {resource.url ? <p className="mt-3 break-all text-xs font-semibold text-[#8A8186]">{resource.url}</p> : null}
+        </section>
+      ))}
+    </div>
+  );
 }
 
 function ObjectionHandbookReadView({ product }: { product: Product }) {
@@ -283,13 +323,11 @@ function ObjectionHandbookReadView({ product }: { product: Product }) {
 }
 
 function SalesPlaybookReadView({ product, segment }: { product: Product; segment: ProductCustomerSegment }) {
-  const [scene, setScene] = useState<ProductSalesScene>("teleapo");
   const playbooks = product.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
-  const entry = playbooks[scene][segment];
+  const entry = playbooks.meeting[segment];
 
   return (
-    <div className="space-y-5">
-      <SalesSceneTabs scene={scene} onSceneChange={setScene} />
+    <div>
       <InfoGrid
         rows={[
           [segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針", entry.proposalDirection || "未設定"],
@@ -442,11 +480,55 @@ function IndustryAnglesEditor({ draft, onChange }: { draft: Product; onChange: (
 function PricingEditor({ draft, isAdmin, onChange }: { draft: Product; isAdmin: boolean; onChange: (product: Product) => void }) {
   const setPricing = (pricing: Product["pricing"]) => onChange({ ...draft, pricing });
   const addPlan = () => setPricing({ ...draft.pricing, plans: [...draft.pricing.plans, { id: crypto.randomUUID(), name: "新しいプラン", features: [], recommended: false, isActive: true, sortOrder: draft.pricing.plans.length }] });
-  return <div className="grid gap-4 sm:grid-cols-2"><Input label="初期費用" value={String(draft.pricing.initialFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, initialFee: numberOrNull(value) })} /><Input label="月額費用" value={String(draft.pricing.monthlyFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, monthlyFee: numberOrNull(value) })} /><Input label="最低契約期間（月）" value={String(draft.pricing.minimumContractMonths ?? "")} onChange={(value) => setPricing({ ...draft.pricing, minimumContractMonths: numberOrNull(value) })} /><Input label="支払い条件" value={draft.pricing.paymentTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, paymentTerms: value })} />{isAdmin ? <><Input label="原価" value={String(draft.pricing.cost ?? "")} onChange={(value) => setPricing({ ...draft.pricing, cost: numberOrNull(value) })} /><Input label="粗利目安（%）" value={String(draft.pricing.grossMarginRate ?? "")} onChange={(value) => setPricing({ ...draft.pricing, grossMarginRate: numberOrNull(value) })} /></> : null}<div className="sm:col-span-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addPlan} type="button">料金プランを追加</button><div className="mt-3 grid gap-3">{draft.pricing.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onChange={(next) => setPricing({ ...draft.pricing, plans: draft.pricing.plans.map((item) => item.id === plan.id ? next : item) })} />)}</div></div></div>;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <SelectField label="料金表示方法" value={draft.pricing.displayType} options={Object.entries(pricingDisplayTypeLabels)} onChange={(value) => setPricing({ ...draft.pricing, displayType: value as Product["pricing"]["displayType"] })} />
+      <Input label="初期費用" value={String(draft.pricing.initialFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, initialFee: numberOrNull(value) })} />
+      <Input label="月額費用" value={String(draft.pricing.monthlyFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, monthlyFee: numberOrNull(value) })} />
+      <Input label="最低料金" value={String(draft.pricing.minimumFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, minimumFee: numberOrNull(value) })} />
+      <Input label="最高料金" value={String(draft.pricing.maximumFee ?? "")} onChange={(value) => setPricing({ ...draft.pricing, maximumFee: numberOrNull(value) })} />
+      <Input label="最低契約期間（月）" value={String(draft.pricing.minimumContractMonths ?? "")} onChange={(value) => setPricing({ ...draft.pricing, minimumContractMonths: numberOrNull(value) })} />
+      <Input label="支払い条件" value={draft.pricing.paymentTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, paymentTerms: value })} />
+      <Input label="更新条件" value={draft.pricing.renewalTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, renewalTerms: value })} />
+      <Input label="解約条件" value={draft.pricing.cancellationTerms ?? ""} onChange={(value) => setPricing({ ...draft.pricing, cancellationTerms: value })} />
+      {isAdmin ? (
+        <>
+          <Input label="原価" value={String(draft.pricing.cost ?? "")} onChange={(value) => setPricing({ ...draft.pricing, cost: numberOrNull(value) })} />
+          <Input label="粗利目安（%）" value={String(draft.pricing.grossMarginRate ?? "")} onChange={(value) => setPricing({ ...draft.pricing, grossMarginRate: numberOrNull(value) })} />
+        </>
+      ) : null}
+      <div className="sm:col-span-2">
+        <Text label="料金メモ" value={draft.pricing.notes ?? ""} onChange={(value) => setPricing({ ...draft.pricing, notes: value })} />
+      </div>
+      <div className="sm:col-span-2">
+        <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addPlan} type="button">料金プランを追加</button>
+        <div className="mt-3 grid gap-3">{draft.pricing.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onChange={(next) => setPricing({ ...draft.pricing, plans: draft.pricing.plans.map((item) => item.id === plan.id ? next : item) })} />)}</div>
+      </div>
+    </div>
+  );
 }
 
 function PlanRow({ plan, onChange }: { plan: ProductPlan; onChange: (plan: ProductPlan) => void }) {
-  return <div className="grid gap-2 rounded-none border border-[#F0E7E9] p-3 sm:grid-cols-3"><input className="task-input" value={plan.name} onChange={(event) => onChange({ ...plan, name: event.target.value })} /><input className="task-input" placeholder="初期費用" value={plan.initialFee ?? ""} onChange={(event) => onChange({ ...plan, initialFee: numberOrNull(event.target.value) })} /><input className="task-input" placeholder="月額" value={plan.monthlyFee ?? ""} onChange={(event) => onChange({ ...plan, monthlyFee: numberOrNull(event.target.value) })} /></div>;
+  return (
+    <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <input className="task-input min-h-14 text-base" placeholder="プラン名" value={plan.name} onChange={(event) => onChange({ ...plan, name: event.target.value })} />
+        <input className="task-input min-h-14 text-base" placeholder="初期費用" value={plan.initialFee ?? ""} onChange={(event) => onChange({ ...plan, initialFee: numberOrNull(event.target.value) })} />
+        <input className="task-input min-h-14 text-base" placeholder="月額" value={plan.monthlyFee ?? ""} onChange={(event) => onChange({ ...plan, monthlyFee: numberOrNull(event.target.value) })} />
+        <input className="task-input min-h-14 text-base" placeholder="単発費用" value={plan.oneTimeFee ?? ""} onChange={(event) => onChange({ ...plan, oneTimeFee: numberOrNull(event.target.value) })} />
+      </div>
+      <textarea className="task-input min-h-32 resize-y text-base leading-7" placeholder="プラン説明" value={plan.description ?? ""} onChange={(event) => onChange({ ...plan, description: event.target.value })} />
+      <textarea className="task-input min-h-32 resize-y text-base leading-7" placeholder="含まれる内容・機能（1行ずつ）" value={toLines(plan.features)} onChange={(event) => onChange({ ...plan, features: fromLines(event.target.value) })} />
+      <div className="flex flex-wrap gap-2">
+        <ToggleButton active={plan.recommended} label="推奨プラン" onClick={() => onChange({ ...plan, recommended: !plan.recommended })} />
+        <ToggleButton active={plan.isActive} label="表示する" onClick={() => onChange({ ...plan, isActive: !plan.isActive })} />
+      </div>
+    </div>
+  );
+}
+
+function ToggleButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return <button className={`h-10 rounded-none px-4 text-sm font-bold ${active ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">{label}</button>;
 }
 
 function FeatureReadView({ product }: { product: Product }) {
@@ -479,8 +561,9 @@ function FeatureEditor({ draft, onChange }: { draft: Product; onChange: (product
     onChange({ ...draft, features: [...draft.features, createFeature(category, draft.features.length)] });
   };
   const addFeature = (category: string) => onChange({ ...draft, features: [...draft.features, createFeature(category, draft.features.length)] });
-  const updateHeading = (fromCategory: string, toCategory: string) => {
-    onChange({ ...draft, features: draft.features.map((feature) => (feature.category || "") === fromCategory ? { ...feature, category: toCategory } : feature) });
+  const updateHeading = (group: { category: string; features: ProductFeature[] }, toCategory: string) => {
+    const featureIds = new Set(group.features.map((feature) => feature.id));
+    onChange({ ...draft, features: draft.features.map((feature) => featureIds.has(feature.id) ? { ...feature, category: toCategory } : feature) });
   };
   const removeFeature = (id: string) => {
     onChange({ ...draft, features: draft.features.filter((feature) => feature.id !== id).map((feature, index) => ({ ...feature, sortOrder: index })) });
@@ -491,9 +574,9 @@ function FeatureEditor({ draft, onChange }: { draft: Product; onChange: (product
       <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addHeading} type="button">見出しを追加</button>
       <div className="mt-3 grid gap-4">
         {groups.length ? groups.map((group) => (
-          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.category}>
+          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={group.features[0]?.id ?? group.category}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <input className="task-input sm:max-w-sm" placeholder="見出し" value={group.category} onChange={(event) => updateHeading(group.category, event.target.value)} />
+              <input className="task-input sm:max-w-sm" placeholder="見出し" value={group.category} onChange={(event) => updateHeading(group, event.target.value)} />
               <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => addFeature(group.category)} type="button">機能を追加</button>
             </div>
             <div className="mt-3 grid gap-3">
@@ -504,7 +587,7 @@ function FeatureEditor({ draft, onChange }: { draft: Product; onChange: (product
                     <SingleSelect options={[{ value: "standard", label: "標準機能" }, { value: "option", label: "オプション" }]} value={feature.type} onChange={(type) => updateFeature(draft, feature.id, { type: type as ProductFeature["type"] }, onChange)} />
                     <button className="h-11 rounded-none border border-[#F0E7E9] px-3 text-sm font-bold text-[#D94F6E]" onClick={() => removeFeature(feature.id)} type="button">削除</button>
                   </div>
-                  <textarea className="task-input min-h-32 resize-y leading-6" placeholder="機能の説明" value={feature.description ?? ""} onChange={(event) => updateFeature(draft, feature.id, { description: event.target.value }, onChange)} />
+                  <textarea className="task-input min-h-72 resize-y text-base leading-7" placeholder="機能の説明" value={feature.description ?? ""} onChange={(event) => updateFeature(draft, feature.id, { description: event.target.value }, onChange)} />
                 </div>
               ))}
             </div>
@@ -532,9 +615,9 @@ function ObjectionHandbookEditor({ draft, onChange }: { draft: Product; onChange
               <button className="h-11 rounded-none border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#D94F6E]" onClick={() => remove(item.id)} type="button">削除</button>
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <textarea className="task-input min-h-40 resize-y leading-6" placeholder="回答例" value={item.responseExample} onChange={(event) => updateObjectionItem(draft, item.id, { responseExample: event.target.value }, onChange)} />
-              <textarea className="task-input min-h-40 resize-y leading-6" placeholder="伝え方" value={item.howToTell ?? ""} onChange={(event) => updateObjectionItem(draft, item.id, { howToTell: event.target.value }, onChange)} />
-              <textarea className="task-input min-h-36 resize-y leading-6 lg:col-span-2" placeholder="避ける表現（1行ずつ）" value={toLines(item.avoidPhrases ?? [])} onChange={(event) => updateObjectionItem(draft, item.id, { avoidPhrases: fromLines(event.target.value) }, onChange)} />
+              <textarea className="task-input min-h-80 resize-y text-base leading-7" placeholder="回答例" value={item.responseExample} onChange={(event) => updateObjectionItem(draft, item.id, { responseExample: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-80 resize-y text-base leading-7" placeholder="伝え方" value={item.howToTell ?? ""} onChange={(event) => updateObjectionItem(draft, item.id, { howToTell: event.target.value }, onChange)} />
+              <textarea className="task-input min-h-72 resize-y text-base leading-7 lg:col-span-2" placeholder="避ける表現（1行ずつ）" value={toLines(item.avoidPhrases ?? [])} onChange={(event) => updateObjectionItem(draft, item.id, { avoidPhrases: fromLines(event.target.value) }, onChange)} />
             </div>
           </section>
         )) : <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-bold text-[#8A8A8A]">料金・効果・運用負担など、よく出る反論を追加できます。</p>}
@@ -557,9 +640,8 @@ function SalesSettingsEditor({ draft, onChange }: { draft: Product; onChange: (p
 }
 
 function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; segment: ProductCustomerSegment; onChange: (product: Product) => void }) {
-  const [scene, setScene] = useState<ProductSalesScene>("teleapo");
   const playbooks = draft.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
-  const entry = playbooks[scene][segment];
+  const entry = playbooks.meeting[segment];
   const updateEntry = (patch: Partial<ProductSalesPlaybookEntry>) => {
     onChange({
       ...draft,
@@ -567,8 +649,8 @@ function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; seg
         ...draft.salesSettings,
         salesPlaybooks: {
           ...playbooks,
-          [scene]: {
-            ...playbooks[scene],
+          meeting: {
+            ...playbooks.meeting,
             [segment]: { ...entry, ...patch }
           }
         }
@@ -577,11 +659,10 @@ function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; seg
   };
 
   return (
-    <div className="space-y-5">
-      <SalesSceneTabs scene={scene} onSceneChange={setScene} />
+    <div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Text label={segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針"} value={entry.proposalDirection} onChange={(proposalDirection) => updateEntry({ proposalDirection })} />
-        <Text label={scene === "teleapo" ? "テレアポ時の進め方" : "打ち合わせ時の進め方"} value={entry.process} onChange={(process) => updateEntry({ process })} />
+        <Text label="打ち合わせ時の進め方" value={entry.process} onChange={(process) => updateEntry({ process })} />
         <Text label="確認する質問" value={toLines(entry.keyQuestions)} onChange={(value) => updateEntry({ keyQuestions: fromLines(value) })} />
         <Text label="トーク例" value={entry.talkScript} onChange={(talkScript) => updateEntry({ talkScript })} />
         <Text label="必要資料" value={toLines(entry.materials)} onChange={(value) => updateEntry({ materials: fromLines(value) })} />
@@ -591,22 +672,51 @@ function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; seg
   );
 }
 
-function SalesSceneTabs({ scene, onSceneChange }: { scene: ProductSalesScene; onSceneChange: (scene: ProductSalesScene) => void }) {
-  return (
-    <div className="inline-flex rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-1">
-      {(Object.keys(salesSceneLabels) as ProductSalesScene[]).map((value) => (
-        <button className={`h-9 rounded-none px-4 text-sm font-bold ${scene === value ? "bg-[#EC6F8B] text-white shadow-sm" : "text-[#6F676B]"}`} key={value} onClick={() => onSceneChange(value)} type="button">
-          {salesSceneLabels[value]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ResourceEditor({ draft, user, onChange }: { draft: Product; user: { id: string; name: string }; onChange: (product: Product) => void }) {
   const [progress, setProgress] = useState(0);
-  const addUrl = () => onChange({ ...draft, resources: [...draft.resources, { id: crypto.randomUUID(), title: "新しい資料", type: "proposal", url: "", visibility: "internal", createdBy: user.id, createdAt: draft.updatedAt, updatedAt: draft.updatedAt }] });
-  return <div><div className="flex gap-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={addUrl} type="button">URL資料を追加</button><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]"><FileUp className="h-4 w-4" />ファイル<input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} /></label>{progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}</div><div className="mt-3 grid gap-3">{draft.resources.map((resource) => <div className="grid gap-2 rounded-none border border-[#F0E7E9] p-3 sm:grid-cols-3" key={resource.id}><input className="task-input" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} /><input className="task-input" value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} /><SingleSelect options={[{ value: "internal", label: "社内限定" }, { value: "sales", label: "営業担当のみ" }, { value: "client_shareable", label: "クライアント共有可" }, { value: "public", label: "一般公開" }]} value={resource.visibility} onChange={(visibility) => updateResource(draft, resource.id, { visibility: visibility as ProductResource["visibility"] }, onChange)} /></div>)}</div></div>;
+  const addResource = (type: ProductResource["type"]) => onChange({
+    ...draft,
+    resources: [
+      ...draft.resources,
+      {
+        id: crypto.randomUUID(),
+        title: type === "website" ? "公式サイト" : "新しい資料",
+        type,
+        url: "",
+        visibility: type === "website" ? "public" : "internal",
+        description: "",
+        createdBy: user.id,
+        createdAt: draft.updatedAt,
+        updatedAt: draft.updatedAt
+      }
+    ]
+  });
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => addResource("website")} type="button">サイトURLを追加</button>
+        <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]">
+          <FileUp className="h-4 w-4" />
+          ファイル
+          <input className="hidden" type="file" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const resource = await addResourceFile(draft, file, user, setProgress); onChange({ ...draft, resources: [...draft.resources, resource] }); }} />
+        </label>
+        {progress > 0 ? <span className="text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}
+      </div>
+      <div className="mt-3 grid gap-3">
+        {draft.resources.map((resource) => (
+          <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3" key={resource.id}>
+            <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+              <input className="task-input min-h-14 text-base" placeholder="タイトル" value={resource.title} onChange={(event) => updateResource(draft, resource.id, { title: event.target.value }, onChange)} />
+              <SingleSelect options={Object.entries(resourceTypeLabels).map(([value, label]) => ({ value, label }))} value={resource.type} onChange={(type) => updateResource(draft, resource.id, { type: type as ProductResource["type"] }, onChange)} />
+              <SingleSelect options={Object.entries(resourceVisibilityLabels).map(([value, label]) => ({ value, label }))} value={resource.visibility} onChange={(visibility) => updateResource(draft, resource.id, { visibility: visibility as ProductResource["visibility"] }, onChange)} />
+            </div>
+            <input className="task-input min-h-14 text-base" placeholder="https://..." value={resource.url ?? ""} onChange={(event) => updateResource(draft, resource.id, { url: event.target.value }, onChange)} />
+            <textarea className="task-input min-h-32 resize-y text-base leading-7" placeholder="メモ・用途" value={resource.description ?? ""} onChange={(event) => updateResource(draft, resource.id, { description: event.target.value }, onChange)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function CreateProductModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">) => Promise<void> }) {
@@ -654,11 +764,11 @@ function Cards({ title, items }: { title: string; items: string[] }) {
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<input className="task-input" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<input className="task-input min-h-14 text-base" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function Text({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<textarea className="task-input min-h-40 resize-y leading-6" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}<textarea className="task-input min-h-80 resize-y text-base leading-7" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
