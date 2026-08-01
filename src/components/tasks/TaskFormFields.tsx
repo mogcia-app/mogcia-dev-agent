@@ -2,7 +2,7 @@
 
 import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import type { MemberOption, TaskDraft, TaskStatus } from "@/types/task";
-import type { CompanyOption } from "@/types/workspace-records";
+import type { CompanyOption, ProductOption } from "@/types/workspace-records";
 
 type DraftKey = keyof TaskDraft;
 
@@ -10,6 +10,7 @@ export function TaskFormFields({
   draft,
   members,
   companies,
+  products,
   readOnly,
   canAssign,
   currentUserId,
@@ -18,6 +19,7 @@ export function TaskFormFields({
   draft: TaskDraft;
   members: MemberOption[];
   companies: CompanyOption[];
+  products: ProductOption[];
   readOnly: boolean;
   canAssign: boolean;
   currentUserId?: string;
@@ -33,6 +35,10 @@ export function TaskFormFields({
   const onCompanyChange = (value: string) => {
     const company = companies.find((entry) => entry.id === value);
     onChange({ ...draft, companyId: value, companyName: company?.name ?? "" });
+  };
+  const onProductChange = (value: string) => {
+    const product = products.find((entry) => entry.id === value);
+    onChange({ ...draft, productId: value, productName: product?.name ?? "" });
   };
 
   return (
@@ -60,9 +66,12 @@ export function TaskFormFields({
           <input className="task-input" disabled={readOnly} type="time" value={draft.dueTime} onChange={(event) => setValue("dueTime", event.target.value)} />
         </Field>
       </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="会社">
           <SearchSelect clearable disabled={readOnly || companies.length === 0} emptyLabel="会社が未登録です。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder={companies.length === 0 ? "未登録" : "未選択"} value={draft.companyId} onChange={onCompanyChange} />
+        </Field>
+        <Field label="商材">
+          <SearchSelect clearable disabled={readOnly || products.length === 0} emptyLabel="商材が未登録です。" options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))} placeholder={products.length === 0 ? "未登録" : "未選択"} value={draft.productId} onChange={onProductChange} />
         </Field>
       </div>
       {draft.source === "ai" ? (

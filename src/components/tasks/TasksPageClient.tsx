@@ -58,7 +58,7 @@ export function TasksPageClient() {
         <p className="mt-6 text-center text-sm font-semibold text-[#958B90]">{visibleTasks.length}件を表示</p>
       </section>
       {isCreateOpen ? (
-        <TaskFormModal companies={workspaceOptions.companies} currentMember={taskStore.currentMember} members={taskStore.members} onClose={() => setCreateOpen(false)} onSubmit={taskStore.createTask} />
+        <TaskFormModal companies={workspaceOptions.companies} currentMember={taskStore.currentMember} members={taskStore.members} onClose={() => setCreateOpen(false)} onSubmit={taskStore.createTask} products={workspaceOptions.products} />
       ) : null}
       <TaskDetailDrawer
         canDelete={editingTask ? taskStore.canDeleteTask() : false}
@@ -72,6 +72,7 @@ export function TasksPageClient() {
         onDuplicate={taskStore.duplicateTask}
         onSave={taskStore.updateTask}
         onToggle={taskStore.completeTask}
+        products={workspaceOptions.products}
         key={editingTask?.id ?? "closed"}
         task={editingTask}
       />

@@ -6,12 +6,13 @@ import { taskToDraft } from "@/lib/task-utils";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
-import type { CompanyOption } from "@/types/workspace-records";
+import type { CompanyOption, ProductOption } from "@/types/workspace-records";
 
 export function TaskDetailDrawer({
   task,
   members,
   companies,
+  products,
   canEdit,
   canDelete,
   isAdmin,
@@ -25,6 +26,7 @@ export function TaskDetailDrawer({
   task: Task | null;
   members: MemberOption[];
   companies: CompanyOption[];
+  products: ProductOption[];
   canEdit: boolean;
   canDelete: boolean;
   isAdmin: boolean;
@@ -69,7 +71,7 @@ export function TaskDetailDrawer({
           </div>
           <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF2F5]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
-        <TaskFormFields canAssign={canEdit || isAdmin} companies={companies} currentUserId={currentUserId} draft={draft} members={members} onChange={setDraft} readOnly={!canEdit} />
+        <TaskFormFields canAssign={canEdit || isAdmin} companies={companies} currentUserId={currentUserId} draft={draft} members={members} onChange={setDraft} products={products} readOnly={!canEdit} />
         {!canEdit ? <p className="mt-4 rounded-none bg-[#FFF7F8] px-4 py-3 text-sm font-semibold text-[#8A6A70]">他メンバーのタスクは閲覧のみです。</p> : null}
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">

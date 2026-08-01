@@ -28,6 +28,7 @@ export function TaskCard({ task, canEdit, currentUserId, active = false, onOpen,
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-[#8A8186]">
           {showAssignee ? <span className="inline-flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5" />{getUserDisplayNameById(task.assigneeId, task.assigneeName)}</span> : null}
           {task.companyName ? <span>{task.companyName}</span> : null}
+          {task.productName ? <span>{task.productName}</span> : null}
           {task.projectName ? <span>{task.projectName}</span> : null}
         </div>
       </button>

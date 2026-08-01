@@ -16,7 +16,7 @@ import {
   type FirestoreError,
   type Unsubscribe
 } from "firebase/firestore";
-import { getFirebaseDb } from "@/lib/firebase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { draftToTaskPayload } from "@/lib/task-utils";
 import type { MemberOption, Task, TaskDraft, TaskProgressLog, TaskProgressLogType } from "@/types/task";
 
@@ -78,6 +78,8 @@ function normalizeTask(id: string, data: DocumentData): Task {
     createdByName: typeof data.createdByName === "string" ? data.createdByName : "",
     companyId: data.companyId ?? null,
     companyName: data.companyName ?? null,
+    productId: data.productId ?? null,
+    productName: data.productName ?? null,
     projectId: data.projectId ?? null,
     projectName: data.projectName ?? null,
     meetingId: data.meetingId ?? null,
@@ -117,7 +119,7 @@ export async function createTask(draft: TaskDraft, currentUser: MemberOption & {
     ...(draft.comments.trim() ? [createProgressLog("progress", "進捗状況を追加しました", currentUser, draft.comments.trim())] : [])
   ];
 
-  await addDoc(collection(db, TASKS_COLLECTION), {
+  const taskRef = await addDoc(collection(db, TASKS_COLLECTION), {
     ...draftToTaskPayload(draft, currentUser),
     createdBy: currentUser.uid,
     progressLogs,
@@ -125,6 +127,22 @@ export async function createTask(draft: TaskDraft, currentUser: MemberOption & {
     updatedAt: serverTimestamp(),
     completedAt: null
   });
+
+  if (draft.assigneeId && draft.assigneeId !== currentUser.uid) {
+    await notifyTaskAssignee({
+      taskId: taskRef.id,
+      taskTitle: draft.title.trim(),
+      taskDescription: draft.description.trim(),
+      assigneeId: draft.assigneeId,
+      assigneeName: draft.assigneeName,
+      actorName: currentUser.name,
+      companyName: draft.companyName,
+      productName: draft.productName,
+      dueDate: draft.dueDate,
+      dueTime: draft.dueTime,
+      reason: "created"
+    });
+  }
 }
 
 export async function updateTask(taskId: string, draft: TaskDraft, currentUser: MemberOption): Promise<void> {
@@ -159,6 +177,22 @@ export async function updateTask(taskId: string, draft: TaskDraft, currentUser: 
     progressLogs: nextLogs,
     updatedAt: serverTimestamp()
   });
+
+  if (draft.assigneeId && draft.assigneeId !== previousAssigneeId) {
+    await notifyTaskAssignee({
+      taskId,
+      taskTitle: draft.title.trim(),
+      taskDescription: draft.description.trim(),
+      assigneeId: draft.assigneeId,
+      assigneeName: draft.assigneeName,
+      actorName: currentUser.name,
+      companyName: draft.companyName,
+      productName: draft.productName,
+      dueDate: draft.dueDate,
+      dueTime: draft.dueTime,
+      reason: "reassigned"
+    });
+  }
 }
 
 export async function setTaskCompleted(task: Task, completed: boolean): Promise<void> {
@@ -202,6 +236,8 @@ export async function duplicateTask(task: Task, currentUser: MemberOption & { ui
     createdByName: currentUser.name,
     companyId: task.companyId ?? null,
     companyName: task.companyName ?? null,
+    productId: task.productId ?? null,
+    productName: task.productName ?? null,
     projectId: task.projectId ?? null,
     projectName: task.projectName ?? null,
     meetingId: task.meetingId ?? null,
@@ -222,4 +258,31 @@ function statusLabel(status: Task["status"]): string {
   if (status === "waiting") return "待機中";
   if (status === "completed") return "完了";
   return "キャンセル";
+}
+
+async function notifyTaskAssignee(input: {
+  taskId: string;
+  taskTitle: string;
+  taskDescription: string;
+  assigneeId: string;
+  assigneeName: string;
+  actorName: string;
+  companyName: string;
+  productName: string;
+  dueDate: string;
+  dueTime: string;
+  reason: "created" | "reassigned";
+}): Promise<void> {
+  const token = await getFirebaseAuth()?.currentUser?.getIdToken();
+  if (!token) return;
+
+  try {
+    await fetch("/api/tasks/assignment-notification", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+  } catch (error) {
+    console.warn("Failed to send task assignment notification.", error);
+  }
 }

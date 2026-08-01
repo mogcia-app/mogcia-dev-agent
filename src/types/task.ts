@@ -45,6 +45,8 @@ export interface Task {
   createdByName?: string;
   companyId?: string | null;
   companyName?: string | null;
+  productId?: string | null;
+  productName?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   meetingId?: string | null;
@@ -69,6 +71,8 @@ export interface TaskDraft {
   assigneeName: string;
   companyId: string;
   companyName: string;
+  productId: string;
+  productName: string;
   projectId: string;
   projectName: string;
   meetingId: string;

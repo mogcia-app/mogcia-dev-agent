@@ -947,6 +947,9 @@ function toDatetimeLocalValue(date: Date): string {
 async function createSuggestedTasks(company: Company, input: { title: string; content?: string; occurredAt: Timestamp; type?: ActivityLogType; meetingId?: string; meetingTitle?: string; productNames?: string[]; contactNames?: string[] }, user: { id: string; name: string }, authUser?: { getIdToken: () => Promise<string> } | null) {
   if (!window.confirm("内容と次回アクションからAIタスクを作成しますか？")) return;
   const suggestions = await fetchTaskSuggestions(company, input, authUser);
+  const productName = input.productNames?.[0] ?? company.productNames?.[0] ?? "";
+  const productIndex = productName ? (company.productNames ?? []).findIndex((name) => name === productName) : -1;
+  const productId = productIndex >= 0 ? company.productIds?.[productIndex] ?? "" : company.productIds?.[0] ?? "";
   const drafts: TaskDraft[] = suggestions.map((task) => ({
     title: `${company.name}: ${task.title}`,
     description: task.description || `${input.title}\n${input.content ?? ""}`.trim(),
@@ -957,6 +960,8 @@ async function createSuggestedTasks(company: Company, input: { title: string; co
     assigneeName: user.name,
     companyId: company.id,
     companyName: company.name,
+    productId,
+    productName,
     projectId: "",
     projectName: "",
     meetingId: input.meetingId ?? "",

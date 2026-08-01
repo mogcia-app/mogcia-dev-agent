@@ -7,6 +7,10 @@ export interface CompanyOption extends WorkspaceOption {
   industry?: string;
 }
 
+export interface ProductOption extends WorkspaceOption {
+  tagline?: string;
+}
+
 export interface ProjectOption extends WorkspaceOption {
   companyId?: string | null;
   companyName?: string | null;

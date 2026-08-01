@@ -86,6 +86,7 @@ export function CalendarPageClient() {
         onDuplicate={async () => undefined}
         onSave={(taskId: string, draft: TaskDraft) => updateTask(taskId, draft, calendar.currentMember)}
         onToggle={setTaskCompleted}
+        products={workspaceOptions.products}
         task={selectedTask && selectedItem && isSameCalendarDate(selectedItem.startAt, selected.selectedDate) ? selectedTask : selectedTask}
       />
     </div>
