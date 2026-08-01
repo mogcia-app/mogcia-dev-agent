@@ -168,9 +168,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.name is string
         && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isAdmin()
-        || (signedIn() && resource.data.createdBy == request.auth.uid)
-        || (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["favoriteUserIds", "updatedAt"]));
+      allow update: if signedIn();
       allow delete: if isAdmin();
 
       match /changeLogs/{logId} {
@@ -182,7 +180,7 @@ service cloud.firestore {
     }
 
     match /teleapoRecords/{recordId} {
-      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow read: if signedIn();
       allow create: if signedIn()
         && validTeleapoRecord(request.resource.data)
         && request.resource.data.userId == request.auth.uid;

@@ -36,7 +36,7 @@ export function useProducts() {
 
   const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: getUserDisplayName(user) }), [user]);
   const isAdmin = isAdminUser(user?.uid);
-  const canEdit = isAdmin;
+  const canEdit = Boolean(user);
 
   return {
     user,
