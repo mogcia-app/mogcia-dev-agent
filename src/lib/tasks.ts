@@ -277,11 +277,20 @@ async function notifyTaskAssignee(input: {
   if (!token) return;
 
   try {
-    await fetch("/api/tasks/assignment-notification", {
+    const response = await fetch("/api/tasks/assignment-notification", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(input)
     });
+    const result = await response.json().catch(() => null) as { sent?: boolean; skipped?: boolean; reason?: string; error?: string } | null;
+    if (!response.ok || !result?.sent) {
+      console.warn("Task assignment notification was not sent.", {
+        status: response.status,
+        reason: result?.reason,
+        error: result?.error,
+        skipped: result?.skipped
+      });
+    }
   } catch (error) {
     console.warn("Failed to send task assignment notification.", error);
   }
