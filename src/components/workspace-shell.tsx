@@ -90,6 +90,21 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
     });
   }, [router]);
 
+  useEffect(() => {
+    if (!pathname || pathname === "/home") return;
+    const items = sidebarGroups.flatMap((group) => group.items);
+    const match = items.find((item) => item.href === pathname);
+    if (!match) return;
+    const nextEntry = { href: match.href, label: match.label, visitedAt: Date.now() };
+    try {
+      const current = JSON.parse(window.localStorage.getItem("mogcia-recent-pages") || "[]") as Array<{ href: string; label: string; visitedAt: number }>;
+      const next = [nextEntry, ...current.filter((item) => item.href !== match.href)].slice(0, 8);
+      window.localStorage.setItem("mogcia-recent-pages", JSON.stringify(next));
+    } catch {
+      window.localStorage.setItem("mogcia-recent-pages", JSON.stringify([nextEntry]));
+    }
+  }, [pathname]);
+
   const logout = async () => {
     const auth = getFirebaseAuth();
     if (!auth) return;

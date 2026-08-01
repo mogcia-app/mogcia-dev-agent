@@ -56,12 +56,13 @@ export function useTasks() {
     tasks.forEach((task) => {
       if (task.assigneeId) memberMap.set(task.assigneeId, getUserDisplayNameById(task.assigneeId, task.assigneeName));
       if (task.createdBy) memberMap.set(task.createdBy, getUserDisplayNameById(task.createdBy, task.createdByName));
+      task.collaboratorIds?.forEach((id, index) => memberMap.set(id, getUserDisplayNameById(id, task.collaboratorNames?.[index])));
     });
     return Array.from(memberMap, ([id, name]) => ({ id, name }));
   }, [tasks, user]);
 
   const canEditTask = useCallback(
-    (task: Task) => isAdminUser(user?.uid) || task.assigneeId === user?.uid || task.createdBy === user?.uid,
+    (task: Task) => isAdminUser(user?.uid) || task.assigneeId === user?.uid || task.createdBy === user?.uid || Boolean(user?.uid && task.collaboratorIds?.includes(user.uid)),
     [user?.uid]
   );
 

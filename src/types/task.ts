@@ -41,6 +41,8 @@ export interface Task {
   sourceId?: string | null;
   assigneeId: string;
   assigneeName?: string;
+  collaboratorIds?: string[];
+  collaboratorNames?: string[];
   createdBy: string;
   createdByName?: string;
   companyId?: string | null;
@@ -69,6 +71,8 @@ export interface TaskDraft {
   source: TaskSource;
   assigneeId: string;
   assigneeName: string;
+  collaboratorIds: string[];
+  collaboratorNames: string[];
   companyId: string;
   companyName: string;
   productId: string;

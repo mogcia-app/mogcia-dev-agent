@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { Building2, CalendarDays, CheckCircle2, Clock3, ListChecks, MessageSquareText, Plus } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, Clock3, History, ListChecks, MessageSquareText, Plus, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
@@ -12,11 +12,13 @@ import { subscribeCalendarEvents } from "@/lib/calendar";
 import { subscribeCompaniesMaster, subscribeRecentCompanyActivityLogs } from "@/lib/companies";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { formatTaskTime, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
+import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent } from "@/types/calendar";
 import type { Company, CompanyActivityLog } from "@/types/company";
 import type { Task, TaskProgressLog } from "@/types/task";
+import type { TeleapoRecord } from "@/types/teleapo";
 
 type TaskLogItem = {
   id: string;
@@ -28,6 +30,17 @@ type TaskLogItem = {
   log: TaskProgressLog;
 };
 
+type RecentActivityItem =
+  | { id: string; kind: "company"; occurredAt: Date; title: string; subtitle: string; href: Route }
+  | { id: string; kind: "task"; occurredAt: Date; title: string; subtitle: string; href: Route }
+  | { id: string; kind: "upload"; occurredAt: Date; title: string; subtitle: string; href: Route };
+
+type RecentPageItem = {
+  href: string;
+  label: string;
+  visitedAt: number;
+};
+
 function endOfWeek(): Date {
   const start = startOfToday();
   const end = new Date(start);
@@ -36,6 +49,24 @@ function endOfWeek(): Date {
   end.setDate(end.getDate() + daysUntilSunday);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+function endOfToday(): Date {
+  const end = startOfToday();
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function startOfTomorrow(): Date {
+  const tomorrow = startOfToday();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow;
+}
+
+function endOfTomorrow(): Date {
+  const tomorrow = startOfTomorrow();
+  tomorrow.setHours(23, 59, 59, 999);
+  return tomorrow;
 }
 
 function formatDateTime(date: Date): string {
@@ -49,7 +80,7 @@ function formatDate(date: Date): string {
 function canSeeTask(task: Task, user: User | null): boolean {
   if (!user) return false;
   if (isAdminUser(user.uid)) return true;
-  return task.assigneeId === user.uid || task.createdBy === user.uid;
+  return task.assigneeId === user.uid || task.createdBy === user.uid || Boolean(task.collaboratorIds?.includes(user.uid));
 }
 
 function canSeeEvent(event: CalendarEvent, user: User | null): boolean {
@@ -66,14 +97,19 @@ function toCompanyHref(companyId: string): Route {
   return `/sales/companies?id=${companyId}&tab=timeline` as Route;
 }
 
+function canSeeTeleapoRecord(record: TeleapoRecord, user: User | null): boolean {
+  if (!user) return false;
+  return isAdminUser(user.uid) || record.userId === user.uid;
+}
+
 export function HomePageClient() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyLogs, setCompanyLogs] = useState<CompanyActivityLog[]>([]);
-  const [companyQuery, setCompanyQuery] = useState("");
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [teleapoRecords, setTeleapoRecords] = useState<TeleapoRecord[]>([]);
+  const [recentPages, setRecentPages] = useState<RecentPageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,20 +153,43 @@ export function HomePageClient() {
       setCompanyLogs([]);
       setLoading(false);
     });
+    const unsubscribeTeleapo = subscribeTeleapoRecords((nextRecords) => {
+      setTeleapoRecords(nextRecords);
+      setLoading(false);
+    }, onError);
 
     return () => {
       unsubscribeTasks();
       unsubscribeEvents();
       unsubscribeCompanies();
       unsubscribeLogs();
+      unsubscribeTeleapo();
     };
   }, [user]);
 
+  useEffect(() => {
+    const readRecentPages = () => {
+      try {
+        const next = JSON.parse(window.localStorage.getItem("mogcia-recent-pages") || "[]") as RecentPageItem[];
+        setRecentPages(next.filter((item) => item.href && item.label).slice(0, 6));
+      } catch {
+        setRecentPages([]);
+      }
+    };
+    readRecentPages();
+    window.addEventListener("focus", readRecentPages);
+    return () => window.removeEventListener("focus", readRecentPages);
+  }, []);
+
   const dashboard = useMemo(() => {
     const weekStart = startOfToday();
+    const todayEnd = endOfToday();
+    const tomorrowStart = startOfTomorrow();
+    const tomorrowEnd = endOfTomorrow();
     const weekEnd = endOfWeek();
     const visibleTasks = tasks.filter((task) => canSeeTask(task, user));
     const visibleEvents = events.filter((event) => canSeeEvent(event, user));
+    const visibleTeleapoRecords = teleapoRecords.filter((record) => canSeeTeleapoRecord(record, user));
     const companyNameMap = new Map(companies.map((company) => [company.id, company.name]));
     const openTasks = visibleTasks.filter(isOpenTask);
 
@@ -142,6 +201,8 @@ export function HomePageClient() {
       .sort((left, right) => left.startAt.toMillis() - right.startAt.toMillis())
       .slice(0, 8);
 
+    const todayEvents = weekEvents.filter((event) => event.startAt.toDate() <= todayEnd).slice(0, 6);
+
     const weekTasks = sortTasks(
       openTasks.filter((task) => {
         const due = task.dueDate?.toDate();
@@ -149,6 +210,23 @@ export function HomePageClient() {
       }),
       "dueAsc"
     ).slice(0, 8);
+
+    const todayTasks = weekTasks.filter((task) => {
+      const due = task.dueDate?.toDate();
+      return due && due <= todayEnd;
+    }).slice(0, 6);
+
+    const dueSummary = {
+      today: openTasks.filter((task) => {
+        const due = task.dueDate?.toDate();
+        return due && due >= weekStart && due <= todayEnd;
+      }).length,
+      tomorrow: openTasks.filter((task) => {
+        const due = task.dueDate?.toDate();
+        return due && due >= tomorrowStart && due <= tomorrowEnd;
+      }).length,
+      overdue: openTasks.filter(isTaskOverdue).length
+    };
 
     const visibleCompanyLogs = companyLogs
       .filter((log) => log.source !== "system" && log.type !== "status_change")
@@ -159,36 +237,74 @@ export function HomePageClient() {
       .sort((left, right) => right.log.createdAt.toMillis() - left.log.createdAt.toMillis())
       .slice(0, 8);
 
+    const recentActivities: RecentActivityItem[] = [
+      ...visibleCompanyLogs.map((log) => ({
+        id: `company-${log.id}`,
+        kind: "company" as const,
+        occurredAt: log.occurredAt.toDate(),
+        title: log.title || "活動ログ",
+        subtitle: [companyNameMap.get(log.companyId) ?? "会社未設定", log.actorNames?.join(" / ") || log.userName || getUserDisplayNameById(log.userId)].filter(Boolean).join(" / "),
+        href: toCompanyHref(log.companyId)
+      })),
+      ...taskLogs.map((item) => ({
+        id: `task-${item.id}`,
+        kind: "task" as const,
+        occurredAt: item.log.createdAt.toDate(),
+        title: item.log.title,
+        subtitle: [item.taskTitle, item.companyName, item.assigneeName ? `担当: ${item.assigneeName}` : ""].filter(Boolean).join(" / "),
+        href: "/tasks" as Route
+      })),
+      ...visibleTeleapoRecords.slice(0, 8).map((record) => ({
+        id: `upload-${record.id}`,
+        kind: "upload" as const,
+        occurredAt: record.updatedAt.toDate(),
+        title: `${record.customerName || "会社未設定"} ${record.salesDomain === "meeting" ? "商談アップロード" : "音声アップロード"}`,
+        subtitle: [record.productName, getAnalysisStatusLabel(record)].filter(Boolean).join(" / "),
+        href: `/sales/analysis?dealId=${createDealId(record)}` as Route
+      }))
+    ]
+      .sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime())
+      .slice(0, 10);
+
     return {
       weekEvents,
+      todayEvents,
       weekTasks,
+      todayTasks,
       visibleCompanyLogs,
       taskLogs,
+      recentActivities,
+      recentAnalyses: visibleTeleapoRecords
+        .sort((left, right) => right.updatedAt.toMillis() - left.updatedAt.toMillis())
+        .slice(0, 5),
       companyNameMap,
-      stats: {
-        weekEvents: weekEvents.length,
-        weekTasks: weekTasks.length,
-        openTasks: openTasks.length,
-        overdueTasks: openTasks.filter(isTaskOverdue).length
-      }
+      dueSummary,
+      overdueTasks: openTasks.filter(isTaskOverdue).slice(0, 6)
     };
-  }, [companies, companyLogs, events, tasks, user]);
+  }, [companies, companyLogs, events, tasks, teleapoRecords, user]);
 
-  const companyLookup = useMemo(() => {
+  const companyCheckItems = useMemo(() => {
     const activeCompanies = companies.filter((company) => !company.archivedAt);
-    const keyword = companyQuery.trim().toLowerCase();
-    const matches = activeCompanies
-      .filter((company) => !keyword || [company.name, company.industry, company.primaryContactName].filter(Boolean).join(" ").toLowerCase().includes(keyword))
-      .slice(0, 8);
-    const selected = activeCompanies.find((company) => company.id === selectedCompanyId) ?? matches[0] ?? null;
-    return { matches, selected };
-  }, [companies, companyQuery, selectedCompanyId]);
+    const latestLogByCompany = new Map<string, CompanyActivityLog>();
+    companyLogs
+      .filter((log) => log.source !== "system" && log.type !== "status_change")
+      .forEach((log) => {
+        const current = latestLogByCompany.get(log.companyId);
+        if (!current || log.occurredAt.toMillis() > current.occurredAt.toMillis()) latestLogByCompany.set(log.companyId, log);
+      });
+
+    return activeCompanies
+      .map((company) => ({ company, latestLog: latestLogByCompany.get(company.id) ?? null }))
+      .filter((item) => item.company.nextActionAt || item.company.lastContactAt || item.latestLog)
+      .sort((left, right) => getCompanyPriority(right.company, right.latestLog) - getCompanyPriority(left.company, left.latestLog))
+      .slice(0, 6);
+  }, [companies, companyLogs]);
 
   return (
     <section>
       <PageHeader
         title="Home"
-        description={`${getUserDisplayName(user)}さんの今週の予定、タスク、営業ログをまとめています。`}
+        description={`${getUserDisplayName(user)}さんの今日の予定、タスク、確認する会社をまとめています。`}
         actions={
           <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(236,111,139,0.18)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
             <Plus className="h-4 w-4" />
@@ -199,40 +315,20 @@ export function HomePageClient() {
 
       <div className="mt-5"><StatusBanner message={error} type="error" /></div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-4">
-        <MetricCard label="今週の予定" value={dashboard.stats.weekEvents} icon={CalendarDays} />
-        <MetricCard label="今週のタスク" value={dashboard.stats.weekTasks} icon={ListChecks} />
-        <MetricCard label="未完了タスク" value={dashboard.stats.openTasks} icon={Clock3} />
-        <MetricCard label="期限切れ" value={dashboard.stats.overdueTasks} icon={CheckCircle2} />
-      </div>
-
-      <div className="mt-5">
-        <Panel icon={Building2} title="会社確認">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <div>
-              <label className="block text-sm font-semibold text-[#655D62]">会社名で検索</label>
-              <input className="task-input mt-2 h-12" placeholder="会社名を入力" value={companyQuery} onChange={(event) => { setCompanyQuery(event.target.value); setSelectedCompanyId(""); }} />
-              <div className="mt-3 grid max-h-72 gap-2 overflow-auto">
-                {companyLookup.matches.map((company) => (
-                  <button className={`rounded-none border px-3 py-2 text-left text-sm font-semibold ${companyLookup.selected?.id === company.id ? "border-[#EC6F8B] bg-[#FFF0F3] text-[#2B2B2B]" : "border-[#F0E7E9] bg-white text-[#6F676B]"}`} key={company.id} onClick={() => setSelectedCompanyId(company.id)} type="button">
-                    <span className="block truncate">{company.name}</span>
-                    {company.industry ? <span className="mt-1 block truncate text-xs text-[#8A8186]">{company.industry}</span> : null}
-                  </button>
-                ))}
-                {!loading && companyLookup.matches.length === 0 ? <EmptyLine text="該当する会社がありません。" /> : null}
-              </div>
-            </div>
-            <CompanyActionSummary company={companyLookup.selected} />
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.8fr]">
+        <Panel icon={ListChecks} title="今日やること">
+          {loading ? <SkeletonList count={4} media={false} /> : null}
+          {!loading && dashboard.todayTasks.length === 0 ? <EmptyLine text="今日のタスクはありません。" /> : null}
+          <div className="grid gap-3">
+            {dashboard.todayTasks.map((task) => <TaskRow key={task.id} task={task} />)}
           </div>
         </Panel>
-      </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <Panel icon={CalendarDays} title="今週の予定">
-          {loading ? <SkeletonList count={4} media={false} /> : null}
-          {!loading && dashboard.weekEvents.length === 0 ? <EmptyLine text="今週の予定はまだありません。" /> : null}
+        <Panel icon={CalendarDays} title="今日の予定">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading && dashboard.todayEvents.length === 0 ? <EmptyLine text="今日の予定はありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.weekEvents.map((event) => (
+            {dashboard.todayEvents.map((event) => (
               <ScheduleRow
                 key={event.id}
                 color={event.eventType === "meeting" ? "pink" : event.eventType === "appointment" ? "blue" : "green"}
@@ -245,57 +341,47 @@ export function HomePageClient() {
           </div>
         </Panel>
 
-        <Panel icon={ListChecks} title="今週のタスク">
-          {loading ? <SkeletonList count={4} media={false} /> : null}
-          {!loading && dashboard.weekTasks.length === 0 ? <EmptyLine text="今週が期限のタスクはありません。" /> : null}
-          <div className="grid gap-3">
-            {dashboard.weekTasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
-            ))}
-          </div>
+        <Panel icon={Clock3} title="期限が近いタスク">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading ? <DueSummary summary={dashboard.dueSummary} /> : null}
         </Panel>
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <Panel icon={Building2} title="会社の活動ログ">
-          {loading ? <SkeletonList count={4} media={false} /> : null}
-          {!loading && dashboard.visibleCompanyLogs.length === 0 ? <EmptyLine text="会社の活動ログはまだありません。" /> : null}
+        <Panel icon={Building2} title="最近動いた会社">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading && companyCheckItems.length === 0 ? <EmptyLine text="最近動いた会社はありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.visibleCompanyLogs.map((log) => (
-              <CompanyLogRow
-                companyName={dashboard.companyNameMap.get(log.companyId) ?? "会社未設定"}
-                key={log.id}
-                log={log}
-              />
-            ))}
+            {companyCheckItems.map((item) => <RecentCompanyRow company={item.company} key={item.company.id} latestLog={item.latestLog} />)}
           </div>
         </Panel>
 
-        <Panel icon={MessageSquareText} title="タスク進捗ログ">
-          {loading ? <SkeletonList count={4} media={false} /> : null}
-          {!loading && dashboard.taskLogs.length === 0 ? <EmptyLine text="タスクの進捗ログはまだありません。" /> : null}
+        <Panel icon={UploadCloud} title="最近アップロードした分析">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading && dashboard.recentAnalyses.length === 0 ? <EmptyLine text="最近のアップロードはありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.taskLogs.map((item) => (
-              <TaskLogRow item={item} key={item.id} />
-            ))}
+            {dashboard.recentAnalyses.map((record) => <RecentAnalysisRow key={record.id} record={record} />)}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
+        <Panel icon={MessageSquareText} title="最近の動き">
+          {loading ? <SkeletonList count={4} media={false} /> : null}
+          {!loading && dashboard.recentActivities.length === 0 ? <EmptyLine text="最近の動きはまだありません。" /> : null}
+          <div className="grid gap-3">
+            {dashboard.recentActivities.map((item) => <RecentActivityRow item={item} key={item.id} />)}
+          </div>
+        </Panel>
+
+        <Panel icon={History} title="最近開いたページ">
+          {recentPages.length === 0 ? <RecentPageFallback /> : null}
+          <div className="grid gap-2">
+            {recentPages.map((page) => <RecentPageRow key={page.href} page={page} />)}
           </div>
         </Panel>
       </div>
     </section>
-  );
-}
-
-function MetricCard({ label, value, icon: Icon }: { label: string; value: number; icon: typeof CalendarDays }) {
-  return (
-    <div className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-[0_14px_34px_rgba(31,31,34,0.04)]">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-[#777]">{label}</p>
-        <span className="grid h-9 w-9 place-items-center rounded-none bg-[#FFF0F3] text-[#EC6F8B]">
-          <Icon className="h-5 w-5" />
-        </span>
-      </div>
-      <p className="mt-3 text-3xl font-semibold text-[#2B2B2B]">{value}</p>
-    </div>
   );
 }
 
@@ -317,33 +403,135 @@ function EmptyLine({ text }: { text: string }) {
   return <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-semibold text-[#8A8186]">{text}</p>;
 }
 
-function CompanyActionSummary({ company }: { company: Company | null }) {
-  if (!company) return <div className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-6 text-sm font-semibold text-[#8A8186]">会社を選択すると、最終接触日と次回アクションを確認できます。</div>;
+function DueSummary({ summary }: { summary: { today: number; tomorrow: number; overdue: number } }) {
+  const rows = [
+    ["今日", summary.today, "text-[#EC6F8B]"],
+    ["明日", summary.tomorrow, "text-[#6F676B]"],
+    ["期限切れ", summary.overdue, "text-[#D94F6E]"]
+  ] as const;
   return (
-    <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="truncate text-lg font-semibold text-[#2B2B2B]">{company.name}</h3>
-          {company.industry ? <p className="mt-1 text-sm font-medium text-[#777]">{company.industry}</p> : null}
-        </div>
-        <Link className="inline-flex h-9 shrink-0 items-center justify-center rounded-none border border-[#F0E7E9] bg-white px-3 text-xs font-semibold text-[#EC6F8B]" href={`/sales/companies?id=${company.id}&tab=overview` as Route}>会社詳細</Link>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <CompanyFact label="最終接触日" value={company.lastContactAt ? formatDateTime(company.lastContactAt.toDate()) : "未接触"} />
-        <CompanyFact label="次回アクション" value={company.nextActionTitle || "未設定"} />
-      </div>
-      {company.nextActionAt ? <p className="mt-3 rounded-none bg-white px-3 py-2 text-sm font-semibold text-[#6F676B]">予定日: {formatDateTime(company.nextActionAt.toDate())}</p> : null}
+    <div className="grid gap-3">
+      {rows.map(([label, count, tone]) => (
+        <Link className="flex items-center justify-between rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-4 py-3 transition hover:border-[#F7CAD2]" href={"/tasks" as Route} key={label}>
+          <span className="text-sm font-semibold text-[#6F676B]">{label}</span>
+          <span className={`text-2xl font-semibold ${tone}`}>{count}<span className="ml-1 text-xs font-semibold text-[#9A8F94]">件</span></span>
+        </Link>
+      ))}
     </div>
   );
 }
 
-function CompanyFact({ label, value }: { label: string; value: string }) {
+function RecentCompanyRow({ company, latestLog }: { company: Company; latestLog: CompanyActivityLog | null }) {
+  const subtitle = latestLog?.title || company.nextActionTitle || company.industry || "詳細を確認";
   return (
-    <div className="rounded-none bg-white p-3 ring-1 ring-[#F0E7E9]">
-      <p className="text-xs font-semibold text-[#8A8186]">{label}</p>
-      <p className="mt-2 whitespace-pre-wrap text-base font-semibold text-[#2B2B2B]">{value}</p>
+    <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/sales/companies?id=${company.id}&tab=timeline` as Route}>
+      <span className="min-w-0">
+        <span className="block truncate font-semibold text-[#2B2B2B]">{company.name}</span>
+        <span className="mt-1 block truncate text-sm font-medium text-[#777]">{subtitle}</span>
+      </span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
+    </Link>
+  );
+}
+
+function RecentAnalysisRow({ record }: { record: TeleapoRecord }) {
+  return (
+    <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route}>
+      <span className="min-w-0">
+        <span className="block truncate font-semibold text-[#2B2B2B]">{record.customerName || "会社名未設定"}</span>
+        <span className="mt-1 block truncate text-sm font-medium text-[#777]">{record.productName || record.meetingTitle || "商材未設定"}</span>
+      </span>
+      <span className="shrink-0 rounded-none bg-white px-2.5 py-1 text-xs font-semibold text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{getAnalysisStatusLabel(record)}</span>
+    </Link>
+  );
+}
+
+function RecentPageRow({ page }: { page: RecentPageItem }) {
+  return (
+    <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-4 py-3 text-sm font-semibold text-[#2B2B2B] transition hover:border-[#F7CAD2]" href={page.href as Route}>
+      <span className="truncate">{page.label}</span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
+    </Link>
+  );
+}
+
+function RecentPageFallback() {
+  const pages: RecentPageItem[] = [
+    { href: "/sales/companies", label: "会社一覧", visitedAt: 0 },
+    { href: "/products", label: "商材管理", visitedAt: 0 },
+    { href: "/sales/analysis", label: "分析済み一覧", visitedAt: 0 },
+    { href: "/tasks", label: "タスク", visitedAt: 0 }
+  ];
+  return (
+    <div className="grid gap-2">
+      {pages.map((page) => <RecentPageRow key={page.href} page={page} />)}
     </div>
   );
+}
+
+function CompanyCheckCard({ company, latestLog }: { company: Company; latestLog: CompanyActivityLog | null }) {
+  const status = getCompanyCheckStatus(company, latestLog);
+  return (
+    <Link className="group grid min-h-52 gap-4 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3]" href={`/sales/companies?id=${company.id}&tab=timeline` as Route}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className={`inline-flex rounded-none px-2.5 py-1 text-xs font-semibold ${status.tone}`}>{status.label}</span>
+          <h3 className="mt-3 line-clamp-2 text-lg font-semibold leading-6 text-[#2B2B2B]">{company.name}</h3>
+          <p className="mt-1 truncate text-sm font-medium text-[#777]">{[company.industry, company.primaryContactName].filter(Boolean).join(" / ") || "詳細未設定"}</p>
+        </div>
+        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#EC6F8B] transition group-hover:translate-x-0.5" />
+      </div>
+
+      <div className="grid gap-2 text-sm font-semibold text-[#6F676B]">
+        <CompanyFact label="次回" value={company.nextActionTitle || "未設定"} />
+        <CompanyFact label="最新ログ" value={latestLog?.title || "未登録"} />
+      </div>
+
+      <p className="mt-auto text-xs font-semibold text-[#9A8F94]">
+        {company.nextActionAt ? `次回予定: ${formatDateTime(company.nextActionAt.toDate())}` : company.lastContactAt ? `最終接触: ${formatDateTime(company.lastContactAt.toDate())}` : latestLog ? `ログ: ${formatDateTime(latestLog.occurredAt.toDate())}` : "日付未設定"}
+      </p>
+    </Link>
+  );
+}
+
+function getAnalysisStatusLabel(record: TeleapoRecord): string {
+  if (record.aiAdviceStatus === "completed") return "分析済み";
+  if (record.transcriptionStatus === "completed") return "文字起こし完了";
+  if (record.transcriptionStatus === "failed" || record.aiAdviceStatus === "failed") return "確認が必要";
+  if (record.transcriptionStatus === "uploaded" || record.transcriptionStatus === "extracting" || record.transcriptionStatus === "transcribing" || record.transcriptionStatus === "diarizing") return "処理中";
+  return "分析待ち";
+}
+
+function createDealId(record: TeleapoRecord): string {
+  return [record.companyId || record.customerName || "unknown-company", record.productId || record.productName || "unknown-product"].map(encodeURIComponent).join("__");
+}
+
+function CompanyFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-none bg-white px-3 py-2 ring-1 ring-[#F0E7E9]">
+      <p className="text-xs font-semibold text-[#8A8186]">{label}</p>
+      <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[#2B2B2B]">{value}</p>
+    </div>
+  );
+}
+
+function getCompanyPriority(company: Company, latestLog: CompanyActivityLog | null): number {
+  const now = Date.now();
+  const nextActionAt = company.nextActionAt?.toMillis();
+  if (nextActionAt && nextActionAt <= now) return 10000 - Math.min((now - nextActionAt) / 86400000, 365);
+  if (nextActionAt) return 8000 - Math.min((nextActionAt - now) / 86400000, 365);
+  if (latestLog) return 5000 + latestLog.occurredAt.toMillis() / 1000000000000;
+  if (company.lastContactAt) return 3000 + company.lastContactAt.toMillis() / 1000000000000;
+  return 0;
+}
+
+function getCompanyCheckStatus(company: Company, latestLog: CompanyActivityLog | null): { label: string; tone: string } {
+  const now = Date.now();
+  const nextActionAt = company.nextActionAt?.toMillis();
+  if (nextActionAt && nextActionAt <= now) return { label: "次回アクションあり", tone: "bg-[#EC6F8B] text-white" };
+  if (nextActionAt) return { label: "予定あり", tone: "bg-white text-[#EC6F8B] ring-1 ring-[#F0E7E9]" };
+  if (latestLog) return { label: "最近の活動", tone: "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]" };
+  return { label: "要確認", tone: "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]" };
 }
 
 function ScheduleRow({ date, time, title, description, color }: { date: string; time: string; title: string; description: string; color: "pink" | "blue" | "green" }) {
@@ -377,30 +565,15 @@ function TaskRow({ task }: { task: Task }) {
   );
 }
 
-function CompanyLogRow({ log, companyName }: { log: CompanyActivityLog; companyName: string }) {
-  const actor = log.actorNames?.join(" / ") || log.userName || getUserDisplayNameById(log.userId);
+function RecentActivityRow({ item }: { item: RecentActivityItem }) {
   return (
-    <Link className="grid gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={toCompanyHref(log.companyId)}>
+    <Link className="grid gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={item.href}>
       <div className="flex items-center justify-between gap-3">
-        <span className="truncate text-sm font-semibold text-[#EC6F8B]">{companyName}</span>
-        <span className="shrink-0 text-xs font-medium text-[#999]">{formatDateTime(log.occurredAt.toDate())}</span>
+        <span className="truncate text-sm font-semibold text-[#EC6F8B]">{item.kind === "company" ? "会社" : item.kind === "upload" ? "アップロード" : "タスク"}</span>
+        <span className="shrink-0 text-xs font-medium text-[#999]">{formatDateTime(item.occurredAt)}</span>
       </div>
-      <p className="truncate font-semibold text-[#2B2B2B]">{log.title || "活動ログ"}</p>
-      <p className="truncate text-sm font-medium text-[#777]">{actor}</p>
-    </Link>
-  );
-}
-
-function TaskLogRow({ item }: { item: TaskLogItem }) {
-  const actor = item.log.userName || getUserDisplayNameById(item.log.userId);
-  return (
-    <Link className="grid gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={"/tasks" as Route}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="truncate text-sm font-semibold text-[#EC6F8B]">{item.taskTitle}</span>
-        <span className="shrink-0 text-xs font-medium text-[#999]">{formatDateTime(item.log.createdAt.toDate())}</span>
-      </div>
-      <p className="truncate font-semibold text-[#2B2B2B]">{item.log.title}</p>
-      <p className="truncate text-sm font-medium text-[#777]">{[actor, item.companyName, item.assigneeName ? `担当: ${item.assigneeName}` : ""].filter(Boolean).join(" / ")}</p>
+      <p className="truncate font-semibold text-[#2B2B2B]">{item.title}</p>
+      <p className="truncate text-sm font-medium text-[#777]">{item.subtitle}</p>
     </Link>
   );
 }

@@ -17,7 +17,7 @@ import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
+import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { TaskDraft } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
@@ -27,12 +27,6 @@ type TabKey = "overview" | "timeline" | "deals" | "meetings" | "tasks" | "files"
 
 const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動ログ"], ["deals", "案件・商談"], ["meetings", "打ち合わせ"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[SortKey, string]> = [["lastContact", "最終接触日が新しい順"], ["updated", "更新日が新しい順"], ["name", "会社名順"], ["owner", "担当者順"]];
-const activityDirectionLabels: Record<ActivityDirection, string> = {
-  outbound: "こちらから",
-  inbound: "先方から",
-  internal: "社内対応",
-  unknown: "未設定"
-};
 
 const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
 
@@ -228,70 +222,61 @@ function OverviewTab({ company, products, tasks }: { company: Company; products:
 }
 
 function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () => void }) {
-  const [filter, setFilter] = useState<ActivityLogType | "all">("all");
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const activityLogs = logs.filter((log) => log.source !== "system" && log.type !== "status_change");
-  const filtered = filter === "all" ? activityLogs : activityLogs.filter((log) => log.type === filter);
-  const groups = groupByMonth(filtered);
-  const selectedLog = filtered.find((log) => log.id === selectedLogId) ?? filtered[0] ?? null;
-  const emptyTitle = activityLogs.length === 0 ? "まだ活動ログがありません" : "この条件の活動ログはありません";
-  const emptyDescription = activityLogs.length === 0 ? "電話、メール、訪問、メモなどの履歴を追加すると、ここに時系列で表示されます。" : "別の種類を選ぶと、登録済みの活動ログを確認できます。";
+  const groups = groupByMonth(activityLogs);
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {(["all", "meeting", "phone", "email", "chat", "visit", "memo", "other"] as Array<ActivityLogType | "all">).map((type) => (
-          <button className={`h-9 rounded-none px-3 text-xs font-bold ${filter === type ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] text-[#6F676B]"}`} key={type} onClick={() => setFilter(type)} type="button">
-            {type === "all" ? "すべて" : activityTypeLabels[type]}
-          </button>
+      {activityLogs.length === 0 ? <ActivityLogEmptyCard description="電話、メール、訪問、メモなどの履歴を追加すると、ここに時系列で表示されます。" title="まだ活動ログがありません" /> : (
+      <div className="space-y-8">
+        {Object.entries(groups).map(([month, items]) => (
+          <section key={month}>
+            <div className="mb-4 flex items-center gap-3">
+              <h3 className="text-sm font-black text-[#655D62]">{month}</h3>
+              <span className="h-px flex-1 bg-[#F0E7E9]" />
+              <span className="text-xs font-bold text-[#A0979B]">{items.length}件</span>
+            </div>
+            <div className="relative pl-9">
+              <span className="absolute bottom-4 left-3 top-3 w-px bg-[#F0E7E9]" />
+              <div className="grid gap-4">
+                {items.map((log) => <ActivityTimelineItem key={log.id} log={log} />)}
+              </div>
+            </div>
+          </section>
         ))}
       </div>
-      {filtered.length === 0 ? <ActivityLogEmptyCard description={emptyDescription} title={emptyTitle} /> : (
-      <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <div className="space-y-5">
-          {Object.entries(groups).map(([month, items]) => (
-            <section key={month}>
-              <h3 className="mb-3 text-sm font-bold text-[#8A8186]">{month}</h3>
-              <div className="space-y-2">
-                {items.map((log) => (
-                  <button className={`w-full rounded-none border p-3 text-left text-sm font-bold transition ${selectedLog?.id === log.id ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#D94F6E]" : "border-[#F0E7E9] bg-white text-[#2B2B2B] hover:bg-[#FFFBFC]"}`} key={log.id} onClick={() => setSelectedLogId(log.id)} type="button">
-                    {log.title || "無題のログ"}
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-        <ActivityLogDetail log={selectedLog} />
-      </div>
       )}
-      {filtered.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
+      {activityLogs.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
   );
 }
 
-function ActivityLogDetail({ log }: { log: CompanyActivityLog | null }) {
-  if (!log) return <ActivityLogEmptyCard description="左側のログを選択すると、日時・関係者・内容をここで確認できます。" title="活動ログを選択してください" compact />;
+function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
+  const occurredAt = log.occurredAt.toDate();
+  const time = occurredAt.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  const date = occurredAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
   return (
-    <article className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-none px-3 py-1 text-xs font-bold ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
-        <span className="rounded-none border border-[#F0E7E9] bg-white px-3 py-1 text-xs font-bold text-[#D94F6E]">{activityDirectionLabels[log.direction ?? "unknown"]}</span>
+    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">{activityTypeLabels[log.type]?.slice(0, 1) ?? "・"}</span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-none px-3 py-1 text-xs font-bold ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
+            <span className="text-xs font-bold text-[#8A8186]">{date} {time}</span>
+          </div>
+          <h3 className="mt-2 text-base font-black text-[#2B2B2B]">{log.title || "無題のログ"}</h3>
+        </div>
+        {log.nextAction?.title ? <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#D94F6E]">次アクションあり</span> : null}
       </div>
-      <h3 className="mt-3 text-xl font-bold text-[#2B2B2B]">{log.title || "無題のログ"}</h3>
-      <dl className="mt-4 grid gap-3 text-sm font-semibold text-[#6F676B]">
-        <div className="grid gap-1 md:grid-cols-[110px_1fr]"><dt className="font-bold text-[#8A8186]">日時</dt><dd>{log.occurredAt.toDate().toLocaleString("ja-JP")}</dd></div>
-        <div className="grid gap-1 md:grid-cols-[110px_1fr]"><dt className="font-bold text-[#8A8186]">関係者</dt><dd>{formatActivityParties(log)}</dd></div>
-        {log.contactNote ? <div className="grid gap-1 md:grid-cols-[110px_1fr]"><dt className="font-bold text-[#8A8186]">相手メモ</dt><dd>{log.contactNote}</dd></div> : null}
+      <dl className="mt-3 grid gap-2 text-sm font-semibold text-[#6F676B]">
+        <div className="grid gap-1 md:grid-cols-[120px_1fr]"><dt className="font-bold text-[#8A8186]">対応者・相手先</dt><dd>{formatActivityParties(log)}</dd></div>
+        {log.contactNote ? <div className="grid gap-1 md:grid-cols-[120px_1fr]"><dt className="font-bold text-[#8A8186]">相手メモ</dt><dd>{log.contactNote}</dd></div> : null}
       </dl>
-      <div className="mt-5">
-        <p className="text-sm font-bold text-[#8A8186]">内容</p>
-        <p className="mt-2 min-h-32 whitespace-pre-wrap rounded-none bg-white p-4 text-sm font-semibold leading-6 text-[#2B2B2B]">{log.content || "内容は未登録です。"}</p>
-      </div>
+      <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{log.content || "内容は未登録です。"}</p>
       {log.nextAction?.title ? (
-        <div className="mt-4 rounded-none border border-[#F0E7E9] bg-white p-4">
-          <p className="text-sm font-bold text-[#D94F6E]">次のアクション</p>
-          <p className="mt-1 text-sm font-semibold text-[#2B2B2B]">{log.nextAction.title}</p>
+        <div className="mt-3 border-l-2 border-[#EC6F8B] bg-[#FFF7F8] px-3 py-2">
+          <p className="text-xs font-black text-[#D94F6E]">次のアクション</p>
+          <p className="mt-1 text-sm font-bold text-[#2B2B2B]">{log.nextAction.title}</p>
           <p className="mt-1 text-xs font-semibold text-[#8A8A8A]">{log.nextAction.dueAt?.toDate().toLocaleString("ja-JP") ?? "期限未設定"}</p>
         </div>
       ) : null}
@@ -583,7 +568,8 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
 
 function LogFormModal({ company, currentUser, existingTasks, members, onClose, onSubmit }: { company: Company; currentUser: { id: string; name: string }; existingTasks: Array<{ title: string; status: string }>; members: Array<{ uid: string; name: string; email: string }>; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addLog"]>[1], generateTasks: boolean) => Promise<void> }) {
   const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })].filter((contact) => contact.name || contact.email || contact.phone);
-  const [form, setForm] = useState({ type: "phone" as ActivityLogType, direction: "outbound" as ActivityDirection, occurredAt: toDatetimeLocalValue(new Date()), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], contactNote: "", content: "", nextActionTitle: "", nextActionDue: "", aiTaskRequested: false });
+  const now = new Date();
+  const [form, setForm] = useState({ type: "phone" as ActivityLogType, occurredDate: toDateInputValue(now), occurredTime: toTimeInputValue(now), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], contactNote: "", content: "", nextActionTitle: "", nextActionDue: "", aiTaskRequested: false });
   const [saving, setSaving] = useState(false);
   const selectedActors = members.filter((member) => form.actorUserIds.includes(member.uid));
   const selectedContacts = contacts.filter((contact) => form.contactIds.includes(contact.id));
@@ -592,10 +578,10 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
     setSaving(true);
     await onSubmit({
       type: form.type,
-      direction: form.direction,
+      direction: "unknown",
       title: form.title,
       content: form.content,
-      occurredAt: Timestamp.fromDate(new Date(form.occurredAt)),
+      occurredAt: Timestamp.fromDate(dateTimeFromInputs(form.occurredDate, form.occurredTime)),
       source: "manual",
       actorUserIds: form.actorUserIds,
       actorNames: selectedActors.map((member) => member.name),
@@ -611,8 +597,10 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
     <Modal title={`${company.name} のログを追加`} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="ログ種類" value={form.type} options={(["phone", "email", "chat", "visit", "memo", "file", "other"] as ActivityLogType[]).map((type) => [type, activityTypeLabels[type]])} onChange={(type) => setForm({ ...form, type: type as ActivityLogType })} />
-        <Select label="アクション方向" value={form.direction} options={Object.entries(activityDirectionLabels)} onChange={(direction) => setForm({ ...form, direction: direction as ActivityDirection })} />
-        <Input label="日時" value={form.occurredAt} type="datetime-local" onChange={(occurredAt) => setForm({ ...form, occurredAt })} />
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
+          <Input label="日付" value={form.occurredDate} type="date" onChange={(occurredDate) => setForm({ ...form, occurredDate })} />
+          <Input label="時間" value={form.occurredTime} type="time" onChange={(occurredTime) => setForm({ ...form, occurredTime })} />
+        </div>
         <Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} />
         <MultiSelect
           label="社内側"
@@ -647,7 +635,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
         <Input label="次のアクション" value={form.nextActionTitle} onChange={(nextActionTitle) => setForm({ ...form, nextActionTitle })} />
         <Input label="次のアクション期限" type="datetime-local" value={form.nextActionDue} onChange={(nextActionDue) => setForm({ ...form, nextActionDue })} />
         <div className="sm:col-span-2">
-          <Text label={form.type === "email" ? "メール本文 / 内容" : "内容"} value={form.content} minHeight="min-h-48" onChange={(content) => setForm({ ...form, content })} />
+          <Text label={form.type === "email" ? "メール本文 / 内容" : "内容"} value={form.content} minHeight="min-h-[28rem]" onChange={(content) => setForm({ ...form, content })} />
         </div>
         <label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.aiTaskRequested} onChange={(event) => setForm({ ...form, aiTaskRequested: event.target.checked })} type="checkbox" />この内容からAIにタスクを作成してもらう</label>
         <p className="text-xs font-semibold text-[#8A8A8A]">未完了タスク: {existingTasks.filter((task) => task.status !== "completed").map((task) => task.title).join(" / ") || "なし"}</p>
@@ -876,10 +864,7 @@ function formatContactMethods(methods?: ContactMethod[]): string {
 function formatActivityParties(log: CompanyActivityLog): string {
   const actors = log.actorNames?.length ? log.actorNames.join(" / ") : getUserDisplayNameById(log.userId, log.userName);
   const contacts = log.contactNames?.length ? log.contactNames.join(" / ") : log.contactNote || "先方未設定";
-  if (log.direction === "inbound") return `先方: ${contacts} → 社内: ${actors}`;
-  if (log.direction === "internal") return `社内対応: ${actors}`;
-  if (log.direction === "outbound") return `社内: ${actors} → 先方: ${contacts}`;
-  return `担当: ${actors} / 相手: ${contacts}`;
+  return `対応者: ${actors} / 相手先: ${contacts}`;
 }
 
 function Input({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
@@ -944,6 +929,19 @@ function toDatetimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function toTimeInputValue(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function dateTimeFromInputs(date: string, time: string): Date {
+  const value = new Date(`${date || toDateInputValue(new Date())}T${time || "00:00"}`);
+  return Number.isNaN(value.getTime()) ? new Date() : value;
+}
+
 async function createSuggestedTasks(company: Company, input: { title: string; content?: string; occurredAt: Timestamp; type?: ActivityLogType; meetingId?: string; meetingTitle?: string; productNames?: string[]; contactNames?: string[] }, user: { id: string; name: string }, authUser?: { getIdToken: () => Promise<string> } | null) {
   if (!window.confirm("内容と次回アクションからAIタスクを作成しますか？")) return;
   const suggestions = await fetchTaskSuggestions(company, input, authUser);
@@ -958,6 +956,8 @@ async function createSuggestedTasks(company: Company, input: { title: string; co
     source: "ai",
     assigneeId: user.id,
     assigneeName: user.name,
+    collaboratorIds: [],
+    collaboratorNames: [],
     companyId: company.id,
     companyName: company.name,
     productId,

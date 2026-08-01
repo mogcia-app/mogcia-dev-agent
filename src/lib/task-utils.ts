@@ -16,6 +16,8 @@ export function createEmptyTaskDraft(currentUser: MemberOption): TaskDraft {
     source: "manual",
     assigneeId: currentUser.id,
     assigneeName: currentUser.name,
+    collaboratorIds: [],
+    collaboratorNames: [],
     companyId: "",
     companyName: "",
     productId: "",
@@ -42,6 +44,8 @@ export function taskToDraft(task: Task): TaskDraft {
     source: task.source,
     assigneeId: task.assigneeId,
     assigneeName: task.assigneeName ?? "",
+    collaboratorIds: task.collaboratorIds ?? [],
+    collaboratorNames: task.collaboratorNames ?? [],
     companyId: task.companyId ?? "",
     companyName: task.companyName ?? "",
     productId: task.productId ?? "",
@@ -73,6 +77,8 @@ export function draftToTaskPayload(draft: TaskDraft, currentUser: MemberOption) 
     sourceId: null,
     assigneeId: draft.assigneeId || currentUser.id,
     assigneeName: draft.assigneeName || currentUser.name,
+    collaboratorIds: draft.collaboratorIds,
+    collaboratorNames: draft.collaboratorNames,
     createdByName: currentUser.name,
     companyId: draft.companyId || null,
     companyName: draft.companyName.trim() || null,
@@ -181,12 +187,14 @@ export function filterTasks({
   member?: string;
 }): Task[] {
   return tasks.filter((task) => {
-    if (view === "mine" && task.assigneeId !== currentUserId) return false;
+    const collaboratorIds = task.collaboratorIds ?? [];
+    const visibleToCurrentUser = task.assigneeId === currentUserId || task.createdBy === currentUserId || collaboratorIds.includes(currentUserId);
+    if (view === "mine" && task.assigneeId !== currentUserId && !collaboratorIds.includes(currentUserId)) return false;
     if (view === "ai" && task.source !== "ai") return false;
-    if (view === "members" && task.assigneeId === currentUserId) return false;
-    if (view === "members" && member && member !== "all" && task.assigneeId !== member) return false;
+    if (view === "members" && task.assigneeId === currentUserId && !collaboratorIds.some((id) => id !== currentUserId)) return false;
+    if (view === "members" && member && member !== "all" && task.assigneeId !== member && !collaboratorIds.includes(member)) return false;
     if (view === "assigned" && !(task.createdBy === currentUserId && task.assigneeId !== currentUserId)) return false;
-    if (view === "log" && !isAdminUser(currentUserId) && !(task.assigneeId === currentUserId || task.createdBy === currentUserId)) return false;
+    if (view === "log" && !isAdminUser(currentUserId) && !visibleToCurrentUser) return false;
 
     if (status === "open" && task.status === "completed") return false;
     if (status === "completed" && task.status !== "completed") return false;
@@ -197,7 +205,7 @@ export function filterTasks({
     if (due !== "all" && !matchesDueFilter(task, due)) return false;
     if (priority && priority !== "all" && task.priority !== priority) return false;
     if (source && source !== "all" && task.source !== source) return false;
-    if (assignee && assignee !== "all" && task.assigneeId !== assignee) return false;
+    if (assignee && assignee !== "all" && task.assigneeId !== assignee && !collaboratorIds.includes(assignee)) return false;
 
     return true;
   });

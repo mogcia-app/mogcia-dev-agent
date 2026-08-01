@@ -76,6 +76,12 @@ h4 {
   color: #8a8186;
 }
 
+textarea.task-input {
+  min-height: 12rem;
+  resize: vertical;
+  line-height: 1.7;
+}
+
 .mogcia-loading-logo {
   animation: mogcia-float 3.4s ease-in-out infinite;
 }

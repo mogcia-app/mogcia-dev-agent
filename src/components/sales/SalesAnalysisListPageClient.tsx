@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarDays, CheckCircle2, Clock3, FileText, GitCompareArrows, Mic2, MoreVertical, Plus, Search, Share2, Sparkles, Trash2 } from "lucide-react";
+import { BarChart3, CalendarDays, CheckCircle2, Clock3, Copy, FileText, GitCompareArrows, Mic2, MoreVertical, Plus, Search, Share2, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -18,7 +18,7 @@ import type { ConversationLog, MeetingPreparationAnalysis, ProductKnowledge, Sal
 const adminUid = "TjDadmBAdVYaPEvG3ppfBLS4HGN2";
 
 type FilterMode = "all" | SalesDomain;
-type AnalysisTab = "before" | "after" | "compare" | "history";
+type AnalysisTab = "before" | "after" | "compare" | "transcript" | "history";
 type DealGroup = {
   id: string;
   companyId: string | null;
@@ -202,7 +202,7 @@ export function SalesAnalysisListPageClient() {
 function DealAnalysisWorkspace({ activeTab, deal, onTabChange }: { activeTab: AnalysisTab; deal: DealGroup; onTabChange: (tab: AnalysisTab) => void }) {
   const latest = deal.latestAdviceRecord ?? deal.latestRecord;
   const scoreDelta = deal.currentScore !== null && deal.previousScore !== null ? deal.currentScore - deal.previousScore : null;
-  const tabs: Array<[AnalysisTab, string]> = [["before", "商談前"], ["after", "商談後"], ["compare", "比較・振り返り"], ["history", "履歴"]];
+  const tabs: Array<[AnalysisTab, string]> = [["before", "商談前"], ["after", "商談後"], ["compare", "比較・振り返り"], ["transcript", "文字起こし"], ["history", "履歴"]];
   return (
     <div className="space-y-4">
       <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
@@ -251,6 +251,7 @@ function DealAnalysisWorkspace({ activeTab, deal, onTabChange }: { activeTab: An
       {activeTab === "before" ? <BeforeMeetingTab deal={deal} /> : null}
       {activeTab === "after" ? <AfterMeetingTab deal={deal} /> : null}
       {activeTab === "compare" ? <CompareTab deal={deal} /> : null}
+      {activeTab === "transcript" ? <TranscriptTab deal={deal} /> : null}
       {activeTab === "history" ? <HistoryTab deal={deal} /> : null}
     </div>
   );
@@ -445,6 +446,85 @@ function HistoryTab({ deal }: { deal: DealGroup }) {
       <DealTimeline records={deal.records} />
     </Panel>
   );
+}
+
+function TranscriptTab({ deal }: { deal: DealGroup }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const records = [...deal.records].sort((a, b) => b.recordedAt.toMillis() - a.recordedAt.toMillis());
+  const allText = records.map(formatRecordTranscript).filter(Boolean).join("\n\n---\n\n");
+
+  const copyText = async (id: string, text: string) => {
+    if (!text.trim()) return;
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    window.setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1600);
+  };
+
+  if (!records.some((record) => record.conversationLogs.length > 0 || record.transcriptText?.trim())) {
+    return <EmptyState title="文字起こしがありません" description="音声アップロード後に話者分離を保存すると、ここに文字起こし内容が表示されます。" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <Panel title="文字起こし">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#8A8186]">{records.length}件のアップロード内容を表示しています。</p>
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-bold text-[#6F676B] disabled:opacity-50" disabled={!allText.trim()} onClick={() => void copyText("all", allText)} type="button">
+            <Copy className="h-4 w-4" />
+            {copiedId === "all" ? "コピー済み" : "すべてコピー"}
+          </button>
+        </div>
+        <div className="space-y-4">
+          {records.map((record) => {
+            const text = formatRecordTranscript(record);
+            return (
+              <article className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={record.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#2B2B2B]">{recordLabel(record)}</p>
+                    <p className="mt-1 text-xs font-bold text-[#9A8F94]">{record.conversationLogs.length ? `${record.conversationLogs.length}ブロック` : "全文テキスト"}</p>
+                  </div>
+                  <button className="inline-flex h-9 items-center gap-2 rounded-none bg-white px-3 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9] disabled:opacity-50" disabled={!text.trim()} onClick={() => void copyText(record.id, text)} type="button">
+                    <Copy className="h-3.5 w-3.5" />
+                    {copiedId === record.id ? "コピー済み" : "コピー"}
+                  </button>
+                </div>
+                <div className="mt-4 max-h-[520px] overflow-auto rounded-none bg-white p-4 text-sm font-semibold leading-7 text-[#4F474B] ring-1 ring-[#F0E7E9]">
+                  {record.conversationLogs.length ? (
+                    <div className="space-y-3">
+                      {record.conversationLogs.map((log) => (
+                        <p className="whitespace-pre-wrap" key={log.id}>
+                          <span className="font-black text-[#EC6F8B]">{conversationSpeakerLabels[log.speaker]}: </span>
+                          {log.text}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{record.transcriptText || "文字起こしは未登録です。"}</p>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+const conversationSpeakerLabels: Record<ConversationLog["speaker"], string> = {
+  sales: "営業",
+  customer: "顧客",
+  participant: "参加者",
+  unknown: "不明"
+};
+
+function formatRecordTranscript(record: TeleapoRecord): string {
+  const header = `${recordLabel(record)} / ${record.customerName || "会社名未設定"} / ${record.productName || "商材未設定"}`;
+  const body = record.conversationLogs.length
+    ? record.conversationLogs.map((log) => `${conversationSpeakerLabels[log.speaker]}: ${log.text}`).join("\n")
+    : record.transcriptText?.trim() ?? "";
+  return [header, body].filter(Boolean).join("\n");
 }
 
 function sanitizeConversationLogs(logs: ConversationLog[]): ConversationLog[] {

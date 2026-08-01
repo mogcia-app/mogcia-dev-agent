@@ -510,12 +510,12 @@ export function SalesUploadWorkspace() {
                 </Field>
                 <div className="sm:col-span-2">
                   <Field label="営業メモ">
-                    <textarea className="task-input min-h-40 resize-y" placeholder="刺さったポイント、懸念点、相手の反応、終わり方などを自由に記録" value={form.diagnosisResonatedPoint} onChange={(event) => setForm((current) => ({ ...current, diagnosisResonatedPoint: event.target.value }))} />
+                    <textarea className="task-input min-h-72 resize-y" placeholder="刺さったポイント、懸念点、相手の反応、終わり方などを自由に記録" value={form.diagnosisResonatedPoint} onChange={(event) => setForm((current) => ({ ...current, diagnosisResonatedPoint: event.target.value }))} />
                   </Field>
                 </div>
                 <div className="sm:col-span-2">
                   <Field label="次回やること">
-                    <textarea className="task-input min-h-28 resize-y" placeholder="例: 3営業日後にメール、見積を送る、次回商談で決裁者確認など" value={form.diagnosisNextAction} onChange={(event) => setForm((current) => ({ ...current, diagnosisNextAction: event.target.value }))} />
+                    <textarea className="task-input min-h-60 resize-y" placeholder="例: 3営業日後にメール、見積を送る、次回商談で決裁者確認など" value={form.diagnosisNextAction} onChange={(event) => setForm((current) => ({ ...current, diagnosisNextAction: event.target.value }))} />
                   </Field>
                 </div>
               </div>
@@ -1710,7 +1710,7 @@ function ConversationLogPanel({
                   分割
                 </button>
               </div>
-              <textarea className="task-input min-h-20 resize-none" value={log.text} onChange={(event) => onUpdate(log.id, { text: event.target.value })} />
+              <textarea className="task-input min-h-44 resize-y" value={log.text} onChange={(event) => onUpdate(log.id, { text: event.target.value })} />
             </div>
           ))}
       </div>

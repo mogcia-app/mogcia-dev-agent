@@ -64,7 +64,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
             <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => setValue("startDate", event.target.value)} /></Field>
             <Field label="開始時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field>
           </div>
-          <Field label="メモ"><textarea className="task-input min-h-24 resize-none" value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけメモできます" /></Field>
+          <Field label="メモ"><textarea className="task-input min-h-60 resize-y" value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけメモできます" /></Field>
           <button className="h-10 rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setDetailsOpen((current) => !current)} type="button">{detailsOpen ? "詳細を閉じる" : "詳細を追加"}</button>
           {detailsOpen ? <div className="grid gap-4 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-2">
             <Field label="場所"><input className="task-input" value={draft.location} onChange={(event) => setValue("location", event.target.value)} placeholder="会議室 / オンライン" /></Field>
