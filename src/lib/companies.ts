@@ -110,6 +110,36 @@ export function subscribeRecentCompanyActivityLogs(count: number, onNext: (logs:
   return onSnapshot(query(collectionGroup(db, "activityLogs"), orderBy("occurredAt", "desc"), limit(count)), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeLog(entry.id, entry.data()))), onError);
 }
 
+export function subscribeRecentCompanyActivityLogsByCompany(companyIds: string[], count: number, onNext: (logs: CompanyActivityLog[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db || companyIds.length === 0) {
+    onNext([]);
+    return () => undefined;
+  }
+
+  const logsByCompany = new Map<string, CompanyActivityLog[]>();
+  const publish = () => {
+    const logs = Array.from(logsByCompany.values())
+      .flat()
+      .sort((left, right) => right.occurredAt.toMillis() - left.occurredAt.toMillis())
+      .slice(0, count);
+    onNext(logs);
+  };
+
+  const unsubscribes = companyIds.map((companyId) =>
+    onSnapshot(
+      query(collection(db, companiesCollection, companyId, "activityLogs"), orderBy("occurredAt", "desc"), limit(count)),
+      (snapshot) => {
+        logsByCompany.set(companyId, snapshot.docs.map((entry) => normalizeLog(entry.id, entry.data())));
+        publish();
+      },
+      onError
+    )
+  );
+
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+}
+
 export function subscribeCompanyMeetings(companyId: string, onNext: (meetings: CompanyMeeting[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
   const db = getFirebaseDb();
   if (!db) return () => undefined;
@@ -204,6 +234,12 @@ export async function addCompanyMemo(companyId: string, user: { id: string; name
   if (!db) throw new Error("Firebaseが未設定です。");
   await addDoc(collection(db, companiesCollection, companyId, "memos"), { ...input, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   await addCompanyLog(companyId, user, { type: "memo", title: input.title, content: input.content, occurredAt: Timestamp.now(), source: "manual" });
+}
+
+export async function deleteCompanyMemo(companyId: string, memoId: string): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await deleteDoc(doc(db, companiesCollection, companyId, "memos", memoId));
 }
 
 export async function uploadCompanyFile(companyId: string, user: { id: string; name: string }, file: File, onProgress: (progress: number) => void): Promise<void> {

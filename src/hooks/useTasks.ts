@@ -61,12 +61,13 @@ export function useTasks() {
     return Array.from(memberMap, ([id, name]) => ({ id, name }));
   }, [tasks, user]);
 
+  const userId = user?.uid;
   const canEditTask = useCallback(
-    (task: Task) => isAdminUser(user?.uid) || task.assigneeId === user?.uid || task.createdBy === user?.uid || Boolean(user?.uid && task.collaboratorIds?.includes(user.uid)),
-    [user?.uid]
+    (task: Task) => isAdminUser(userId) || task.assigneeId === userId || task.createdBy === userId || Boolean(userId && task.collaboratorIds?.includes(userId)),
+    [userId]
   );
 
-  const canDeleteTask = useCallback(() => isAdminUser(user?.uid), [user?.uid]);
+  const canDeleteTask = useCallback(() => isAdminUser(userId), [userId]);
 
   return {
     user,
@@ -75,7 +76,7 @@ export function useTasks() {
     currentMember,
     loading,
     error,
-    isAdmin: isAdminUser(user?.uid),
+    isAdmin: isAdminUser(userId),
     canEditTask,
     canDeleteTask,
     createTask: (draft: TaskDraft) => createTask(draft, currentMember),

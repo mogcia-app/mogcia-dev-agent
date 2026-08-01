@@ -44,6 +44,7 @@ export function useCalendarItems() {
       }
     );
     const unsubEvents = subscribeCalendarEvents(
+      user,
       (nextEvents) => {
         setEvents(nextEvents);
         setLoading(false);

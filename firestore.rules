@@ -43,7 +43,7 @@ service cloud.firestore {
 
     function validCalendarEvent(data) {
       return data.title is string
-        && data.eventType in ["meeting", "appointment", "personal", "other"]
+        && data.eventType in ["meeting", "appointment", "phone", "visit", "internal", "deskwork", "personal", "other"]
         && data.startAt is timestamp
         && validTimestampOrNull(data.endAt)
         && data.allDay is bool
@@ -91,7 +91,7 @@ service cloud.firestore {
 
     match /calendarEvents/{eventId} {
       allow read: if signedIn()
-        && (resource.data.visibility == "team" || isAdmin() || isCalendarParticipant(resource.data));
+        && (resource.data.visibility == "team" || resource.data.visibility == null || isAdmin() || isCalendarParticipant(resource.data));
       allow create: if signedIn()
         && validCalendarEvent(request.resource.data)
         && request.resource.data.createdBy == request.auth.uid
@@ -137,6 +137,11 @@ service cloud.firestore {
         allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
         allow delete: if isAdmin();
       }
+    }
+
+    match /{path=**}/activityLogs/{logId} {
+      allow read: if signedIn();
+      allow write: if false;
     }
 
     match /projects/{projectId} {

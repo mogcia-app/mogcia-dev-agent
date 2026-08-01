@@ -3,7 +3,7 @@
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, uploadCompanyFile } from "@/lib/companies";
+import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, deleteCompanyMemo, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, uploadCompanyFile } from "@/lib/companies";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName } from "@/lib/user-display";
@@ -70,6 +70,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     addLog: (companyId: string, input: Parameters<typeof addCompanyLog>[2]) => addCompanyLog(companyId, currentUser, input),
     addMeeting: (company: Company, input: Parameters<typeof addManualMeeting>[2]) => addManualMeeting(company, currentUser, input),
     addMemo: (companyId: string, input: Parameters<typeof addCompanyMemo>[2]) => addCompanyMemo(companyId, currentUser, input),
+    deleteMemo: deleteCompanyMemo,
     uploadFile: (companyId: string, file: File, onProgress: (progress: number) => void) => uploadCompanyFile(companyId, currentUser, file, onProgress),
     deleteCompany
   };

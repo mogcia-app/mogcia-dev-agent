@@ -9,9 +9,9 @@ import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
 import { StatusBanner } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
-import { subscribeCompaniesMaster, subscribeRecentCompanyActivityLogs } from "@/lib/companies";
+import { subscribeCompaniesMaster, subscribeRecentCompanyActivityLogsByCompany } from "@/lib/companies";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { formatTaskTime, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
+import { formatTaskTime, getDueBadgeTone, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
@@ -47,12 +47,6 @@ function endOfWeek(): Date {
   const day = end.getDay();
   const daysUntilSunday = day === 0 ? 0 : 7 - day;
   end.setDate(end.getDate() + daysUntilSunday);
-  end.setHours(23, 59, 59, 999);
-  return end;
-}
-
-function endOfToday(): Date {
-  const end = startOfToday();
   end.setHours(23, 59, 59, 999);
   return end;
 }
@@ -130,42 +124,47 @@ export function HomePageClient() {
     if (!user) return undefined;
     window.setTimeout(() => setLoading(true), 0);
 
-    const onError = (nextError: Error) => {
-      setError(nextError.message);
+    const onError = (source: string) => (nextError: Error) => {
+      setError(`${source}: ${nextError.message}`);
       setLoading(false);
     };
     const unsubscribeTasks = subscribeTasks((nextTasks) => {
       setTasks(nextTasks);
       setLoading(false);
-    }, onError);
-    const unsubscribeEvents = subscribeCalendarEvents((nextEvents) => {
+    }, onError("tasks"));
+    const unsubscribeEvents = subscribeCalendarEvents(user, (nextEvents) => {
       setEvents(nextEvents);
       setLoading(false);
-    }, onError);
+    }, onError("calendar"));
     const unsubscribeCompanies = subscribeCompaniesMaster((nextCompanies) => {
       setCompanies(nextCompanies);
       setLoading(false);
-    }, onError);
-    const unsubscribeLogs = subscribeRecentCompanyActivityLogs(30, (nextLogs) => {
-      setCompanyLogs(nextLogs);
-      setLoading(false);
-    }, () => {
-      setCompanyLogs([]);
-      setLoading(false);
-    });
+    }, onError("companies"));
     const unsubscribeTeleapo = subscribeTeleapoRecords((nextRecords) => {
       setTeleapoRecords(nextRecords);
       setLoading(false);
-    }, onError);
+    }, onError("teleapo"));
 
     return () => {
       unsubscribeTasks();
       unsubscribeEvents();
       unsubscribeCompanies();
-      unsubscribeLogs();
       unsubscribeTeleapo();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const companyIds = companies.map((company) => company.id);
+    return subscribeRecentCompanyActivityLogsByCompany(companyIds, 30, (nextLogs) => {
+      setCompanyLogs(nextLogs);
+      setLoading(false);
+    }, (nextError) => {
+      setError(`activityLogs: ${nextError.message}`);
+      setCompanyLogs([]);
+      setLoading(false);
+    });
+  }, [companies, user]);
 
   useEffect(() => {
     const readRecentPages = () => {
@@ -183,7 +182,6 @@ export function HomePageClient() {
 
   const dashboard = useMemo(() => {
     const weekStart = startOfToday();
-    const todayEnd = endOfToday();
     const tomorrowStart = startOfTomorrow();
     const tomorrowEnd = endOfTomorrow();
     const weekEnd = endOfWeek();
@@ -201,8 +199,6 @@ export function HomePageClient() {
       .sort((left, right) => left.startAt.toMillis() - right.startAt.toMillis())
       .slice(0, 8);
 
-    const todayEvents = weekEvents.filter((event) => event.startAt.toDate() <= todayEnd).slice(0, 6);
-
     const weekTasks = sortTasks(
       openTasks.filter((task) => {
         const due = task.dueDate?.toDate();
@@ -211,15 +207,10 @@ export function HomePageClient() {
       "dueAsc"
     ).slice(0, 8);
 
-    const todayTasks = weekTasks.filter((task) => {
-      const due = task.dueDate?.toDate();
-      return due && due <= todayEnd;
-    }).slice(0, 6);
-
     const dueSummary = {
       today: openTasks.filter((task) => {
         const due = task.dueDate?.toDate();
-        return due && due >= weekStart && due <= todayEnd;
+        return due && due >= weekStart && due < tomorrowStart;
       }).length,
       tomorrow: openTasks.filter((task) => {
         const due = task.dueDate?.toDate();
@@ -268,9 +259,7 @@ export function HomePageClient() {
 
     return {
       weekEvents,
-      todayEvents,
       weekTasks,
-      todayTasks,
       visibleCompanyLogs,
       taskLogs,
       recentActivities,
@@ -304,7 +293,7 @@ export function HomePageClient() {
     <section>
       <PageHeader
         title="Home"
-        description={`${getUserDisplayName(user)}さんの今日の予定、タスク、確認する会社をまとめています。`}
+        description={`${getUserDisplayName(user)}さんの今週の予定、タスク、確認する会社をまとめています。`}
         actions={
           <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(236,111,139,0.18)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
             <Plus className="h-4 w-4" />
@@ -316,19 +305,19 @@ export function HomePageClient() {
       <div className="mt-5"><StatusBanner message={error} type="error" /></div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.8fr]">
-        <Panel icon={ListChecks} title="今日やること">
+        <Panel icon={ListChecks} title="今週のやること">
           {loading ? <SkeletonList count={4} media={false} /> : null}
-          {!loading && dashboard.todayTasks.length === 0 ? <EmptyLine text="今日のタスクはありません。" /> : null}
+          {!loading && dashboard.weekTasks.length === 0 ? <EmptyLine text="今週のタスクはありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.todayTasks.map((task) => <TaskRow key={task.id} task={task} />)}
+            {dashboard.weekTasks.map((task) => <TaskRow key={task.id} task={task} />)}
           </div>
         </Panel>
 
-        <Panel icon={CalendarDays} title="今日の予定">
+        <Panel icon={CalendarDays} title="今週の予定">
           {loading ? <SkeletonList count={3} media={false} /> : null}
-          {!loading && dashboard.todayEvents.length === 0 ? <EmptyLine text="今日の予定はありません。" /> : null}
+          {!loading && dashboard.weekEvents.length === 0 ? <EmptyLine text="今週の予定はありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.todayEvents.map((event) => (
+            {dashboard.weekEvents.map((event) => (
               <ScheduleRow
                 key={event.id}
                 color={event.eventType === "meeting" ? "pink" : event.eventType === "appointment" ? "blue" : "green"}
@@ -366,7 +355,7 @@ export function HomePageClient() {
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
-        <Panel icon={MessageSquareText} title="最近の動き">
+        <Panel bodyClassName="max-h-[420px] overflow-y-auto pr-1" icon={MessageSquareText} title="最近の動き">
           {loading ? <SkeletonList count={4} media={false} /> : null}
           {!loading && dashboard.recentActivities.length === 0 ? <EmptyLine text="最近の動きはまだありません。" /> : null}
           <div className="grid gap-3">
@@ -385,7 +374,7 @@ export function HomePageClient() {
   );
 }
 
-function Panel({ title, icon: Icon, children }: { title: string; icon: typeof CalendarDays; children: React.ReactNode }) {
+function Panel({ title, icon: Icon, bodyClassName = "", children }: { title: string; icon: typeof CalendarDays; bodyClassName?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-[0_14px_44px_rgba(31,31,34,0.05)]">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -394,7 +383,7 @@ function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Ca
           {title}
         </h2>
       </div>
-      {children}
+      <div className={bodyClassName}>{children}</div>
     </section>
   );
 }
@@ -560,7 +549,7 @@ function TaskRow({ task }: { task: Task }) {
         <span className="block truncate font-semibold text-[#2B2B2B]">{task.title}</span>
         <span className="mt-1 block truncate text-sm font-medium text-[#777]">{[task.companyName, assignee].filter(Boolean).join(" / ")}</span>
       </span>
-      <span className="rounded-none bg-white px-3 py-1 text-xs font-semibold text-[#EC6F8B]">{due ? formatDateTime(due) : "期限なし"}</span>
+      <span className={`shrink-0 rounded-none border px-3 py-1 text-xs font-semibold ${getDueBadgeTone(task)}`}>{due ? formatDateTime(due) : "期限なし"}</span>
     </Link>
   );
 }

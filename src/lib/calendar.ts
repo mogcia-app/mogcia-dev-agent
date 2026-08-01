@@ -7,16 +7,17 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
   type DocumentData,
   type FirestoreError,
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { draftToCalendarPayload } from "@/lib/calendar-utils";
+import { isAdminUser } from "@/lib/task-utils";
 import type { CalendarEvent, CalendarEventDraft } from "@/types/calendar";
 import type { MemberOption } from "@/types/task";
 
@@ -66,14 +67,51 @@ function normalizeEvent(id: string, data: DocumentData): CalendarEvent {
   };
 }
 
-export function subscribeCalendarEvents(onNext: (events: CalendarEvent[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+type CalendarAccessUser = {
+  uid: string;
+};
+
+function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
+  return [...events].sort((left, right) => left.startAt.toMillis() - right.startAt.toMillis());
+}
+
+export function subscribeCalendarEvents(currentUser: CalendarAccessUser | null, onNext: (events: CalendarEvent[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
   const db = getFirebaseDb();
-  if (!db) return () => undefined;
-  return onSnapshot(
-    query(collection(db, COLLECTION), orderBy("startAt", "asc")),
-    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeEvent(entry.id, entry.data()))),
-    onError
-  );
+  if (!db || !currentUser) return () => undefined;
+
+  if (isAdminUser(currentUser.uid)) {
+    return onSnapshot(query(collection(db, COLLECTION)), (snapshot) => onNext(sortEvents(snapshot.docs.map((entry) => normalizeEvent(entry.id, entry.data())))), onError);
+  }
+
+  const eventSlices = new Map<string, Map<string, CalendarEvent>>();
+  const publish = () => {
+    const eventsById = new Map<string, CalendarEvent>();
+    eventSlices.forEach((events) => {
+      events.forEach((event) => eventsById.set(event.id, event));
+    });
+    onNext(sortEvents(Array.from(eventsById.values())));
+  };
+  const subscribeVisibleSlice = (sliceKey: string, field: "createdBy" | "assigneeId" | "attendeeIds", op: "==" | "array-contains", value: string) =>
+    onSnapshot(
+      query(collection(db, COLLECTION), where(field, op, value)),
+      (snapshot) => {
+        eventSlices.set(sliceKey, new Map(snapshot.docs.map((entry) => [entry.id, normalizeEvent(entry.id, entry.data())])));
+        publish();
+      },
+      (error) => {
+        console.warn(`Calendar ${sliceKey} subscription failed.`, error);
+        eventSlices.delete(sliceKey);
+        publish();
+      }
+    );
+
+  const unsubscribes = [
+    subscribeVisibleSlice("created-by", "createdBy", "==", currentUser.uid),
+    subscribeVisibleSlice("assignee", "assigneeId", "==", currentUser.uid),
+    subscribeVisibleSlice("attendee", "attendeeIds", "array-contains", currentUser.uid)
+  ];
+
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 }
 
 export async function createCalendarEvent(draft: CalendarEventDraft, currentUser: MemberOption & { uid: string }): Promise<void> {

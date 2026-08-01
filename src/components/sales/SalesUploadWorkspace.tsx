@@ -109,7 +109,10 @@ export function SalesUploadWorkspace() {
 
   useEffect(() => subscribeCompaniesMaster((nextCompanies) => setCompanies(nextCompanies.filter((company) => !company.archivedAt)), () => setCompanies([])), []);
 
-  useEffect(() => subscribeCalendarEvents(setCalendarEvents, () => setCalendarEvents([])), []);
+  useEffect(() => {
+    if (!user) return undefined;
+    return subscribeCalendarEvents(user, setCalendarEvents, () => setCalendarEvents([]));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return undefined;

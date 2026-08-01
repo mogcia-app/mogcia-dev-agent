@@ -8,7 +8,7 @@ import { SingleSelect } from "@/components/ui/select";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTasks } from "@/hooks/useTasks";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
-import { createEmptyTaskDraft, getDueBadge, taskToDraft } from "@/lib/task-utils";
+import { createEmptyTaskDraft, getDueBadge, getDueBadgeTone, taskToDraft } from "@/lib/task-utils";
 import type { MemberOption, Task, TaskDraft, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
 
 type SuggestedTask = {
@@ -163,6 +163,7 @@ export function TasksPageClient() {
         currentMember={taskStore.currentMember}
         currentUserId={taskStore.user?.uid ?? ""}
         isAdmin={taskStore.isAdmin}
+        key={selectedTask ? `task-${selectedTask.id}` : `new-${taskStore.currentMember.id}`}
         members={taskStore.members}
         onCreate={taskStore.createTask}
         onDelete={taskStore.deleteTask}
@@ -315,7 +316,7 @@ function TaskRows({ tasks, selectedTaskId, currentUserId, canEditTask, onSelect,
                 {task.assigneeId !== currentUserId && task.assigneeName ? <span>担当: {task.assigneeName}</span> : null}
               </span>
             </button>
-            <button className="hidden h-8 items-center gap-1 px-2 text-xs font-bold text-[#9A9296] sm:inline-flex" onClick={() => onSelect(task.id)} type="button">
+            <button className={`hidden h-8 items-center gap-1 border px-2 text-xs font-bold sm:inline-flex ${getDueBadgeTone(task)}`} onClick={() => onSelect(task.id)} type="button">
               <Clock3 className="h-3.5 w-3.5" />
               {getDueBadge(task)}
             </button>
@@ -370,14 +371,6 @@ function TaskInspector({
   const [createDraft, setCreateDraft] = useState<TaskDraft>(() => createEmptyTaskDraft(currentMember));
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setDraft(task ? taskToDraft(task) : null);
-  }, [task?.id, task]);
-
-  useEffect(() => {
-    if (!task) setCreateDraft(createEmptyTaskDraft(currentMember));
-  }, [currentMember.id, currentMember.name, task]);
-
   if (!task) {
     const saveCreate = async () => {
       if (!createDraft.title.trim()) return;
@@ -430,7 +423,7 @@ function TaskInspector({
           <button className={`grid h-6 w-6 place-items-center border ${task.status === "completed" ? "border-[#EC6F8B] bg-[#FFF2F5] text-[#EC6F8B]" : "border-[#CFC7CB] text-transparent"}`} disabled={!canEdit} onClick={() => void onToggle(task, task.status !== "completed")} type="button">
             <Check className="h-4 w-4" />
           </button>
-          <span className="truncate">{task.dueDate ? getDueBadge(task) : "日付を設定"}</span>
+          <span className={`truncate border px-2 py-1 text-xs ${getDueBadgeTone(task)}`}>{task.dueDate ? getDueBadge(task) : "日付を設定"}</span>
         </div>
         <button className="text-[#AAA]" type="button" aria-label="フラグ"><Circle className="h-5 w-5" /></button>
       </div>

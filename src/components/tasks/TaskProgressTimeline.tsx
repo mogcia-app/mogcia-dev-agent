@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Clock, FileText, UserRound } from "lucide-react";
-import { getDueBadge } from "@/lib/task-utils";
+import { getDueBadge, getDueBadgeTone } from "@/lib/task-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { Task, TaskProgressLog } from "@/types/task";
 
@@ -26,7 +26,7 @@ export function TaskProgressTimeline({ task, currentUserId }: { task: Task | nul
             <h3 className="mt-1 truncate text-lg font-semibold text-[#2D2A2C]">{task.title || "無題のタスク"}</h3>
             {task.description ? <p className="mt-1 line-clamp-2 text-sm font-medium text-[#81787D]">{task.description}</p> : null}
           </div>
-          <span className="shrink-0 border border-[#F0DEE2] px-3 py-1.5 text-xs font-semibold text-[#EC6F8B]">{getDueBadge(task)}</span>
+          <span className={`shrink-0 border px-3 py-1.5 text-xs font-semibold ${getDueBadgeTone(task)}`}>{getDueBadge(task)}</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-[#81787D]">
           {!hideTaskMemberNames && task.assigneeId !== currentUserId ? <span>担当: {getUserDisplayNameById(task.assigneeId, task.assigneeName)}</span> : null}

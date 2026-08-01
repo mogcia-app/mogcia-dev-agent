@@ -169,7 +169,7 @@ export function CompaniesPageClient() {
                   {selectedTab === "meetings" ? <MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
-                  {selectedTab === "notes" ? <NotesTab memos={store.memos} onCreate={() => setMemoOpen(true)} /> : null}
+                  {selectedTab === "notes" ? <NotesTab currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} /> : null}
                 </div>
               </div>
             </div>
@@ -363,8 +363,48 @@ function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string
   return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-bold text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}<span className="ml-3 text-xs text-[#777]">{file.createdByName ?? ""} / {file.createdAt.toDate().toLocaleString("ja-JP")}</span></a>)}</div></div>;
 }
 
-function NotesTab({ memos, onCreate }: { memos: Array<{ id: string; title: string; content: string; pinned: boolean; createdByName?: string; createdAt: { toDate: () => Date } }>; onCreate: () => void }) {
-  return <div><button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">メモを追加</button><div className="grid gap-3">{memos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : memos.sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((memo) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}><h4 className="font-bold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title}</h4><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{memo.content}</p><p className="mt-2 text-xs font-semibold text-[#777]">{memo.createdByName ?? ""} / {memo.createdAt.toDate().toLocaleString("ja-JP")}</p></div>)}</div></div>;
+function NotesTab({
+  memos,
+  currentUserId,
+  isAdmin,
+  onCreate,
+  onDelete
+}: {
+  memos: Array<{ id: string; title: string; content: string; pinned: boolean; createdBy: string; createdByName?: string; createdAt: { toDate: () => Date } }>;
+  currentUserId: string;
+  isAdmin: boolean;
+  onCreate: () => void;
+  onDelete: (memoId: string) => Promise<void>;
+}) {
+  const remove = async (memoId: string) => {
+    if (!window.confirm("このメモを削除しますか？")) return;
+    await onDelete(memoId);
+  };
+
+  return (
+    <div>
+      <button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">メモを追加</button>
+      <div className="grid gap-3">
+        {memos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : memos.sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((memo) => {
+          const canDeleteMemo = isAdmin || memo.createdBy === currentUserId;
+          return (
+            <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}>
+              <div className="flex items-start justify-between gap-3">
+                <h4 className="font-bold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title}</h4>
+                {canDeleteMemo ? (
+                  <button className="grid h-8 w-8 shrink-0 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(memo.id)} type="button" aria-label="メモを削除">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{memo.content}</p>
+              <p className="mt-2 text-xs font-semibold text-[#777]">{memo.createdByName ?? ""} / {memo.createdAt.toDate().toLocaleString("ja-JP")}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function CompanyFormModal({ mode, company, currentUser, members, products, onClose, onSubmit }: { mode: "create" | "edit"; company?: Company; currentUser: { id: string; name: string }; members: Array<{ uid: string; name: string; email: string }>; products: Product[]; onClose: () => void; onSubmit: (patch: Partial<Company>) => Promise<void> }) {
