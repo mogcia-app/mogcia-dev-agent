@@ -3,7 +3,7 @@
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { addProductMemo, archiveProduct, createProduct, deleteProduct, deleteProductMemo, duplicateProduct, reorderProducts, subscribeProductMemos, subscribeProductsMaster, toggleFavorite, updateProduct } from "@/lib/products";
+import { addProductMemo, archiveProduct, createProduct, deleteProduct, deleteProductMemo, duplicateProduct, reorderProducts, subscribeProductMemos, subscribeProductsMaster, toggleFavorite, updateProduct, updateProductMemo } from "@/lib/products";
 import { isAdminUser } from "@/lib/task-utils";
 import { getUserDisplayName } from "@/lib/user-display";
 import type { Product, ProductMemo, ProductTab } from "@/types/product";
@@ -61,6 +61,7 @@ export function useProducts(selectedProductId?: string | null) {
     createProduct: (input: Parameters<typeof createProduct>[1]) => createProduct(currentUser, input),
     updateProduct: (productId: string, tab: ProductTab, patch: Partial<Product>) => updateProduct(productId, currentUser, tab, patch),
     addMemo: (productId: string, input: Parameters<typeof addProductMemo>[2]) => addProductMemo(productId, currentUser, input),
+    updateMemo: (productId: string, memoId: string, input: Parameters<typeof updateProductMemo>[3]) => updateProductMemo(productId, memoId, currentUser, input),
     deleteMemo: (productId: string, memoId: string) => deleteProductMemo(productId, memoId, currentUser),
     duplicateProduct: (product: Product) => duplicateProduct(product, currentUser),
     archiveProduct: (productId: string) => archiveProduct(productId, currentUser),

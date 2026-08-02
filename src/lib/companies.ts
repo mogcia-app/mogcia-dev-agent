@@ -265,6 +265,12 @@ export async function addCompanyMemo(companyId: string, user: { id: string; name
   await addCompanyLog(companyId, user, { type: "memo", title: input.title, content: input.content, occurredAt: Timestamp.now(), source: "manual" });
 }
 
+export async function updateCompanyMemo(companyId: string, memoId: string, input: { title: string; content: string; pinned: boolean }): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await updateDoc(doc(db, companiesCollection, companyId, "memos", memoId), { ...input, updatedAt: serverTimestamp() });
+}
+
 export async function deleteCompanyMemo(companyId: string, memoId: string): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");

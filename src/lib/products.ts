@@ -224,6 +224,13 @@ export async function addProductMemo(productId: string, user: { id: string; name
   await addChangeLog(productId, user, "notes", "メモを追加しました");
 }
 
+export async function updateProductMemo(productId: string, memoId: string, user: { id: string; name: string }, input: { title: string; content: string; pinned: boolean }): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await updateDoc(doc(db, collectionName, productId, "memos", memoId), { ...input, updatedAt: serverTimestamp() });
+  await addChangeLog(productId, user, "notes", "メモを更新しました");
+}
+
 export async function deleteProductMemo(productId: string, memoId: string, user: { id: string; name: string }): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");

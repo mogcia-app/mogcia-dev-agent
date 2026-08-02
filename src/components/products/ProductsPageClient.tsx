@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
+import { Download, Edit2, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -129,6 +129,7 @@ export function ProductsPageClient() {
               memos={store.memos}
               onAddMemo={(input) => store.addMemo(selectedProduct.id, input)}
               onDeleteMemo={(memoId) => store.deleteMemo(selectedProduct.id, memoId)}
+              onUpdateMemo={(memoId, input) => store.updateMemo(selectedProduct.id, memoId, input)}
               onSave={(tab, patch) => store.updateProduct(selectedProduct.id, tab, patch)}
               onTabChange={(tab) => setProductRoute(selectedProduct.id, tab)}
               product={selectedProduct}
@@ -180,7 +181,8 @@ function ProductDetail({
   onSave,
   onDelete,
   onAddMemo,
-  onDeleteMemo
+  onDeleteMemo,
+  onUpdateMemo
 }: {
   product: Product;
   tab: ProductTab;
@@ -194,6 +196,7 @@ function ProductDetail({
   onDelete: () => Promise<void>;
   onAddMemo: (input: { title: string; content: string; pinned: boolean }) => Promise<void>;
   onDeleteMemo: (memoId: string) => Promise<void>;
+  onUpdateMemo: (memoId: string, input: { title: string; content: string; pinned: boolean }) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(product);
@@ -245,7 +248,7 @@ function ProductDetail({
         <ProductSectionNav activeTab={tab} onTabChange={onTabChange} />
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-auto p-5 xl:p-6">
-            {tab === "notes" ? <ProductNotesTab currentUserId={user.id} isAdmin={isAdmin} memos={memos} onCreate={onAddMemo} onDelete={onDeleteMemo} /> : editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
+            {tab === "notes" ? <ProductNotesTab currentUserId={user.id} isAdmin={isAdmin} memos={memos} onCreate={onAddMemo} onDelete={onDeleteMemo} onUpdate={onUpdateMemo} /> : editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
             {tab !== "notes" ? <div className="mt-6 flex justify-end gap-3 border-t border-[#F0E7E9] pt-5">
               {editing ? (
                 <>
@@ -335,12 +338,13 @@ function ResourceReadView({ product }: { product: Product }) {
   );
 }
 
-function ProductNotesTab({ memos, currentUserId, isAdmin, onCreate, onDelete }: { memos: ProductMemo[]; currentUserId: string; isAdmin: boolean; onCreate: (input: { title: string; content: string; pinned: boolean }) => Promise<void>; onDelete: (memoId: string) => Promise<void> }) {
+function ProductNotesTab({ memos, currentUserId, isAdmin, onCreate, onDelete, onUpdate }: { memos: ProductMemo[]; currentUserId: string; isAdmin: boolean; onCreate: (input: { title: string; content: string; pinned: boolean }) => Promise<void>; onDelete: (memoId: string) => Promise<void>; onUpdate: (memoId: string, input: { title: string; content: string; pinned: boolean }) => Promise<void> }) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingMemo, setEditingMemo] = useState<ProductMemo | null>(null);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const sortedMemos = useMemo(() => [...memos].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.toMillis() - a.createdAt.toMillis()), [memos]);
   const selectedMemo = sortedMemos.find((memo) => memo.id === selectedMemoId) ?? sortedMemos[0] ?? null;
-  const canDeleteSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
+  const canManageSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
 
   const remove = async (memoId: string) => {
     if (!window.confirm("このメモを削除しますか？")) return;
@@ -374,10 +378,15 @@ function ProductNotesTab({ memos, currentUserId, isAdmin, onCreate, onDelete }: 
                     <h4 className="break-words text-lg font-black text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
                     <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleString("ja-JP")}</p>
                   </div>
-                  {canDeleteSelectedMemo ? (
-                    <button className="grid h-9 w-9 shrink-0 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  {canManageSelectedMemo ? (
+                    <div className="flex shrink-0 gap-2">
+                      <button className="grid h-9 w-9 place-items-center border border-[#F0E7E9] bg-white text-[#EC6F8B] transition hover:bg-[#FFF0F3]" onClick={() => setEditingMemo(selectedMemo)} type="button" aria-label="メモを編集">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   ) : null}
                 </div>
                 <p className="mt-5 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{selectedMemo.content || "内容は未入力です。"}</p>
@@ -387,12 +396,13 @@ function ProductNotesTab({ memos, currentUserId, isAdmin, onCreate, onDelete }: 
         </div>
       )}
       {createOpen ? <ProductMemoModal onClose={() => setCreateOpen(false)} onSubmit={async (input) => { await onCreate(input); setCreateOpen(false); }} /> : null}
+      {editingMemo ? <ProductMemoModal initial={editingMemo} mode="edit" onClose={() => setEditingMemo(null)} onSubmit={async (input) => { await onUpdate(editingMemo.id, input); setEditingMemo(null); }} /> : null}
     </div>
   );
 }
 
-function ProductMemoModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (input: { title: string; content: string; pinned: boolean }) => Promise<void> }) {
-  const [form, setForm] = useState({ title: "", content: "", pinned: false });
+function ProductMemoModal({ mode = "create", initial, onClose, onSubmit }: { mode?: "create" | "edit"; initial?: { title: string; content: string; pinned: boolean }; onClose: () => void; onSubmit: (input: { title: string; content: string; pinned: boolean }) => Promise<void> }) {
+  const [form, setForm] = useState({ title: initial?.title ?? "", content: initial?.content ?? "", pinned: initial?.pinned ?? false });
   const [saving, setSaving] = useState(false);
   const save = async () => {
     if (!form.title.trim()) return;
@@ -407,7 +417,7 @@ function ProductMemoModal({ onClose, onSubmit }: { onClose: () => void; onSubmit
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm">
       <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl">
-        <h2 className="text-2xl font-bold text-[#2B2B2B]">メモを追加</h2>
+        <h2 className="text-2xl font-bold text-[#2B2B2B]">{mode === "edit" ? "メモを編集" : "メモを追加"}</h2>
         <div className="mt-5 grid gap-4">
           <Input label="タイトル" value={form.title} onChange={(title) => setForm({ ...form, title })} />
           <Text label="内容" value={form.content} onChange={(content) => setForm({ ...form, content })} />

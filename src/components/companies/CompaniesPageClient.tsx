@@ -169,7 +169,7 @@ export function CompaniesPageClient() {
                   {selectedTab === "meetings" ? <MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
-                  {selectedTab === "notes" ? <NotesTab currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} /> : null}
+                  {selectedTab === "notes" ? <NotesTab currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
                 </div>
               </div>
             </div>
@@ -368,18 +368,21 @@ function NotesTab({
   currentUserId,
   isAdmin,
   onCreate,
-  onDelete
+  onDelete,
+  onUpdate
 }: {
   memos: Array<{ id: string; title: string; content: string; pinned: boolean; createdBy: string; createdByName?: string; createdAt: { toDate: () => Date } }>;
   currentUserId: string;
   isAdmin: boolean;
   onCreate: () => void;
   onDelete: (memoId: string) => Promise<void>;
+  onUpdate: (memoId: string, input: { title: string; content: string; pinned: boolean }) => Promise<void>;
 }) {
   const sortedMemos = useMemo(() => [...memos].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()), [memos]);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
+  const [editingMemo, setEditingMemo] = useState<typeof sortedMemos[number] | null>(null);
   const selectedMemo = sortedMemos.find((memo) => memo.id === selectedMemoId) ?? sortedMemos[0] ?? null;
-  const canDeleteSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
+  const canManageSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
 
   const remove = async (memoId: string) => {
     if (!window.confirm("このメモを削除しますか？")) return;
@@ -413,10 +416,15 @@ function NotesTab({
                   <h4 className="break-words text-lg font-black text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
                   <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleString("ja-JP")}</p>
                 </div>
-                {canDeleteSelectedMemo ? (
-                  <button className="grid h-9 w-9 shrink-0 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                {canManageSelectedMemo ? (
+                  <div className="flex shrink-0 gap-2">
+                    <button className="grid h-9 w-9 place-items-center border border-[#F0E7E9] bg-white text-[#EC6F8B] transition hover:bg-[#FFF0F3]" onClick={() => setEditingMemo(selectedMemo)} type="button" aria-label="メモを編集">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : null}
               </div>
               <p className="mt-5 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{selectedMemo.content || "内容は未入力です。"}</p>
@@ -425,6 +433,7 @@ function NotesTab({
         </article>
       </div>
       )}
+      {editingMemo ? <MemoFormModal initial={editingMemo} mode="edit" onClose={() => setEditingMemo(null)} onSubmit={async (input) => { await onUpdate(editingMemo.id, input); setEditingMemo(null); }} /> : null}
     </div>
   );
 }
@@ -759,11 +768,18 @@ function MeetingFormModal({ company, products, onClose, onSubmit }: { company: C
   );
 }
 
-function MemoFormModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (input: { title: string; content: string; pinned: boolean }) => Promise<void> }) {
-  const [form, setForm] = useState({ title: "", content: "", pinned: false });
+function MemoFormModal({ mode = "create", initial, onClose, onSubmit }: { mode?: "create" | "edit"; initial?: { title: string; content: string; pinned: boolean }; onClose: () => void; onSubmit: (input: { title: string; content: string; pinned: boolean }) => Promise<void> }) {
+  const [form, setForm] = useState({ title: initial?.title ?? "", content: initial?.content ?? "", pinned: initial?.pinned ?? false });
   const [saving, setSaving] = useState(false);
-  const save = async () => { setSaving(true); await onSubmit(form); setSaving(false); };
-  return <Modal title="メモを追加" onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-[36rem]" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSubmit({ title: form.title.trim(), content: form.content.trim(), pinned: form.pinned });
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <Modal title={mode === "edit" ? "メモを編集" : "メモを追加"} onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-[36rem]" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
