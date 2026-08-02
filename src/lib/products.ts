@@ -4,7 +4,7 @@ import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orde
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import { createDefaultProduct, createDefaultSalesPlaybooks, slugify } from "@/lib/product-utils";
-import type { Product, ProductChangeLog, ProductResource, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab } from "@/types/product";
+import type { Product, ProductChangeLog, ProductMemo, ProductResource, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab } from "@/types/product";
 
 const collectionName = "products";
 
@@ -145,6 +145,26 @@ export function subscribeProductChangeLogs(productId: string, onNext: (logs: Pro
   return onSnapshot(query(collection(db, collectionName, productId, "changeLogs"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() } as ProductChangeLog))), onError);
 }
 
+export function subscribeProductMemos(productId: string, onNext: (memos: ProductMemo[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db) return () => undefined;
+  return onSnapshot(query(collection(db, collectionName, productId, "memos"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeMemo(entry.id, entry.data()))), onError);
+}
+
+function normalizeMemo(id: string, data: DocumentData): ProductMemo {
+  const now = Timestamp.now();
+  return {
+    id,
+    title: data.title ?? "",
+    content: data.content ?? "",
+    pinned: Boolean(data.pinned),
+    createdBy: data.createdBy ?? "",
+    createdByName: data.createdByName ?? "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : now
+  };
+}
+
 export async function createProduct(user: { id: string; name: string }, input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">): Promise<string> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
@@ -195,6 +215,20 @@ export async function toggleFavorite(product: Product, userId: string): Promise<
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await updateDoc(doc(db, collectionName, product.id), { favoriteUserIds, updatedAt: serverTimestamp() });
+}
+
+export async function addProductMemo(productId: string, user: { id: string; name: string }, input: { title: string; content: string; pinned: boolean }): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await addDoc(collection(db, collectionName, productId, "memos"), { ...input, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await addChangeLog(productId, user, "notes", "メモを追加しました");
+}
+
+export async function deleteProductMemo(productId: string, memoId: string, user: { id: string; name: string }): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db) throw new Error("Firebaseが未設定です。");
+  await deleteDoc(doc(db, collectionName, productId, "memos", memoId));
+  await addChangeLog(productId, user, "notes", "メモを削除しました");
 }
 
 export async function addResourceFile(product: Product, file: File, user: { id: string; name: string }, onProgress: (progress: number) => void): Promise<ProductResource> {

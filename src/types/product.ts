@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 export type ProductStatus = "active" | "draft" | "paused" | "archived";
 export type ProductType = "own_product" | "operation_service" | "web_production" | "custom_development" | "sales_package" | "other";
-export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "new" | "existing" | "resources";
+export type ProductTab = "basic" | "target" | "pricing" | "features" | "implementation" | "sales" | "new" | "existing" | "resources" | "notes";
 
 export interface ProductPlan {
   id: string;
@@ -82,6 +82,17 @@ export interface ProductResource {
   description?: string;
   visibility: "internal" | "sales" | "client_shareable" | "public";
   createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ProductMemo {
+  id: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  createdBy: string;
+  createdByName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
