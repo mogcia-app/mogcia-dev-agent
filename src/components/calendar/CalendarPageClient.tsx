@@ -60,9 +60,9 @@ export function CalendarPageClient() {
       {calendar.loading ? (
         <div className="mt-5"><CalendarSkeleton /></div>
       ) : (
-        <div className="mt-5 grid gap-5 xl:grid-cols-[38%_1fr]">
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-5">
-            <MonthCalendar items={calendarFilters.filteredItems} month={month} onMonthChange={setMonth} onSelectDate={updateSelectedDate} selectedDate={selected.selectedDate} />
+            <MonthCalendar items={calendarFilters.filteredItems} month={month} onMonthChange={setMonth} onOpen={openCalendarItem} onSelectDate={updateSelectedDate} selectedDate={selected.selectedDate} />
             <CalendarFilters filters={calendarFilters.filters} member={selected.member} members={calendar.members} onFilterChange={calendarFilters.updateFilter} onMemberChange={selected.setMember} />
           </div>
           <div className="space-y-5">

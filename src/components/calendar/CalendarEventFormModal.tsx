@@ -61,8 +61,12 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
             <Field label="終日"><button className={`h-11 rounded-none border px-4 text-sm font-bold ${draft.allDay ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-[#FFFBFC] text-[#655D62]"}`} onClick={() => setValue("allDay", !draft.allDay)} type="button">{draft.allDay ? "終日" : "時間指定"}</button></Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => setValue("startDate", event.target.value)} /></Field>
+            <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => { const startDate = event.target.value; setDraft((current) => ({ ...current, startDate, endDate: current.endDate && current.endDate >= startDate ? current.endDate : startDate })); }} /></Field>
             <Field label="開始時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="終了日"><input className="task-input" type="date" value={draft.endDate} onChange={(event) => setValue("endDate", event.target.value)} /></Field>
+            <Field label="終了時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.endTime} onChange={(event) => setValue("endTime", event.target.value)} /></Field>
           </div>
           <Field label="メモ"><textarea className="task-input min-h-60 resize-y" value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけメモできます" /></Field>
           <button className="h-10 rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={() => setDetailsOpen((current) => !current)} type="button">{detailsOpen ? "詳細を閉じる" : "詳細を追加"}</button>

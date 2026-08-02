@@ -84,7 +84,13 @@ export function getCategoryMeta(category: CalendarCategory) {
 }
 
 export function itemsForDate(items: CalendarItem[], date: Date): CalendarItem[] {
-  return items.filter((item) => isSameCalendarDate(item.startAt, date)).sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  const dayStart = startOfDay(date).getTime();
+  const dayEnd = endOfDay(date).getTime();
+  return items.filter((item) => {
+    const start = item.startAt.getTime();
+    const end = (item.endAt ?? item.startAt).getTime();
+    return start <= dayEnd && end >= dayStart;
+  }).sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 }
 
 export function filterCalendarItems(items: CalendarItem[], filters: CalendarFilters, currentUserId: string, memberId: string): CalendarItem[] {
@@ -137,7 +143,7 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
 
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
   const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
-  const endAt = draft.allDay ? parseDateTime(draft.startDate, "23:59") : parseEndDateTime(draft.startDate, draft.startTime, draft.endDate, draft.endTime);
+  const endAt = draft.allDay ? parseDateTime(draft.endDate || draft.startDate, "23:59") : parseEndDateTime(draft.startDate, draft.startTime, draft.endDate, draft.endTime);
   return {
     title: draft.title.trim(),
     description: draft.description.trim(),
@@ -170,9 +176,11 @@ export function parseDateTime(date: string, time: string): Timestamp {
 }
 
 function parseEndDateTime(startDate: string, startTime: string, endDate: string, endTime: string): Timestamp {
-  if (endDate && endTime) return parseDateTime(endDate, endTime);
   const start = new Date(`${startDate}T${startTime || "10:00"}`);
-  const end = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
-  end.setHours(end.getHours() + 1);
+  const fallbackEnd = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
+  fallbackEnd.setHours(fallbackEnd.getHours() + 1);
+  const end = endDate && endTime ? new Date(`${endDate}T${endTime}`) : fallbackEnd;
+  if (Number.isNaN(end.getTime())) return Timestamp.fromDate(fallbackEnd);
+  if (!Number.isNaN(start.getTime()) && end.getTime() <= start.getTime()) return Timestamp.fromDate(fallbackEnd);
   return Timestamp.fromDate(end);
 }

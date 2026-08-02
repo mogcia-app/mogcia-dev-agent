@@ -10,8 +10,8 @@ import type { CalendarItem, CalendarViewMode } from "@/types/calendar";
 export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }: { selectedDate: Date; items: CalendarItem[]; view: CalendarViewMode; onViewChange: (view: CalendarViewMode) => void; onOpen: (item: CalendarItem) => void }) {
   const [now, setNow] = useState(() => new Date());
   const dayItems = itemsForDate(items, selectedDate);
-  const allDayItems = dayItems.filter((item) => item.allDay);
-  const timedItems = dayItems.filter((item) => !item.allDay);
+  const allDayItems = dayItems.filter((item) => item.allDay || isMultiDayItem(item));
+  const timedItems = dayItems.filter((item) => !item.allDay && !isMultiDayItem(item));
   const isToday = isSameCalendarDate(selectedDate, now);
 
   useEffect(() => {
@@ -57,4 +57,9 @@ export function DayTimeline({ selectedDate, items, view, onViewChange, onOpen }:
       )}
     </section>
   );
+}
+
+function isMultiDayItem(item: CalendarItem): boolean {
+  if (!item.endAt) return false;
+  return !isSameCalendarDate(item.startAt, item.endAt);
 }
