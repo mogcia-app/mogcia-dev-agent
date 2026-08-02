@@ -3,14 +3,12 @@
 import { useMemo, useState } from "react";
 import { CalendarEventDrawer } from "@/components/calendar/CalendarEventDrawer";
 import { CalendarEventFormModal } from "@/components/calendar/CalendarEventFormModal";
-import { CalendarFilters } from "@/components/calendar/CalendarFilters";
 import { CalendarPageHeader } from "@/components/calendar/CalendarPageHeader";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { DayTimeline } from "@/components/calendar/DayTimeline";
 import { MonthCalendar } from "@/components/calendar/MonthCalendar";
 import { UpcomingEvents } from "@/components/calendar/UpcomingEvents";
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
-import { useCalendarFilters } from "@/hooks/useCalendarFilters";
 import { useCalendarItems } from "@/hooks/useCalendarItems";
 import { useSelectedDate } from "@/hooks/useSelectedDate";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
@@ -23,7 +21,6 @@ export function CalendarPageClient() {
   const calendar = useCalendarItems();
   const workspaceOptions = useWorkspaceOptions();
   const selected = useSelectedDate();
-  const calendarFilters = useCalendarFilters(calendar.items, calendar.user?.uid ?? "", selected.member);
   const [month, setMonth] = useState(() => new Date(selected.selectedDate.getFullYear(), selected.selectedDate.getMonth(), 1));
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
@@ -62,12 +59,11 @@ export function CalendarPageClient() {
       ) : (
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-5">
-            <MonthCalendar items={calendarFilters.filteredItems} month={month} onMonthChange={setMonth} onOpen={openCalendarItem} onSelectDate={updateSelectedDate} selectedDate={selected.selectedDate} />
-            <CalendarFilters filters={calendarFilters.filters} member={selected.member} members={calendar.members} onFilterChange={calendarFilters.updateFilter} onMemberChange={selected.setMember} />
+            <MonthCalendar items={calendar.items} month={month} onMonthChange={setMonth} onOpen={openCalendarItem} onSelectDate={updateSelectedDate} selectedDate={selected.selectedDate} />
           </div>
           <div className="space-y-5">
-            <DayTimeline items={calendarFilters.filteredItems} onOpen={openCalendarItem} onViewChange={selected.setView} selectedDate={selected.selectedDate} view={selected.view} />
-            <UpcomingEvents items={calendarFilters.filteredItems} onOpen={openCalendarItem} onShowAll={() => selected.setView("list")} selectedDate={selected.selectedDate} />
+            <DayTimeline items={calendar.items} onOpen={openCalendarItem} onViewChange={selected.setView} selectedDate={selected.selectedDate} view={selected.view} />
+            <UpcomingEvents items={calendar.items} onOpen={openCalendarItem} onShowAll={() => selected.setView("list")} selectedDate={selected.selectedDate} />
           </div>
         </div>
       )}

@@ -43,7 +43,7 @@ service cloud.firestore {
 
     function validCalendarEvent(data) {
       return data.title is string
-        && data.eventType in ["meeting", "appointment", "phone", "visit", "internal", "deskwork", "personal", "other"]
+        && data.eventType in ["meeting", "appointment", "sales", "phone", "visit", "internal", "deskwork", "personal", "other"]
         && data.startAt is timestamp
         && validTimestampOrNull(data.endAt)
         && data.allDay is bool

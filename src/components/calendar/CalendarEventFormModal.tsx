@@ -10,6 +10,7 @@ import type { CompanyOption, MeetingOption, ProjectOption } from "@/types/worksp
 
 const eventTypeOptions: Array<[CalendarEventType, string]> = [
   ["appointment", "商談"],
+  ["sales", "営業"],
   ["meeting", "打ち合わせ"],
   ["phone", "電話"],
   ["visit", "訪問"],
@@ -33,15 +34,8 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
 
   const save = async () => {
     if (!draft.title.trim()) return;
-    const end = addOneHour(draft.startDate, draft.startTime);
     setSaving(true);
-    await onSubmit({
-      ...draft,
-      endDate: end.date,
-      endTime: end.time,
-      reminder: "0",
-      recurrence: "none"
-    });
+    await onSubmit({ ...draft, reminder: "0", recurrence: "none" });
     setSaving(false);
     onClose();
   };
@@ -90,14 +84,4 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}{children}</label>;
-}
-
-function addOneHour(date: string, time: string): { date: string; time: string } {
-  const start = new Date(`${date}T${time || "10:00"}`);
-  const end = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
-  end.setHours(end.getHours() + 1);
-  return {
-    date: `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`,
-    time: `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
-  };
 }

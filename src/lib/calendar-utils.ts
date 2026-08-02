@@ -75,6 +75,7 @@ export function getCategoryMeta(category: CalendarCategory) {
   if (category === "manual_task") return { label: "手動タスク", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
   if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#67B667]", soft: "bg-[#F3FAF0]", text: "text-[#5E9B61]", border: "border-[#DDEED8]" };
   if (category === "appointment") return { label: "商談", dot: "bg-[#F47E96]", soft: "bg-[#FFF0F3]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
+  if (category === "sales") return { label: "営業", dot: "bg-[#8C61CF]", soft: "bg-[#F7F1FF]", text: "text-[#7A55B8]", border: "border-[#E3D6F7]" };
   if (category === "phone") return { label: "電話", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
   if (category === "visit") return { label: "訪問", dot: "bg-[#15A39B]", soft: "bg-[#ECFAF8]", text: "text-[#15827D]", border: "border-[#CBEDEA]" };
   if (category === "internal") return { label: "社内MTG", dot: "bg-[#D98A3E]", soft: "bg-[#FFF4EA]", text: "text-[#C56F20]", border: "border-[#F2D8C0]" };
@@ -101,7 +102,7 @@ export function filterCalendarItems(items: CalendarItem[], filters: CalendarFilt
     if (!filters.mine && isMine) return false;
     if (!filters.aiTasks && item.category === "ai_task") return false;
     if (!filters.manualTasks && item.category === "manual_task") return false;
-    if (!filters.meetings && (item.category === "meeting" || item.category === "appointment")) return false;
+    if (!filters.meetings && (item.category === "meeting" || item.category === "appointment" || item.category === "sales")) return false;
     return item.status !== "cancelled";
   });
 }

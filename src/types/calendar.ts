@@ -1,8 +1,8 @@
 import type { Timestamp } from "firebase/firestore";
 
 export type CalendarItemType = "task" | "meeting" | "appointment" | "event";
-export type CalendarCategory = "ai_task" | "manual_task" | "meeting" | "appointment" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
-export type CalendarEventType = "meeting" | "appointment" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
+export type CalendarCategory = "ai_task" | "manual_task" | "meeting" | "appointment" | "sales" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
+export type CalendarEventType = "meeting" | "appointment" | "sales" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
 export type CalendarViewMode = "timeline" | "list";
 
 export interface CalendarItem {

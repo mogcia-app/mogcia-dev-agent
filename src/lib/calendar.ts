@@ -31,6 +31,7 @@ function normalizeEvent(id: string, data: DocumentData): CalendarEvent {
     description: typeof data.description === "string" ? data.description : "",
     eventType:
       data.eventType === "appointment" ||
+      data.eventType === "sales" ||
       data.eventType === "phone" ||
       data.eventType === "visit" ||
       data.eventType === "internal" ||
