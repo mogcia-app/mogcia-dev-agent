@@ -376,6 +376,11 @@ function NotesTab({
   onCreate: () => void;
   onDelete: (memoId: string) => Promise<void>;
 }) {
+  const sortedMemos = useMemo(() => [...memos].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()), [memos]);
+  const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
+  const selectedMemo = sortedMemos.find((memo) => memo.id === selectedMemoId) ?? sortedMemos[0] ?? null;
+  const canDeleteSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
+
   const remove = async (memoId: string) => {
     if (!window.confirm("このメモを削除しますか？")) return;
     await onDelete(memoId);
@@ -383,26 +388,43 @@ function NotesTab({
 
   return (
     <div>
-      <button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">メモを追加</button>
-      <div className="grid gap-3">
-        {memos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : memos.sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((memo) => {
-          const canDeleteMemo = isAdmin || memo.createdBy === currentUserId;
-          return (
-            <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-sm font-bold text-[#6F676B]">{sortedMemos.length}件のメモ</p>
+        <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button"><Plus className="h-4 w-4" />メモを追加</button>
+      </div>
+      {sortedMemos.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">メモはまだありません。</p> : (
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid content-start gap-2">
+          {sortedMemos.map((memo) => {
+            const active = selectedMemo?.id === memo.id;
+            return (
+              <button className={`w-full rounded-none border p-3 text-left transition ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} key={memo.id} onClick={() => setSelectedMemoId(memo.id)} type="button">
+                <span className="block truncate text-sm font-black text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title || "無題のメモ"}</span>
+                <span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{memo.createdByName ?? "作成者未設定"} / {memo.createdAt.toDate().toLocaleDateString("ja-JP")}</span>
+              </button>
+            );
+          })}
+        </div>
+        <article className="min-h-80 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-5">
+          {selectedMemo ? (
+            <>
               <div className="flex items-start justify-between gap-3">
-                <h4 className="font-bold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title}</h4>
-                {canDeleteMemo ? (
-                  <button className="grid h-8 w-8 shrink-0 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(memo.id)} type="button" aria-label="メモを削除">
+                <div className="min-w-0">
+                  <h4 className="break-words text-lg font-black text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
+                  <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleString("ja-JP")}</p>
+                </div>
+                {canDeleteSelectedMemo ? (
+                  <button className="grid h-9 w-9 shrink-0 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 ) : null}
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{memo.content}</p>
-              <p className="mt-2 text-xs font-semibold text-[#777]">{memo.createdByName ?? ""} / {memo.createdAt.toDate().toLocaleString("ja-JP")}</p>
-            </div>
-          );
-        })}
+              <p className="mt-5 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{selectedMemo.content || "内容は未入力です。"}</p>
+            </>
+          ) : null}
+        </article>
       </div>
+      )}
     </div>
   );
 }
