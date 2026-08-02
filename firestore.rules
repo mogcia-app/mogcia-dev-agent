@@ -182,6 +182,14 @@ service cloud.firestore {
           && request.resource.data.actorId == request.auth.uid;
         allow update, delete: if false;
       }
+
+      match /memos/{memoId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+        allow delete: if isAdmin();
+      }
     }
 
     match /teleapoRecords/{recordId} {
