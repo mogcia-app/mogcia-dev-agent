@@ -184,13 +184,42 @@ function normalizeMeeting(id: string, data: DocumentData): CompanyMeeting {
 export function subscribeCompanyFiles(companyId: string, onNext: (files: CompanyFile[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
   const db = getFirebaseDb();
   if (!db) return () => undefined;
-  return onSnapshot(query(collection(db, companiesCollection, companyId, "files"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() } as CompanyFile))), onError);
+  return onSnapshot(query(collection(db, companiesCollection, companyId, "files"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeFile(entry.id, entry.data()))), onError);
 }
 
 export function subscribeCompanyMemos(companyId: string, onNext: (memos: CompanyMemo[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
   const db = getFirebaseDb();
   if (!db) return () => undefined;
-  return onSnapshot(query(collection(db, companiesCollection, companyId, "memos"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() } as CompanyMemo))), onError);
+  return onSnapshot(query(collection(db, companiesCollection, companyId, "memos"), orderBy("createdAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeMemo(entry.id, entry.data()))), onError);
+}
+
+function normalizeFile(id: string, data: DocumentData): CompanyFile {
+  const now = tsNow();
+  return {
+    id,
+    name: data.name ?? "",
+    type: data.type ?? "other",
+    url: data.url ?? "",
+    storagePath: data.storagePath ?? "",
+    size: typeof data.size === "number" ? data.size : undefined,
+    createdBy: data.createdBy ?? "",
+    createdByName: data.createdByName ?? "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now
+  };
+}
+
+function normalizeMemo(id: string, data: DocumentData): CompanyMemo {
+  const now = tsNow();
+  return {
+    id,
+    title: data.title ?? "",
+    content: data.content ?? "",
+    pinned: Boolean(data.pinned),
+    createdBy: data.createdBy ?? "",
+    createdByName: data.createdByName ?? "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : now
+  };
 }
 
 export async function createCompany(user: { id: string; name: string }, patch: Partial<Company>): Promise<string> {

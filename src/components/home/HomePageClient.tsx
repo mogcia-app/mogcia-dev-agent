@@ -9,13 +9,15 @@ import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
 import { StatusBanner } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
+import { eventToCalendarItem, taskToCalendarItem } from "@/lib/calendar-item-mapper";
 import { subscribeCompaniesMaster, subscribeRecentCompanyActivityLogsByCompany } from "@/lib/companies";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { getCategoryMeta } from "@/lib/calendar-utils";
 import { formatTaskTime, getDueBadgeTone, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
-import type { CalendarEvent } from "@/types/calendar";
+import type { CalendarEvent, CalendarItem } from "@/types/calendar";
 import type { Company, CompanyActivityLog } from "@/types/company";
 import type { Task, TaskProgressLog } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
@@ -191,12 +193,12 @@ export function HomePageClient() {
     const companyNameMap = new Map(companies.map((company) => [company.id, company.name]));
     const openTasks = visibleTasks.filter(isOpenTask);
 
-    const weekEvents = visibleEvents
-      .filter((event) => {
-        const start = event.startAt.toDate();
-        return start >= weekStart && start <= weekEnd;
-      })
-      .sort((left, right) => left.startAt.toMillis() - right.startAt.toMillis())
+    const weekScheduleItems = [
+      ...openTasks.map(taskToCalendarItem).filter((item) => item !== null),
+      ...visibleEvents.map(eventToCalendarItem)
+    ]
+      .filter((item) => item.startAt >= weekStart && item.startAt <= weekEnd && item.status !== "completed" && item.status !== "cancelled")
+      .sort((left, right) => left.startAt.getTime() - right.startAt.getTime())
       .slice(0, 8);
 
     const weekTasks = sortTasks(
@@ -258,7 +260,7 @@ export function HomePageClient() {
       .slice(0, 10);
 
     return {
-      weekEvents,
+      weekScheduleItems,
       weekTasks,
       visibleCompanyLogs,
       taskLogs,
@@ -315,18 +317,9 @@ export function HomePageClient() {
 
         <Panel icon={CalendarDays} title="今週の予定">
           {loading ? <SkeletonList count={3} media={false} /> : null}
-          {!loading && dashboard.weekEvents.length === 0 ? <EmptyLine text="今週の予定はありません。" /> : null}
+          {!loading && dashboard.weekScheduleItems.length === 0 ? <EmptyLine text="今週の予定はありません。" /> : null}
           <div className="grid gap-3">
-            {dashboard.weekEvents.map((event) => (
-              <ScheduleRow
-                key={event.id}
-                color={event.eventType === "meeting" ? "pink" : event.eventType === "appointment" ? "blue" : "green"}
-                date={formatDate(event.startAt.toDate())}
-                description={event.companyName || event.location || event.assigneeName || "予定"}
-                time={event.allDay ? "終日" : formatTaskTime(event.startAt.toDate())}
-                title={event.title}
-              />
-            ))}
+            {dashboard.weekScheduleItems.map((item) => <ScheduleRow item={item} key={item.id} />)}
           </div>
         </Panel>
 
@@ -523,16 +516,21 @@ function getCompanyCheckStatus(company: Company, latestLog: CompanyActivityLog |
   return { label: "要確認", tone: "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]" };
 }
 
-function ScheduleRow({ date, time, title, description, color }: { date: string; time: string; title: string; description: string; color: "pink" | "blue" | "green" }) {
-  const tone = color === "blue" ? "bg-[#F1F7FF] text-[#4F78B4]" : color === "green" ? "bg-[#F4FAEF] text-[#70A55F]" : "bg-[#FFF0F3] text-[#EC6F8B]";
+function ScheduleRow({ item }: { item: CalendarItem }) {
+  const meta = getCategoryMeta(item.category);
+  const href = item.sourceCollection === "tasks" ? "/tasks" : "/calendar";
+  const description = [item.companyName, item.projectName, item.location, item.assigneeName].filter(Boolean).join(" / ") || meta.label;
   return (
-    <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] sm:grid-cols-[116px_1fr]" href={"/calendar" as Route}>
-      <span className={`grid min-h-12 place-items-center rounded-none px-2 text-center text-xs font-semibold ${tone}`}>
-        <span>{date}</span>
-        <span>{time}</span>
+    <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] sm:grid-cols-[116px_1fr]" href={href as Route}>
+      <span className={`grid min-h-12 place-items-center rounded-none px-2 text-center text-xs font-semibold ${meta.soft} ${meta.text}`}>
+        <span>{formatDate(item.startAt)}</span>
+        <span>{item.allDay ? "終日" : formatTaskTime(item.startAt)}</span>
       </span>
       <span className="min-w-0">
-        <span className="block truncate font-semibold text-[#2B2B2B]">{title}</span>
+        <span className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
+          <span className="block truncate font-semibold text-[#2B2B2B]">{item.title || "無題の予定"}</span>
+        </span>
         <span className="mt-1 block truncate text-sm font-medium text-[#777]">{description}</span>
       </span>
     </Link>
