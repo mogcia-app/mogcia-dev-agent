@@ -455,7 +455,7 @@ function AgentActivitySummary({ activity }: { activity: { running: number; appro
         <AgentMetric label="本日完了" value={activity.completedToday} tone="text-[#5E9B61]" />
       </div>
       <div className="grid gap-3">
-        {activity.recent.map((run) => (
+        {activity.recent.filter((run) => run.status === "running" || run.status === "requires_approval" || run.requiresApproval).slice(0, 2).map((run) => (
           <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/agent?runId=${run.id}` as Route} key={run.id}>
             <span className="min-w-0">
               <span className="block truncate font-semibold text-[#2B2B2B]">{run.title}</span>
@@ -464,7 +464,7 @@ function AgentActivitySummary({ activity }: { activity: { running: number; appro
             <ArrowRight className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
           </Link>
         ))}
-        {activity.recent.length === 0 ? <EmptyLine text="Agent Runはまだありません。" /> : null}
+        {activity.running === 0 && activity.approval === 0 ? <EmptyLine text="確認が必要なAgent Runはありません。" /> : null}
       </div>
     </div>
   );
