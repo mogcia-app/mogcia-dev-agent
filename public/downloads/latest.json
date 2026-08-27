@@ -1,8 +1,8 @@
 {
-  "version": "0.7.0",
+  "version": "0.7.1",
   "minimumMacOS": "14.0",
   "downloadURL": "https://mogcia-dev-agent.vercel.app/api/desktop/download",
   "downloadPageURL": "https://mogcia-dev-agent.vercel.app/download",
-  "sha256": "a8b488b13c5c9c3a9e3dc953171c36e673ebb7660e27957c4e88dba7237defc0",
+  "sha256": "fe63b2b6a6c76194fb7617f637cf9c047bde7600d59c98d15d9b16483e86146f",
   "signed": false
 }
