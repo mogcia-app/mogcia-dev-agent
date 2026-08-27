@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { DownloadButton } from "./DownloadButton";
 
 export const metadata = {
   title: "MOGCIA Desktop ダウンロード",
@@ -14,9 +15,7 @@ export default function DownloadPage() {
           <p className="mt-7 text-sm font-semibold tracking-[0.18em] text-[#C06E80]">MOGCIA FOR MAC</p>
           <h1 className="mt-2 text-3xl font-semibold text-[#1F1F22] sm:text-4xl">MOGCIA Desktop</h1>
           <p className="mt-4 max-w-xl leading-7 text-neutral-600">通知、今日の予定、タスク、Agentとの会話をMacのメニューバーから利用できます。</p>
-          <a className="mt-8 inline-flex min-h-14 items-center justify-center rounded-2xl bg-[#EC6F8B] px-8 text-base font-semibold text-white shadow-[0_12px_28px_rgba(236,111,139,0.28)] transition hover:bg-[#DC607C]" href="/downloads/MOGCIA-latest.pkg">
-            Mac版をダウンロード
-          </a>
+          <DownloadButton />
           <p className="mt-3 text-sm text-neutral-500">最新版 0.4.0 ・ macOS 14以降</p>
         </div>
 
