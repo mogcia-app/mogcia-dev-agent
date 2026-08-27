@@ -376,7 +376,8 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid;
       allow update: if signedIn()
         && validLead(request.resource.data)
-        && (isAdmin() || resource.data.createdBy == request.auth.uid || resource.data.assignedUserId == request.auth.uid);
+        && (isAdmin() || resource.data.createdBy == request.auth.uid || resource.data.assignedUserId == request.auth.uid)
+        && (isAdmin() || request.resource.data.createdBy == resource.data.createdBy);
       allow delete: if isAdmin();
     }
 
