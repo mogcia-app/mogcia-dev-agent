@@ -6,6 +6,7 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   ChevronRight,
+  Bot,
   Home,
   LogOut,
   Package,
@@ -14,6 +15,7 @@ import {
   Building2,
   ListChecks,
   Settings,
+  UserRoundSearch,
   type LucideIcon
 } from "lucide-react";
 import Image from "next/image";
@@ -45,6 +47,8 @@ const sidebarGroups: SidebarGroup[] = [
     icon: Home,
     items: [
       { href: "/home", label: "Home", icon: Home },
+      { href: "/agent", label: "Agent", icon: Bot },
+      { href: "/leads", label: "見込み客", icon: UserRoundSearch },
       { href: "/calendar", label: "カレンダー", icon: CalendarDays },
       { href: "/tasks", label: "タスク", icon: ListChecks },
       { href: "/products", label: "商材管理", icon: Package },

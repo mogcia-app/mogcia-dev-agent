@@ -17,21 +17,33 @@ export interface DesktopDevice {
   id: string;
   userId: string;
   deviceName: string;
+  deviceType?: "desktop_agent" | "cli" | "widget" | "unknown";
+  os?: string | null;
+  appVersion?: string | null;
+  notificationEnabled?: boolean;
+  agentEnabled?: boolean;
   tokenHash: string;
   permissions: DesktopPermissions;
   status: DesktopDeviceStatus;
   createdAt: Timestamp;
   lastUsedAt?: Timestamp | null;
+  lastSeenAt?: Timestamp | null;
   revokedAt?: Timestamp | null;
 }
 
 export interface DesktopDevicePublic {
   id: string;
   deviceName: string;
+  deviceType?: "desktop_agent" | "cli" | "widget" | "unknown";
+  os?: string | null;
+  appVersion?: string | null;
+  notificationEnabled?: boolean;
+  agentEnabled?: boolean;
   permissions: DesktopPermissions;
   status: DesktopDeviceStatus;
   createdAt: string;
   lastUsedAt?: string | null;
+  lastSeenAt?: string | null;
   revokedAt?: string | null;
 }
 

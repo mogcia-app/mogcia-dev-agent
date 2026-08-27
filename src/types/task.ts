@@ -47,6 +47,8 @@ export interface Task {
   createdByName?: string;
   companyId?: string | null;
   companyName?: string | null;
+  leadId?: string | null;
+  leadName?: string | null;
   productId?: string | null;
   productName?: string | null;
   projectId?: string | null;
@@ -75,6 +77,8 @@ export interface TaskDraft {
   collaboratorNames: string[];
   companyId: string;
   companyName: string;
+  leadId?: string;
+  leadName?: string;
   productId: string;
   productName: string;
   projectId: string;

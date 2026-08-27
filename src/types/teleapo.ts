@@ -269,6 +269,7 @@ export interface TeleapoAdvice {
 export interface TeleapoRecord {
   id: string;
   companyId?: string | null;
+  leadId?: string | null;
   userId: string;
   userName?: string;
   salesDomain: SalesDomain;

@@ -13,12 +13,14 @@ import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
+import { activityTypeLabels as commonActivityTypeLabels } from "@/lib/lead-utils";
 import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
+import type { Activity } from "@/types/lead";
 import type { TaskDraft } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
 
@@ -164,7 +166,7 @@ export function CompaniesPageClient() {
                 <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
                 <div className="p-5">
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} products={products} tasks={store.tasks} /> : null}
-                  {selectedTab === "timeline" ? <TimelineTab logs={store.logs} onMore={() => setLogLimit((current) => current + 30)} /> : null}
+                  {selectedTab === "timeline" ? <TimelineTab commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "deals" ? <DealsTab company={selectedCompany} records={analysisRecords} /> : null}
                   {selectedTab === "meetings" ? <MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} /> : null}
@@ -221,13 +223,26 @@ function OverviewTab({ company, products, tasks }: { company: Company; products:
   return <InfoGrid rows={rows} />;
 }
 
-function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () => void }) {
-  const activityLogs = logs.filter((log) => log.source !== "system" && log.type !== "status_change");
-  const groups = groupByMonth(activityLogs);
+type UnifiedCompanyTimelineItem =
+  | { id: string; occurredAt: Timestamp; kind: "legacy"; log: CompanyActivityLog }
+  | { id: string; occurredAt: Timestamp; kind: "common"; activity: Activity }
+  | { id: string; occurredAt: Timestamp; kind: "analysis"; record: TeleapoRecord };
+
+function TimelineTab({ logs, commonActivities, records, company, onMore }: { logs: CompanyActivityLog[]; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; onMore: () => void }) {
+  const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
+  const legacyItems: UnifiedCompanyTimelineItem[] = logs
+    .filter((log) => log.source !== "system" && log.type !== "status_change" && !commonLegacyIds.has(log.id))
+    .map((log) => ({ id: `legacy-${log.id}`, occurredAt: log.occurredAt, kind: "legacy", log }));
+  const commonItems: UnifiedCompanyTimelineItem[] = commonActivities.map((activity) => ({ id: `common-${activity.id}`, occurredAt: activity.occurredAt, kind: "common", activity }));
+  const analysisItems: UnifiedCompanyTimelineItem[] = records
+    .filter((record) => record.companyId === company.id || (!record.companyId && record.customerName === company.name))
+    .map((record) => ({ id: `analysis-${record.id}`, occurredAt: record.recordedAt, kind: "analysis", record }));
+  const timelineItems = [...legacyItems, ...commonItems, ...analysisItems].sort((left, right) => right.occurredAt.toMillis() - left.occurredAt.toMillis());
+  const groups = groupUnifiedByMonth(timelineItems);
 
   return (
     <div>
-      {activityLogs.length === 0 ? <ActivityLogEmptyCard description="電話、メール、訪問、メモなどの履歴を追加すると、ここに時系列で表示されます。" title="まだ活動ログがありません" /> : (
+      {timelineItems.length === 0 ? <ActivityLogEmptyCard description="電話、メール、訪問、メモ、テレアポ、商談分析などの履歴を追加すると、ここに時系列で表示されます。" title="まだ活動ログがありません" /> : (
       <div className="space-y-8">
         {Object.entries(groups).map(([month, items]) => (
           <section key={month}>
@@ -239,15 +254,53 @@ function TimelineTab({ logs, onMore }: { logs: CompanyActivityLog[]; onMore: () 
             <div className="relative pl-9">
               <span className="absolute bottom-4 left-3 top-3 w-px bg-[#F0E7E9]" />
               <div className="grid gap-4">
-                {items.map((log) => <ActivityTimelineItem key={log.id} log={log} />)}
+                {items.map((item) => {
+                  if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} />;
+                  if (item.kind === "analysis") return <AnalysisTimelineItem key={item.id} record={item.record} />;
+                  return <ActivityTimelineItem key={item.id} log={item.log} />;
+                })}
               </div>
             </div>
           </section>
         ))}
       </div>
       )}
-      {activityLogs.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
+      {logs.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-bold text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
+  );
+}
+
+function CommonActivityTimelineItem({ activity }: { activity: Activity }) {
+  const occurredAt = activity.occurredAt.toDate();
+  return (
+    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{occurredAt.toLocaleString("ja-JP")}</span>
+      </div>
+      <h3 className="mt-2 text-base font-black text-[#2B2B2B]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
+      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{activity.content}</p> : null}
+      {activity.nextActionTitle ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">次回予定: {activity.nextActionTitle} / {activity.nextActionAt?.toDate().toLocaleString("ja-JP") ?? "期限未設定"}</p> : null}
+    </article>
+  );
+}
+
+function AnalysisTimelineItem({ record }: { record: TeleapoRecord }) {
+  const href = `/sales/analysis?dealId=${[record.companyId || record.customerName || "unknown-company", record.productId || record.productName || "unknown-product"].map(encodeURIComponent).join("__")}` as Route;
+  return (
+    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">分</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleString("ja-JP")}</span>
+        {record.audioDownloadUrl ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">音声あり</span> : null}
+        {record.aiAdvice ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">AI分析あり</span> : null}
+      </div>
+      <h3 className="mt-2 text-base font-black text-[#2B2B2B]">{record.meetingTitle || record.productName || "分析データ"}</h3>
+      {record.audioDownloadUrl ? <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} /> : null}
+      <Link className="mt-3 inline-flex h-9 items-center rounded-none border border-[#F0E7E9] bg-white px-3 text-xs font-bold text-[#EC6F8B]" href={href}>分析詳細を見る</Link>
+    </article>
   );
 }
 
@@ -992,6 +1045,13 @@ function groupByMonth(logs: CompanyActivityLog[]) {
   return logs.reduce<Record<string, CompanyActivityLog[]>>((groups, log) => {
     const key = monthKey(log.occurredAt.toDate());
     return { ...groups, [key]: [...(groups[key] ?? []), log] };
+  }, {});
+}
+
+function groupUnifiedByMonth(items: UnifiedCompanyTimelineItem[]) {
+  return items.reduce<Record<string, UnifiedCompanyTimelineItem[]>>((groups, item) => {
+    const key = monthKey(item.occurredAt.toDate());
+    return { ...groups, [key]: [...(groups[key] ?? []), item] };
   }, {});
 }
 

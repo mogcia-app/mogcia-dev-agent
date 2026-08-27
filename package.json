@@ -15,6 +15,11 @@
     "dist:desktop-widget": "bash scripts/build-desktop-widget-macos.sh",
     "dist:tools": "bash scripts/build-release-zips.sh",
     "start": "next start",
+    "worker": "node scripts/mogcia-worker.mjs",
+    "worker:login": "node scripts/mogcia-worker.mjs login",
+    "worker:start": "node scripts/mogcia-worker.mjs start",
+    "worker:status": "node scripts/mogcia-worker.mjs status",
+    "worker:doctor": "node scripts/mogcia-worker.mjs doctor",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

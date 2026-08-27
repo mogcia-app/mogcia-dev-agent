@@ -242,12 +242,43 @@ export async function toggleCompanyFavorite(company: Company, userId: string): P
   await updateDoc(doc(db, companiesCollection, company.id), { favoriteUserIds, updatedAt: serverTimestamp() });
 }
 
-export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; direction?: ActivityDirection; actorUserIds?: string[]; actorNames?: string[]; contactIds?: string[]; contactNames?: string[]; contactNote?: string; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
+export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; direction?: ActivityDirection; actorUserIds?: string[]; actorNames?: string[]; contactIds?: string[]; contactNames?: string[]; contactNote?: string; dealId?: string | null; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   const ref = await addDoc(collection(db, companiesCollection, companyId, "activityLogs"), { companyId, userId: user.id, userName: user.name, createdBy: user.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), source: "manual", ...input });
+  await addDoc(collection(db, "activities"), {
+    leadId: null,
+    companyId,
+    dealId: input.dealId ?? null,
+    type: toCommonActivityType(input.type),
+    title: input.title,
+    content: input.content ?? "",
+    productId: null,
+    productName: null,
+    audioId: null,
+    transcriptId: null,
+    analysisId: null,
+    legacyCompanyActivityLogId: ref.id,
+    nextActionAt: input.nextAction?.dueAt ?? null,
+    nextActionTitle: input.nextAction?.title ?? null,
+    occurredAt: input.occurredAt,
+    createdBy: user.id,
+    createdByName: user.name,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
   await updateDoc(doc(db, companiesCollection, companyId), { lastContactAt: input.occurredAt, nextActionTitle: input.nextAction?.title ?? null, nextActionAt: input.nextAction?.dueAt ?? null, updatedAt: serverTimestamp() });
   return ref.id;
+}
+
+function toCommonActivityType(type: ActivityLogType): "call" | "email" | "document" | "meeting" | "telemarketing" | "note" | "status_change" | "other" {
+  if (type === "phone") return "call";
+  if (type === "email") return "email";
+  if (type === "meeting" || type === "visit") return "meeting";
+  if (type === "file") return "document";
+  if (type === "memo") return "note";
+  if (type === "status_change") return "status_change";
+  return "other";
 }
 
 export async function addManualMeeting(company: Company, user: { id: string; name: string }, input: Omit<CompanyMeeting, "id" | "companyId" | "companyName" | "createdBy" | "createdByName" | "createdAt" | "updatedAt">): Promise<string> {

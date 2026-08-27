@@ -76,6 +76,66 @@ service cloud.firestore {
         && data.createdBy is string;
     }
 
+    function validAgentRequest(data) {
+      return data.userId is string
+        && data.rawMessage is string
+        && data.status in ["queued", "running", "requires_approval", "completed", "error", "cancelled"]
+        && data.source in ["web", "desktop", "cli"];
+    }
+
+    function validAgentRun(data) {
+      return data.userId is string
+        && data.requestId is string
+        && data.title is string
+        && data.status in ["queued", "running", "requires_approval", "completed", "error", "cancelled"]
+        && data.source in ["web", "desktop", "cli"]
+        && data.requiresApproval is bool;
+    }
+
+    function validAgentNotification(data) {
+      return data.userId is string
+        && data.title is string
+        && data.message is string
+        && data.type in ["info", "success", "warning", "error", "approval"]
+        && data.read is bool;
+    }
+
+    function validDevelopmentProject(data) {
+      return data.name is string
+        && data.slug is string
+        && data.isActive is bool;
+    }
+
+    function validDevelopmentWorker(data) {
+      return data.name is string
+        && data.userId is string
+        && data.status in ["online", "offline", "busy", "disabled"]
+        && data.capabilities is list;
+    }
+
+    function validDevelopmentJob(data) {
+      return data.runId is string
+        && data.requestId is string
+        && data.projectId is string
+        && data.userId is string
+        && data.title is string
+        && data.instruction is string
+        && data.status in ["queued", "assigned", "running", "reviewing", "completed", "failed", "cancelled"]
+        && data.requiredCapabilities is list;
+    }
+
+    function validLead(data) {
+      return data.companyName is string
+        && data.status in ["new", "contacting", "document_sent", "appointment", "meeting", "considering", "hold", "won", "lost"]
+        && data.createdBy is string;
+    }
+
+    function validActivity(data) {
+      return data.type in ["call", "email", "document", "meeting", "telemarketing", "note", "status_change", "other"]
+        && data.createdBy is string
+        && data.occurredAt is timestamp;
+    }
+
     match /tasks/{taskId} {
       allow read: if signedIn();
       allow create: if signedIn()
@@ -228,6 +288,107 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    match /agentRequests/{requestId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validAgentRequest(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validAgentRequest(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+
+    match /agentRuns/{runId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validAgentRun(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validAgentRun(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+
+    match /agentNotifications/{notificationId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validAgentNotification(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validAgentNotification(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+
+    match /developmentProjects/{projectId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && validDevelopmentProject(request.resource.data);
+      allow update: if signedIn() && validDevelopmentProject(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /memory/{memoryId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /developmentWorkers/{workerId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validDevelopmentWorker(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validDevelopmentWorker(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+
+    match /developmentJobs/{jobId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && validDevelopmentJob(request.resource.data)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && validDevelopmentJob(request.resource.data)
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && (isAdmin() || request.resource.data.userId == resource.data.userId);
+      allow delete: if isAdmin();
+
+      match /logs/{logId} {
+        allow read: if signedIn() && (isAdmin() || get(/databases/$(database)/documents/developmentJobs/$(jobId)).data.userId == request.auth.uid);
+        allow create: if signedIn() && request.resource.data.workerId is string;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /leads/{leadId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validLead(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn()
+        && validLead(request.resource.data)
+        && (isAdmin() || resource.data.createdBy == request.auth.uid || resource.data.assignedUserId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validActivity(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn()
+        && validActivity(request.resource.data)
+        && (isAdmin() || resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
     match /users/{userId}/favoriteKnowledge/{knowledgeId} {

@@ -129,9 +129,10 @@ export default function DesktopSettingsPage() {
                 <div>
                   <p className="font-bold text-[#222]">{device.deviceName}</p>
                   <p className="mt-1 text-xs font-semibold text-[#888]">作成日: {new Date(device.createdAt).toLocaleString("ja-JP")}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#888]">Agent: {device.agentEnabled ? "有効" : "未接続"} / 通知: {device.notificationEnabled ? "有効" : "未設定"}</p>
                 </div>
                 <span className={`h-fit rounded-none px-3 py-1 text-center text-xs font-bold ${device.status === "active" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#F5ECEE] text-[#888]"}`}>{device.status === "active" ? "有効" : "無効"}</span>
-                <p className="text-xs font-semibold text-[#888]">最終利用: {device.lastUsedAt ? new Date(device.lastUsedAt).toLocaleString("ja-JP") : "未利用"}</p>
+                <p className="text-xs font-semibold text-[#888]">最終利用: {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString("ja-JP") : device.lastUsedAt ? new Date(device.lastUsedAt).toLocaleString("ja-JP") : "未利用"}</p>
                 <button className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F7CAD2] text-sm font-bold text-[#D94F6E] disabled:opacity-40" disabled={device.status === "revoked"} onClick={() => void revokeDevice(device.id)} type="button">
                   <Trash2 className="h-4 w-4" />
                   無効化

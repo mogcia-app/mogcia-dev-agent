@@ -4,16 +4,19 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, deleteCompanyMemo, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, updateCompanyMemo, uploadCompanyFile } from "@/lib/companies";
+import { subscribeCompanyActivities } from "@/lib/leads";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName } from "@/lib/user-display";
 import type { Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
+import type { Activity } from "@/types/lead";
 import type { Task } from "@/types/task";
 
 export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   const [user, setUser] = useState<User | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [logs, setLogs] = useState<CompanyActivityLog[]>([]);
+  const [commonActivities, setCommonActivities] = useState<Activity[]>([]);
   const [meetings, setMeetings] = useState<CompanyMeeting[]>([]);
   const [files, setFiles] = useState<CompanyFile[]>([]);
   const [memos, setMemos] = useState<CompanyMemo[]>([]);
@@ -36,12 +39,14 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     if (!selectedCompanyId) return undefined;
     const onError = (nextError: Error) => setError(nextError.message);
     const unsubLogs = subscribeCompanyActivityLogs(selectedCompanyId, logLimit, setLogs, onError);
+    const unsubCommonActivities = subscribeCompanyActivities(selectedCompanyId, setCommonActivities, onError);
     const unsubMeetings = subscribeCompanyMeetings(selectedCompanyId, setMeetings, onError);
     const unsubFiles = subscribeCompanyFiles(selectedCompanyId, setFiles, onError);
     const unsubMemos = subscribeCompanyMemos(selectedCompanyId, setMemos, onError);
     const unsubTasks = subscribeTasks((nextTasks) => setTasks(nextTasks.filter((task) => task.companyId === selectedCompanyId)), onError);
     return () => {
       unsubLogs();
+      unsubCommonActivities();
       unsubMeetings();
       unsubFiles();
       unsubMemos();
@@ -58,6 +63,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     isAdmin,
     companies,
     logs,
+    commonActivities,
     meetings,
     files,
     memos,

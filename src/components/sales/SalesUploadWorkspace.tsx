@@ -15,6 +15,7 @@ import { subscribeCalendarEvents } from "@/lib/calendar";
 import { splitConversationLogsIntoBlocks, splitTextIntoConversationBlocks } from "@/lib/conversation-blocks";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { subscribeCompaniesMaster } from "@/lib/companies";
+import { subscribeLeads } from "@/lib/leads";
 import {
   createTeleapoRecord,
   maxTeleapoDurationSec,
@@ -27,6 +28,7 @@ import {
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName } from "@/lib/user-display";
 import type { CalendarEvent } from "@/types/calendar";
 import type { Company } from "@/types/company";
+import type { Lead } from "@/types/lead";
 import type { AnalysisTaskItem, CallPurpose, ConversationLog, EvidenceItem, IssueItem, MaterialItem, MeetingPreparationAnalysis, ObjectionItem, ProductKnowledge, QuestionItem, SalesDomain, ScriptSection, TeleapoRecord, TeleapoSpeaker } from "@/types/teleapo";
 
 type InputMode = "teleapo_audio" | "meeting_transcript";
@@ -53,6 +55,7 @@ export function SalesUploadWorkspace() {
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<ProductKnowledge[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [record, setRecord] = useState<TeleapoRecord | null>(null);
   const [mode, setMode] = useState<InputMode>("teleapo_audio");
@@ -66,6 +69,7 @@ export function SalesUploadWorkspace() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
+    leadId: searchParams.get("leadId") ?? "",
     companyId: "",
     calendarEventId: "",
     customerName: "",
@@ -108,6 +112,7 @@ export function SalesUploadWorkspace() {
   useEffect(() => subscribeProducts(setProducts, () => setProducts([])), []);
 
   useEffect(() => subscribeCompaniesMaster((nextCompanies) => setCompanies(nextCompanies.filter((company) => !company.archivedAt)), () => setCompanies([])), []);
+  useEffect(() => subscribeLeads(setLeads, () => setLeads([])), []);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -141,6 +146,7 @@ export function SalesUploadWorkspace() {
 
   const selectedProduct = useMemo(() => products.find((product) => product.id === form.productId) ?? null, [form.productId, products]);
   const selectedCompany = useMemo(() => companies.find((company) => company.id === form.companyId) ?? null, [companies, form.companyId]);
+  const selectedLead = useMemo(() => leads.find((lead) => lead.id === form.leadId) ?? null, [form.leadId, leads]);
   const selectedCalendarEvent = useMemo(() => calendarEvents.find((event) => event.id === form.calendarEventId) ?? null, [calendarEvents, form.calendarEventId]);
   const selectedMembers = useMemo(() => members.filter((member) => form.attendeeUserIds.includes(member.uid)), [form.attendeeUserIds, members]);
   const isSpeakersMode = Boolean(recordId);
@@ -162,6 +168,25 @@ export function SalesUploadWorkspace() {
   const selectCompany = (companyId: string) => {
     const company = companies.find((item) => item.id === companyId);
     setForm((current) => ({ ...current, ...companyToFormPatch(company, current, products, members) }));
+  };
+
+  const selectLead = (leadId: string) => {
+    const lead = leads.find((item) => item.id === leadId);
+    const product = products.find((item) => item.id === lead?.productId);
+    setForm((current) => ({
+      ...current,
+      leadId,
+      companyId: lead?.companyId ?? current.companyId,
+      customerName: lead?.companyName ?? current.customerName,
+      contactName: lead?.contactName || current.contactName,
+      role: lead?.contactRole || current.role,
+      phone: lead?.phone || current.phone,
+      leadSource: lead?.source || current.leadSource,
+      productId: lead?.productId ?? current.productId,
+      productName: product?.name || lead?.productName || current.productName,
+      memo: lead?.notes || current.memo,
+      recordedAt: lead?.appointmentAt ? toDatetimeLocalValue(lead.appointmentAt.toDate()) : current.recordedAt
+    }));
   };
 
   const selectCalendarEvent = (calendarEventId: string) => {
@@ -235,6 +260,7 @@ export function SalesUploadWorkspace() {
         userName: getUserDisplayName(user),
         salesDomain: isMeeting ? "meeting" : "teleapo",
         sourceTeleapoId: null,
+        leadId: form.leadId || null,
         companyId: form.companyId || null,
         customerName: form.customerName.trim(),
         contactName: form.contactName.trim(),
@@ -430,6 +456,23 @@ export function SalesUploadWorkspace() {
               ) : null}
             </div>
           ) : null}
+          <div className="mb-4">
+            <Field label="見込み客から反映">
+              <SearchSelect
+                clearable
+                emptyLabel="見込み客が登録されていません。"
+                options={leads.map((lead) => ({ value: lead.id, label: lead.companyName, description: [lead.contactName, lead.productName, leadStatusText(lead.status)].filter(Boolean).join(" / ") }))}
+                placeholder="未選択（会社一覧または手入力）"
+                value={form.leadId}
+                onChange={selectLead}
+              />
+            </Field>
+            {selectedLead ? (
+              <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
+                見込み客: {selectedLead.companyName} / ステータス: {leadStatusText(selectedLead.status)} / 次回予定: {selectedLead.nextActionAt ? formatRecordDateTime(selectedLead.nextActionAt.toDate()) : "未設定"}
+              </p>
+            ) : null}
+          </div>
           <div className="mb-4">
             <Field label="会社一覧から反映">
               <SearchSelect
@@ -1782,4 +1825,16 @@ function getCompanyPrimaryContact(company?: Company | null) {
 function formatCompanyContact(contact?: { name?: string; role?: string } | null): string {
   if (!contact?.name && !contact?.role) return "未設定";
   return [contact.name, contact.role].filter(Boolean).join(" / ");
+}
+
+function leadStatusText(status: Lead["status"]): string {
+  if (status === "new") return "新規";
+  if (status === "contacting") return "対応中";
+  if (status === "document_sent") return "資料送付";
+  if (status === "appointment") return "アポ取得";
+  if (status === "meeting") return "商談中";
+  if (status === "considering") return "検討中";
+  if (status === "hold") return "保留";
+  if (status === "won") return "成約";
+  return "失注";
 }

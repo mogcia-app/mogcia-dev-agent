@@ -29,6 +29,7 @@ export function normalizeTeleapoRecord(id: string, data: DocumentData): TeleapoR
   return {
     id,
     companyId: data.companyId ?? null,
+    leadId: data.leadId ?? null,
     userId: String(data.userId ?? ""),
     userName: typeof data.userName === "string" ? data.userName : "",
     salesDomain: data.salesDomain === "meeting" ? "meeting" : "teleapo",

@@ -27,11 +27,17 @@ export async function POST(request: Request) {
     const ref = await getAdminDb().collection(desktopDevicesCollection).add({
       userId: user.uid,
       deviceName,
+      deviceType: "unknown",
+      os: null,
+      appVersion: null,
+      notificationEnabled: false,
+      agentEnabled: false,
       tokenHash: hashDesktopToken(token),
       permissions: defaultDesktopPermissions,
       status: "active",
       createdAt: FieldValue.serverTimestamp(),
       lastUsedAt: null,
+      lastSeenAt: null,
       revokedAt: null
     });
 

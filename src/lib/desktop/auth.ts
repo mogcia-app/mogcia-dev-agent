@@ -30,11 +30,17 @@ export function normalizeDesktopDevice(id: string, data: DocumentData): DesktopD
     id,
     userId: String(data.userId ?? ""),
     deviceName: String(data.deviceName ?? ""),
+    deviceType: data.deviceType === "desktop_agent" || data.deviceType === "cli" || data.deviceType === "widget" ? data.deviceType : "unknown",
+    os: typeof data.os === "string" ? data.os : null,
+    appVersion: typeof data.appVersion === "string" ? data.appVersion : null,
+    notificationEnabled: Boolean(data.notificationEnabled),
+    agentEnabled: Boolean(data.agentEnabled),
     tokenHash: String(data.tokenHash ?? ""),
     permissions: normalizePermissions(data.permissions),
     status: data.status === "revoked" ? "revoked" : "active",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
     lastUsedAt: data.lastUsedAt instanceof Timestamp ? data.lastUsedAt : null,
+    lastSeenAt: data.lastSeenAt instanceof Timestamp ? data.lastSeenAt : null,
     revokedAt: data.revokedAt instanceof Timestamp ? data.revokedAt : null
   };
 }
@@ -43,10 +49,16 @@ export function toPublicDevice(device: DesktopDevice): DesktopDevicePublic {
   return {
     id: device.id,
     deviceName: device.deviceName,
+    deviceType: device.deviceType,
+    os: device.os ?? null,
+    appVersion: device.appVersion ?? null,
+    notificationEnabled: device.notificationEnabled ?? false,
+    agentEnabled: device.agentEnabled ?? false,
     permissions: device.permissions,
     status: device.status,
     createdAt: device.createdAt.toDate().toISOString(),
     lastUsedAt: device.lastUsedAt?.toDate().toISOString() ?? null,
+    lastSeenAt: device.lastSeenAt?.toDate().toISOString() ?? null,
     revokedAt: device.revokedAt?.toDate().toISOString() ?? null
   };
 }
@@ -66,7 +78,7 @@ export async function authenticateDesktopRequest(request: Request, permission?: 
   if (permission && !device.permissions[permission]) throw new DesktopApiError("FORBIDDEN", "この操作の権限がありません", 403);
 
   enforceRateLimit(device.id);
-  await entry.ref.update({ lastUsedAt: FieldValue.serverTimestamp() });
+  await entry.ref.update({ lastUsedAt: FieldValue.serverTimestamp(), lastSeenAt: FieldValue.serverTimestamp() });
 
   return { db, device, userId: device.userId };
 }

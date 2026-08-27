@@ -1,24 +1,29 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { ArrowRight, Building2, CalendarDays, Clock3, History, ListChecks, MessageSquareText, Plus, UploadCloud } from "lucide-react";
+import { ArrowRight, Bot, Building2, CalendarDays, Clock3, History, ListChecks, MessageSquareText, Plus, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
 import { StatusBanner } from "@/components/ui/status";
+import { subscribeAgentRuns } from "@/lib/agent";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { eventToCalendarItem, taskToCalendarItem } from "@/lib/calendar-item-mapper";
 import { subscribeCompaniesMaster, subscribeRecentCompanyActivityLogsByCompany } from "@/lib/companies";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCategoryMeta } from "@/lib/calendar-utils";
+import { leadStatusLabels, leadStatusTone } from "@/lib/lead-utils";
+import { subscribeLeads } from "@/lib/leads";
 import { formatTaskTime, getDueBadgeTone, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
+import type { AgentRun } from "@/types/agent";
 import type { Company, CompanyActivityLog } from "@/types/company";
+import type { Lead } from "@/types/lead";
 import type { Task, TaskProgressLog } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
 
@@ -105,6 +110,9 @@ export function HomePageClient() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyLogs, setCompanyLogs] = useState<CompanyActivityLog[]>([]);
   const [teleapoRecords, setTeleapoRecords] = useState<TeleapoRecord[]>([]);
+  const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [nowMs] = useState(() => Date.now());
   const [recentPages, setRecentPages] = useState<RecentPageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,12 +154,22 @@ export function HomePageClient() {
       setTeleapoRecords(nextRecords);
       setLoading(false);
     }, onError("teleapo"));
+    const unsubscribeAgentRuns = subscribeAgentRuns(user.uid, (nextRuns) => {
+      setAgentRuns(nextRuns);
+      setLoading(false);
+    }, onError("agentRuns"), 20);
+    const unsubscribeLeads = subscribeLeads((nextLeads) => {
+      setLeads(nextLeads);
+      setLoading(false);
+    }, onError("leads"));
 
     return () => {
       unsubscribeTasks();
       unsubscribeEvents();
       unsubscribeCompanies();
       unsubscribeTeleapo();
+      unsubscribeAgentRuns();
+      unsubscribeLeads();
     };
   }, [user]);
 
@@ -274,6 +292,30 @@ export function HomePageClient() {
     };
   }, [companies, companyLogs, events, tasks, teleapoRecords, user]);
 
+  const agentActivity = useMemo(() => {
+    const today = startOfToday();
+    return {
+      running: agentRuns.filter((run) => run.status === "running").length,
+      approval: agentRuns.filter((run) => run.status === "requires_approval" || run.requiresApproval).length,
+      completedToday: agentRuns.filter((run) => run.status === "completed" && (run.completedAt?.toDate() ?? run.createdAt.toDate()) >= today).length,
+      recent: agentRuns.slice(0, 5)
+    };
+  }, [agentRuns]);
+
+  const leadActivity = useMemo(() => {
+    const openLeads = leads.filter((lead) => lead.status !== "won" && lead.status !== "lost");
+    return openLeads
+      .filter((lead) => lead.nextActionAt || lead.status === "appointment" || lead.status === "contacting")
+      .sort((a, b) => {
+        const aTime = a.nextActionAt?.toMillis() ?? Number.MAX_SAFE_INTEGER;
+        const bTime = b.nextActionAt?.toMillis() ?? Number.MAX_SAFE_INTEGER;
+        const aOverdue = aTime <= nowMs ? 0 : 1;
+        const bOverdue = bTime <= nowMs ? 0 : 1;
+        return aOverdue - bOverdue || aTime - bTime || b.updatedAt.toMillis() - a.updatedAt.toMillis();
+      })
+      .slice(0, 5);
+  }, [leads, nowMs]);
+
   const companyCheckItems = useMemo(() => {
     const activeCompanies = companies.filter((company) => !company.archivedAt);
     const latestLogByCompany = new Map<string, CompanyActivityLog>();
@@ -347,6 +389,23 @@ export function HomePageClient() {
         </Panel>
       </div>
 
+      <div className="mt-5">
+        <Panel icon={Building2} title="対応が必要な見込み客">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading && leadActivity.length === 0 ? <EmptyLine text="対応が必要な見込み客はありません。" /> : null}
+          <div className="grid gap-3">
+            {leadActivity.map((lead) => <LeadActionRow key={lead.id} lead={lead} />)}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="mt-5">
+        <Panel icon={Bot} title="Agent Activity">
+          {loading ? <SkeletonList count={3} media={false} /> : null}
+          {!loading ? <AgentActivitySummary activity={agentActivity} /> : null}
+        </Panel>
+      </div>
+
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
         <Panel bodyClassName="max-h-[420px] overflow-y-auto pr-1" icon={MessageSquareText} title="最近の動き">
           {loading ? <SkeletonList count={4} media={false} /> : null}
@@ -365,6 +424,63 @@ export function HomePageClient() {
       </div>
     </section>
   );
+}
+
+function LeadActionRow({ lead }: { lead: Lead }) {
+  return (
+    <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/leads?id=${lead.id}&tab=activity` as Route}>
+      <span className="min-w-0">
+        <span className="flex items-center gap-2">
+          <span className={`rounded-none px-2.5 py-1 text-xs font-black ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
+          <span className="truncate font-semibold text-[#2B2B2B]">{lead.companyName}</span>
+        </span>
+        <span className="mt-1 block truncate text-sm font-medium text-[#777]">{[lead.contactName, lead.productName, lead.nextActionTitle].filter(Boolean).join(" / ") || "詳細を確認"}</span>
+      </span>
+      <span className="shrink-0 text-xs font-bold text-[#EC6F8B]">{lead.nextActionAt ? formatDateTime(lead.nextActionAt.toDate()) : "予定未設定"}</span>
+    </Link>
+  );
+}
+
+function AgentActivitySummary({ activity }: { activity: { running: number; approval: number; completedToday: number; recent: AgentRun[] } }) {
+  return (
+    <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
+      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+        <AgentMetric label="実行中" value={activity.running} tone="text-[#4E76AA]" />
+        <AgentMetric label="確認待ち" value={activity.approval} tone="text-[#9B7332]" />
+        <AgentMetric label="本日完了" value={activity.completedToday} tone="text-[#5E9B61]" />
+      </div>
+      <div className="grid gap-3">
+        {activity.recent.map((run) => (
+          <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/agent?runId=${run.id}` as Route} key={run.id}>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold text-[#2B2B2B]">{run.title}</span>
+              <span className="mt-1 block truncate text-sm font-medium text-[#777]">{formatAgentStatus(run.status)} / {run.progress ?? 0}%</span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
+          </Link>
+        ))}
+        {activity.recent.length === 0 ? <EmptyLine text="Agent Runはまだありません。" /> : null}
+      </div>
+    </div>
+  );
+}
+
+function AgentMetric({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <Link className="flex items-center justify-between rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-4 py-3 transition hover:border-[#F7CAD2]" href={"/agent" as Route}>
+      <span className="text-sm font-semibold text-[#6F676B]">{label}</span>
+      <span className={`text-2xl font-semibold ${tone}`}>{value}<span className="ml-1 text-xs font-semibold text-[#9A8F94]">件</span></span>
+    </Link>
+  );
+}
+
+function formatAgentStatus(status: AgentRun["status"]): string {
+  if (status === "running") return "実行中";
+  if (status === "requires_approval") return "確認待ち";
+  if (status === "completed") return "完了";
+  if (status === "error") return "エラー";
+  if (status === "cancelled") return "キャンセル";
+  return "受付済み";
 }
 
 function Panel({ title, icon: Icon, bodyClassName = "", children }: { title: string; icon: typeof CalendarDays; bodyClassName?: string; children: React.ReactNode }) {
