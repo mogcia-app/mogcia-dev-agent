@@ -6,10 +6,12 @@ export async function POST(request: Request) {
   try {
     const user = await requireUserFromRequest(request);
     const body = (await request.json()) as Record<string, unknown>;
+    const source = body.source === "desktop" || body.source === "cli" ? body.source : "web";
     const result = await executeAgentRequest({
       user: { uid: user.uid, name: user.name },
       rawMessage: String(body.rawMessage ?? ""),
-      projectId: typeof body.projectId === "string" ? body.projectId : null
+      projectId: typeof body.projectId === "string" ? body.projectId : null,
+      source
     });
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
