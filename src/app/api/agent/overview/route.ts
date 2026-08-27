@@ -17,7 +17,9 @@ export async function GET(request: Request) {
       db.collection("calendarEvents").orderBy("startAt", "asc").limit(100).get(),
       db.collection("agentRuns").where("userId", "==", user.uid).orderBy("createdAt", "desc").limit(40).get()
     ]);
-    const tasks = tasksSnapshot.docs.map((entry) => entry.data()).filter((task) => openStatuses.has(String(task.status ?? "")));
+    const tasks: Array<Record<string, unknown> & { id: string }> = tasksSnapshot.docs
+      .map<Record<string, unknown> & { id: string }>((entry) => ({ id: entry.id, ...entry.data() }))
+      .filter((task) => openStatuses.has(String(task.status ?? "")));
     const overdue = tasks.filter((task) => timestampMillis(task.dueDate) > 0 && timestampMillis(task.dueDate) < now).length;
     const events: Array<Record<string, unknown> & { id: string }> = eventsSnapshot.docs
       .map((entry) => ({ id: entry.id, ...entry.data() }));
@@ -29,7 +31,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: {
       role,
       showDevelopment: developerRoles.has(role),
-      tasks: { open: tasks.length, overdue },
+      tasks: {
+        open: tasks.length, overdue,
+        today: tasks.filter((task) => {
+          const due = timestampMillis(task.dueDate); if (!due) return false;
+          const date = new Date(due); const current = new Date(now);
+          return date.getFullYear() === current.getFullYear() && date.getMonth() === current.getMonth() && date.getDate() === current.getDate();
+        }).sort((a, b) => timestampMillis(a.dueDate) - timestampMillis(b.dueDate)).slice(0, 5).map((task) => ({
+          id: String(task.id ?? ""), title: String(task.title ?? "未完了タスク"), dueDate: new Date(timestampMillis(task.dueDate)).toISOString()
+        }))
+      },
       nextEvent: nextEvent ? {
         id: nextEvent.id,
         title: String(nextEvent.title ?? nextEvent.companyName ?? "予定"),

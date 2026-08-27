@@ -16,7 +16,7 @@ export default function DownloadPage() {
           <h1 className="mt-2 text-3xl font-semibold text-[#1F1F22] sm:text-4xl">MOGCIA Desktop</h1>
           <p className="mt-4 max-w-xl leading-7 text-neutral-600">通知、今日の予定、タスク、Agentとの会話をMacのメニューバーから利用できます。</p>
           <DownloadButton />
-          <p className="mt-3 text-sm text-neutral-500">最新版 0.6.0 ・ macOS 14以降</p>
+          <p className="mt-3 text-sm text-neutral-500">最新版 0.7.0 ・ macOS 14以降</p>
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
