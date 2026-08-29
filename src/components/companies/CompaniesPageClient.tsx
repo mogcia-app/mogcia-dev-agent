@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Archive, Bookmark, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Sparkles, Target, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Sparkles, Target, Trash2, UserRound, X } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -617,71 +617,100 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
       contactMethods: contact.contactMethods ?? []
     })).filter((contact) => contact.name || contact.role || contact.email || contact.phone);
     const primaryContact = contacts[0] ?? null;
-    await onSubmit({
-      ...form,
-      contacts,
-      primaryContactId: primaryContact?.id ?? null,
-      phone: primaryContact?.phone ?? "",
-      email: primaryContact?.email ?? "",
-      primaryContactName: primaryContact?.name ?? "",
-      tags: form.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
-      internalOwnerId: form.internalOwnerId || currentUser.id,
-      internalOwnerName: form.internalOwnerName || currentUser.name,
-      companionNames: selectedCompanions.map((member) => member.name),
-      productNames: selectedProducts.map((product) => product.name)
-    });
-    setSaving(false);
+    try {
+      await onSubmit({
+        ...form,
+        contacts,
+        primaryContactId: primaryContact?.id ?? null,
+        phone: primaryContact?.phone ?? "",
+        email: primaryContact?.email ?? "",
+        primaryContactName: primaryContact?.name ?? "",
+        tags: form.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+        internalOwnerId: form.internalOwnerId || currentUser.id,
+        internalOwnerName: form.internalOwnerName || currentUser.name,
+        companionNames: selectedCompanions.map((member) => member.name),
+        productNames: selectedProducts.map((product) => product.name)
+      });
+    } finally {
+      setSaving(false);
+    }
   };
+  const title = mode === "create" ? "新しい会社を追加" : "会社情報を編集";
   return (
-    <Modal title={mode === "create" ? "新しい会社を追加" : "会社情報を編集"} onClose={onClose}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="会社名" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
-        <Input label="所在地" value={form.address} onChange={(address) => setForm({ ...form, address })} />
-        <Input label="Webサイト" value={form.website} onChange={(website) => setForm({ ...form, website })} />
-        <MultiSelect
-          emptyLabel="商材が未登録です。"
-          label="関連商材"
-          options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))}
-          placeholder="商材を選択"
-          values={form.productIds}
-          onChange={(productIds) => setForm((current) => ({ ...current, productIds }))}
-        />
-        <Field label="社内担当者">
-          <div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
-        </Field>
-        <MultiSelect
-          emptyLabel="Authユーザーを取得できませんでした。"
-          label="同行者"
-          options={members.filter((member) => member.uid !== form.internalOwnerId).map((member) => ({ value: member.uid, label: member.name, description: member.email }))}
-          placeholder="同行者を選択"
-          values={form.companionUserIds}
-          onChange={(companionUserIds) => setForm((current) => ({ ...current, companionUserIds, companionNames: members.filter((member) => companionUserIds.includes(member.uid)).map((member) => member.name) }))}
-        />
-        <Field label="先方担当者">
+    <Modal subtitle="会社の基本情報と担当者を登録してください。" title={title} onClose={onClose}>
+      <div className="grid gap-5">
+        <FormSection icon={<Building2 className="h-4 w-4" />} title="基本情報">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="会社名" placeholder="会社名を入力してください" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
+            <Input label="所在地" placeholder="町名・番地・ビル名などを入力してください" value={form.address} onChange={(address) => setForm({ ...form, address })} />
+            <div className="sm:col-span-2">
+              <Input label="Webサイト" placeholder="https://example.com" type="url" value={form.website} onChange={(website) => setForm({ ...form, website })} />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection icon={<Target className="h-4 w-4" />} title="営業情報">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MultiSelect
+              emptyLabel="商材が未登録です。"
+              label="関連商材"
+              options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))}
+              placeholder="商材を選択してください"
+              values={form.productIds}
+              onChange={(productIds) => setForm((current) => ({ ...current, productIds }))}
+            />
+            <Field label="社内担当者">
+              <div className="flex h-11 items-center border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
+            </Field>
+            <div className="sm:col-span-2">
+              <MultiSelect
+                emptyLabel="Authユーザーを取得できませんでした。"
+                label="同行者"
+                options={members.filter((member) => member.uid !== form.internalOwnerId).map((member) => ({ value: member.uid, label: member.name, description: member.email }))}
+                placeholder="同行者を選択してください"
+                values={form.companionUserIds}
+                onChange={(companionUserIds) => setForm((current) => ({ ...current, companionUserIds, companionNames: members.filter((member) => companionUserIds.includes(member.uid)).map((member) => member.name) }))}
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection icon={<UserRound className="h-4 w-4" />} title="先方担当者">
           <div className="grid gap-3">
             {form.contacts.map((contact, index) => (
-              <div className="grid gap-2 border-b border-[#F0E7E9] pb-3 last:border-b-0" key={contact.id}>
-                <div className="grid gap-2 md:grid-cols-[minmax(220px,1.2fr)_minmax(160px,0.8fr)]">
-                  <input className="task-input" placeholder={`担当者名 ${index + 1}`} value={contact.name} onChange={(event) => updateContact(contact.id, { name: event.target.value })} />
-                  <input className="task-input" placeholder="役職" value={contact.role ?? ""} onChange={(event) => updateContact(contact.id, { role: event.target.value })} />
+              <div className="grid gap-4 rounded-xl border border-[#E5E7EB] bg-white p-4" key={contact.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-[#2B2B2B]">担当者{index + 1}</p>
+                  {form.contacts.length > 1 ? (
+                    <button className="inline-flex h-9 items-center gap-2 border border-[#F6CBD2] bg-white px-3 text-xs font-bold text-[#D94F6E] transition hover:bg-[#FFF0F3]" onClick={() => removeContact(contact.id)} type="button">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      削除
+                    </button>
+                  ) : null}
                 </div>
-                <div className="grid gap-2 md:grid-cols-[minmax(240px,1fr)_minmax(180px,0.8fr)]">
-                  <input className="task-input" placeholder="メールアドレス" value={contact.email ?? ""} onChange={(event) => updateContact(contact.id, { email: event.target.value })} />
-                  <input className="task-input" placeholder="電話番号" value={contact.phone ?? ""} onChange={(event) => updateContact(contact.id, { phone: event.target.value })} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <ContactInput label="担当者名" placeholder="担当者名を入力" value={contact.name} onChange={(name) => updateContact(contact.id, { name })} />
+                  <ContactInput label="役職" placeholder="例）支配人・マネージャー" value={contact.role ?? ""} onChange={(role) => updateContact(contact.id, { role })} />
+                  <ContactInput label="メールアドレス" placeholder="メールアドレスを入力" type="email" value={contact.email ?? ""} onChange={(email) => updateContact(contact.id, { email })} />
+                  <ContactInput label="電話番号" placeholder="電話番号を入力" type="tel" value={contact.phone ?? ""} onChange={(phone) => updateContact(contact.id, { phone })} />
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {contactMethodOptions.map(([method, label]) => (
-                    <ContactMethodToggle checked={(contact.contactMethods ?? []).includes(method)} key={method} label={label} onClick={() => toggleContactMethod(contact.id, method)} />
-                  ))}
-                  {form.contacts.length > 1 ? <button className="h-8 border border-[#F0E7E9] px-3 text-xs font-bold text-[#D94F6E]" onClick={() => removeContact(contact.id)} type="button">削除</button> : null}
-                </div>
+                <Field label="連絡方法">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {contactMethodOptions.map(([method, label]) => (
+                      <ContactMethodToggle checked={(contact.contactMethods ?? []).includes(method)} key={method} label={label} onClick={() => toggleContactMethod(contact.id, method)} />
+                    ))}
+                  </div>
+                </Field>
               </div>
             ))}
-            <button className="h-10 rounded-none border border-[#F0E7E9] bg-white text-sm font-bold text-[#EC6F8B]" onClick={addContact} type="button">担当者を追加</button>
+            <button className="inline-flex h-11 w-fit items-center gap-2 border border-dashed border-[#F7AFC0] bg-white px-4 text-sm font-bold text-[#EC6F8B] transition hover:bg-[#FFF7F9]" onClick={addContact} type="button">
+              <Plus className="h-4 w-4" />
+              担当者を追加
+            </button>
           </div>
-        </Field>
+        </FormSection>
       </div>
-      <Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.name.trim()} />
+      <Actions primaryLabel={mode === "create" ? "会社を登録" : "変更を保存"} savingLabel={mode === "create" ? "登録中..." : "保存中..."} saving={saving} onClose={onClose} onSave={save} disabled={!form.name.trim()} />
     </Modal>
   );
 }
@@ -831,12 +860,27 @@ function MemoFormModal({ mode = "create", initial, onClose, onSubmit }: { mode?:
   return <Modal title={mode === "edit" ? "メモを編集" : "メモを追加"} onClose={onClose}><div className="grid gap-4"><Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} /><Text label="内容" value={form.content} minHeight="min-h-[36rem]" onChange={(content) => setForm({ ...form, content })} /><label className="flex items-center gap-2 text-sm font-bold text-[#655D62]"><input checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} type="checkbox" />固定表示</label></div><Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim()} /></Modal>;
 }
 
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><div className="mt-5">{children}</div></section></div>;
+function Modal({ title, subtitle, children, onClose }: { title: string; subtitle?: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm">
+      <section className="flex max-h-[90vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_80px_rgba(31,31,34,0.16)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#F3F4F6] px-6 py-5">
+          <div>
+            <h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2>
+            {subtitle ? <p className="mt-1 text-sm font-semibold text-[#8A8186]">{subtitle}</p> : null}
+          </div>
+          <button className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#E5E7EB] bg-white text-[#6F676B] transition hover:bg-[#FFF7F9]" onClick={onClose} type="button" aria-label="閉じる">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
+      </section>
+    </div>
+  );
 }
 
-function Actions({ saving, disabled, onClose, onSave }: { saving: boolean; disabled: boolean; onClose: () => void; onSave: () => void }) {
-  return <div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">保存</button></div>;
+function Actions({ saving, disabled, primaryLabel = "保存", savingLabel = "保存中...", onClose, onSave }: { saving: boolean; disabled: boolean; primaryLabel?: string; savingLabel?: string; onClose: () => void; onSave: () => void }) {
+  return <div className="sticky bottom-0 -mx-6 mt-6 flex justify-end gap-3 border-t border-[#F3F4F6] bg-white px-6 py-4"><button className="h-11 border border-[#E5E7EB] bg-white px-5 text-sm font-bold text-[#6F676B] transition hover:bg-[#F9FAFB]" onClick={onClose} type="button">キャンセル</button><button className="h-11 bg-[#EC6F8B] px-6 text-sm font-bold text-white transition hover:bg-[#E45E7D] disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">{saving ? savingLabel : primaryLabel}</button></div>;
 }
 
 function InfoGrid({ rows, compact = false }: { rows: Array<[string, string]>; compact?: boolean }) {
@@ -936,13 +980,21 @@ function formatActivityParties(log: CompanyActivityLog): string {
   return `対応者: ${actors} / 相手先: ${contacts}`;
 }
 
-function Input({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
-  return <label className="grid gap-2 text-sm font-bold text-[#655D62]"><span className="inline-flex items-center gap-2">{label}{required ? <span className="h-1.5 w-1.5 rounded-none bg-[#EC6F8B]" /> : null}</span><input className="task-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+function FormSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return <section className="rounded-xl border border-[#E5E7EB] bg-[#FFFBFC] p-5"><h3 className="mb-4 inline-flex items-center gap-2 text-base font-black text-[#2B2B2B]"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span>{title}</h3>{children}</section>;
+}
+
+function Input({ label, value, onChange, placeholder, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; type?: string }) {
+  return <label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span className="inline-flex items-center gap-1.5">{label}{required ? <span className="text-[#EC6F8B]">*</span> : null}</span><input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#EC6F8B] focus:ring-2 focus:ring-[#F7CAD2]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function ContactInput({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
+  return <label className="grid gap-2 text-xs font-bold text-[#6F676B]">{label}<input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#EC6F8B] focus:ring-2 focus:ring-[#F7CAD2]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={`inline-flex h-8 min-w-16 items-center justify-center gap-1.5 rounded-none px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={onClick} type="button">
+    <button className={`inline-flex h-9 min-w-16 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#E5E7EB] bg-white text-[#6F676B]"}`} onClick={onClick} type="button" aria-pressed={checked}>
       {checked ? <Check className="h-3.5 w-3.5" /> : null}
       {label}
     </button>
@@ -950,7 +1002,7 @@ function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; la
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="grid gap-2 text-sm font-bold text-[#655D62]"><span>{label}</span>{children}</div>;
+  return <div className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>{label}</span>{children}</div>;
 }
 
 function Text({ label, value, onChange, minHeight = "min-h-24" }: { label: string; value: string; onChange: (value: string) => void; minHeight?: string }) {
