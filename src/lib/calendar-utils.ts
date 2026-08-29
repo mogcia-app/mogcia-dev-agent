@@ -73,7 +73,7 @@ export function buildCalendarGrid(month: Date): Date[] {
 export function getCategoryMeta(category: CalendarCategory) {
   if (category === "ai_task") return { label: "AI作成タスク", dot: "bg-[#EC6F8B]", soft: "bg-[#FFF2F5]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
   if (category === "manual_task") return { label: "手動タスク", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
-  if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#67B667]", soft: "bg-[#F3FAF0]", text: "text-[#5E9B61]", border: "border-[#DDEED8]" };
+  if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#C77AA6]", soft: "bg-[#FFF3FA]", text: "text-[#A95F8C]", border: "border-[#F2D3E6]" };
   if (category === "appointment") return { label: "商談", dot: "bg-[#F47E96]", soft: "bg-[#FFF0F3]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
   if (category === "sales") return { label: "営業", dot: "bg-[#8C61CF]", soft: "bg-[#F7F1FF]", text: "text-[#7A55B8]", border: "border-[#E3D6F7]" };
   if (category === "phone") return { label: "電話", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
