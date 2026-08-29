@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { businessApi, toJsonBody } from "@/lib/business-api-client";
-import { activityTypeLabels, leadStatusLabels } from "@/lib/lead-utils";
+import { activityTypeLabels } from "@/lib/lead-utils";
 import type { Activity, ActivityDraft, ActivityType, Lead, LeadDraft, LeadStatus } from "@/types/lead";
 
 export const leadsCollection = "leads";
@@ -121,16 +121,6 @@ export async function createLead(draft: LeadDraft, user: { id: string; name: str
     method: "POST",
     body: toJsonBody({ ...leadDraftPayload(draft), createdBy: user.id, createdByName: user.name })
   });
-  await createActivity({
-    leadId: result.leadId ?? result.id,
-    companyId: draft.companyId || null,
-    type: "status_change",
-    title: "見込み客を登録しました",
-    content: leadStatusLabels[draft.status],
-    productId: draft.productId || null,
-    productName: draft.productName || null,
-    occurredAt: Timestamp.now()
-  }, user);
   return result.leadId ?? result.id;
 }
 

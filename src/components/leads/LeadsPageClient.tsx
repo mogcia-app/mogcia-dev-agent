@@ -330,7 +330,7 @@ function OverviewTab({ lead, companies, records, onLinkCompany }: { lead: Lead; 
 
 function ActivityTab({ activities, records }: { activities: Activity[]; records: TeleapoRecord[] }) {
   const items = [
-    ...activities.map((activity) => ({ id: `activity-${activity.id}`, at: activity.occurredAt, kind: "activity" as const, activity })),
+    ...activities.filter((activity) => activity.title !== "見込み客を登録しました").map((activity) => ({ id: `activity-${activity.id}`, at: activity.occurredAt, kind: "activity" as const, activity })),
     ...records.map((record) => ({ id: `record-${record.id}`, at: record.recordedAt, kind: "record" as const, record }))
   ].sort((a, b) => b.at.toMillis() - a.at.toMillis());
   if (items.length === 0) return <EmptyState icon={MessageSquarePlus} title="活動ログはまだありません" description="電話、資料送付、メモ、テレアポ音声などを時系列で確認できます。" />;
