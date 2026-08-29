@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { createAgentNotification, deleteAgentNotifications, listAgentNotifications, markAllAgentNotificationsRead, updateAgentNotificationStatus } from "@/lib/server/agent/repository";
-import { authenticateBusinessRequest } from "@/lib/server/business/api";
+import { authenticateBusinessRequest, businessFailure, businessSuccess } from "@/lib/server/business/api";
 
 export const runtime = "nodejs";
 
@@ -9,9 +8,9 @@ export async function GET(request: Request) {
     const auth = await authenticateBusinessRequest(request, "readTasks");
     const { searchParams } = new URL(request.url);
     const notifications = await listAgentNotifications(auth.userId, 80, { includeTest: searchParams.get("includeTest") === "true" });
-    return NextResponse.json({ success: true, data: { notifications } });
+    return businessSuccess({ notifications });
   } catch (error) {
-    return NextResponse.json({ success: false, error: { message: error instanceof Error ? error.message : "通知を取得できませんでした。" } }, { status: 400 });
+    return businessFailure(error);
   }
 }
 
@@ -30,9 +29,9 @@ export async function POST(request: Request) {
       projectId: typeof body.projectId === "string" ? body.projectId : null,
       targetUrl: typeof body.targetUrl === "string" ? body.targetUrl : null
     });
-    return NextResponse.json({ success: true, data: result }, { status: 201 });
+    return businessSuccess(result, 201);
   } catch (error) {
-    return NextResponse.json({ success: false, error: { message: error instanceof Error ? error.message : "通知を作成できませんでした。" } }, { status: 400 });
+    return businessFailure(error);
   }
 }
 
@@ -42,7 +41,7 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     if (body.action === "mark_all_read") {
       const result = await markAllAgentNotificationsRead(auth.userId);
-      return NextResponse.json({ success: true, data: result });
+      return businessSuccess(result);
     }
     const notificationId = typeof body.notificationId === "string" ? body.notificationId : "";
     if (!notificationId) throw new Error("通知IDが必要です。");
@@ -50,9 +49,9 @@ export async function PATCH(request: Request) {
       read: typeof body.read === "boolean" ? body.read : undefined,
       completed: typeof body.completed === "boolean" ? body.completed : undefined
     });
-    return NextResponse.json({ success: true, data: result });
+    return businessSuccess(result);
   } catch (error) {
-    return NextResponse.json({ success: false, error: { message: error instanceof Error ? error.message : "通知を更新できませんでした。" } }, { status: 400 });
+    return businessFailure(error);
   }
 }
 
@@ -62,8 +61,8 @@ export async function DELETE(request: Request) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const ids = Array.isArray(body.notificationIds) ? body.notificationIds.filter((id): id is string => typeof id === "string") : undefined;
     const result = await deleteAgentNotifications(auth.userId, ids);
-    return NextResponse.json({ success: true, data: result });
+    return businessSuccess(result);
   } catch (error) {
-    return NextResponse.json({ success: false, error: { message: error instanceof Error ? error.message : "通知を削除できませんでした。" } }, { status: 400 });
+    return businessFailure(error);
   }
 }

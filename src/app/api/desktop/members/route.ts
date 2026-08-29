@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase/admin-auth";
 import { authenticateDesktopRequest } from "@/lib/desktop/auth";
+import { desktopFailure } from "@/lib/desktop/api";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 
 export const runtime = "nodejs";
@@ -8,6 +9,11 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     await authenticateDesktopRequest(request);
+  } catch (error) {
+    return desktopFailure(error);
+  }
+
+  try {
     const users = await getAdminAuth().listUsers(1000);
     return NextResponse.json({
       success: true,
