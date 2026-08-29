@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit2, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
+import { BarChart3, Box, ClipboardList, Download, Edit2, ExternalLink, FileText, FileUp, FolderOpen, Gem, Info, Layers, MoreHorizontal, PackageCheck, Plus, Save, Search, Star, Target, Trash2, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,7 +9,7 @@ import { SkeletonList } from "@/components/ui/loading";
 import { SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner } from "@/components/ui/status";
 import { exportProductsCsv } from "@/lib/product-export";
-import { createDefaultSalesPlaybooks, productTabs, productTypeLabels, toLines, fromLines, yen } from "@/lib/product-utils";
+import { createDefaultSalesPlaybooks, productStatusLabels, productTypeLabels, toLines, fromLines, yen } from "@/lib/product-utils";
 import { addResourceFile, uploadProductIcon } from "@/lib/products";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import { useProducts } from "@/hooks/useProducts";
@@ -44,6 +44,15 @@ const resourceVisibilityLabels: Record<ProductResource["visibility"], string> = 
   client_shareable: "クライアント共有可",
   public: "一般公開"
 };
+
+const productDetailTabs: Array<{ value: ProductTab; label: string; icon: React.ReactNode }> = [
+  { value: "basic", label: "概要", icon: <Box className="h-4 w-4" /> },
+  { value: "target", label: "顧客・課題", icon: <Users className="h-4 w-4" /> },
+  { value: "features", label: "商品詳細", icon: <ClipboardList className="h-4 w-4" /> },
+  { value: "sales", label: "営業戦略", icon: <BarChart3 className="h-4 w-4" /> },
+  { value: "insights", label: "ナレッジ", icon: <Layers className="h-4 w-4" /> },
+  { value: "resources", label: "資料", icon: <FileText className="h-4 w-4" /> }
+];
 
 export function ProductsPageClient() {
   const router = useRouter();
@@ -128,7 +137,7 @@ export function ProductsPageClient() {
               onBack={showProductList}
               canEdit={store.canEdit}
               isAdmin={store.isAdmin}
-              key={`${selectedProduct.id}-${productTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}`}
+              key={`${selectedProduct.id}-${productDetailTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}`}
               onDelete={async () => {
                 await store.deleteProduct(selectedProduct.id);
                 showProductList();
@@ -141,7 +150,7 @@ export function ProductsPageClient() {
               onTabChange={(tab) => setProductRoute(selectedProduct.id, tab)}
               product={selectedProduct}
               analysis={selectedAnalysis!}
-              tab={productTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}
+              tab={productDetailTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}
               user={store.currentUser}
             />
         </section>
@@ -150,6 +159,31 @@ export function ProductsPageClient() {
       {isCreateOpen ? <CreateProductModal onClose={() => setCreateOpen(false)} onCreate={async (input) => { const id = await store.createProduct(input); setQuery(""); setDebouncedQuery(""); setCreateOpen(false); setProductRoute(id, "basic"); }} /> : null}
     </div>
   );
+}
+
+function productStatusTone(status: ProductStatus): string {
+  if (status === "active") return "bg-[#ECFDF3] text-[#16A34A]";
+  if (status === "paused") return "bg-[#FFF8E8] text-[#9B7332]";
+  if (status === "archived") return "bg-[#F3F4F6] text-[#6B7280]";
+  return "bg-[#EEF5FF] text-[#2563EB]";
+}
+
+function productCompletionMessage(score: number): string {
+  if (score >= 80) return "営業に使える情報が揃っています";
+  if (score >= 50) return "主要情報は登録されています";
+  return "まだ多くの情報が不足しています";
+}
+
+function firstText(items: string[], fallback: string): string {
+  return items.find((item) => item.trim()) ?? fallback;
+}
+
+function topTargets(product: Product): string[] {
+  return [...product.target.industries, ...product.target.roles, ...product.target.suitableConditions].filter(Boolean).slice(0, 6);
+}
+
+function Pill({ label, value }: { label: string; value: string }) {
+  return <span className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#F3F4F6] px-3 text-sm font-semibold text-[#374151]"><span className="text-xs text-[#6B7280]">{label}</span>{value}</span>;
 }
 
 function ProductIcon({ product, size }: { product: Product; size: "sm" | "lg" }) {
@@ -212,6 +246,9 @@ function ProductDetail({
   const [draft, setDraft] = useState(product);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const websiteResource = product.resources.find((resource) => resource.type === "website" && resource.url);
+  const proposalResource = product.resources.find((resource) => resource.type === "proposal" && resource.url);
+  const completionMessage = productCompletionMessage(analysis.score);
   const save = async () => {
     setSaving(true);
     try {
@@ -233,31 +270,54 @@ function ProductDetail({
   };
 
   return (
-    <div className="grid min-h-[calc(100vh-120px)] gap-4 xl:grid-rows-[auto_minmax(0,1fr)]">
-      <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <ProductIcon product={product} size="lg" />
-            <div>
-              <button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-2xl font-bold text-[#2B2B2B]">{product.name}</h3>
-              </div>
-              {product.tagline ? <p className="mt-2 text-sm font-semibold text-[#777]">{product.tagline}</p> : null}
+    <div className="space-y-5">
+      <section className="bg-white/80 pb-1">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="min-w-0">
+            <button className="mb-5 text-sm font-semibold text-[#EC6F8B]" onClick={onBack} type="button">← 商材一覧に戻る</button>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h2 className="break-words text-4xl font-black tracking-normal text-[#111827]">{product.displayName || product.name}</h2>
+              <span className={`inline-flex h-8 items-center rounded-full px-4 text-sm font-bold ${productStatusTone(product.status)}`}>{productStatusLabels[product.status]}</span>
+              <button className="grid h-9 w-9 place-items-center rounded-lg text-[#6B7280] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]" type="button" aria-label="お気に入り"><Star className="h-5 w-5" /></button>
+            </div>
+            {product.tagline ? <p className="mt-3 text-xl font-bold text-[#111827]">{product.tagline}</p> : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pill label="カテゴリ" value={product.categoryNames.join(" / ") || "未設定"} />
+              <Pill label="提供形態" value={productTypeLabels[product.productType] ?? "未設定"} />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {canEdit && tab !== "insights" ? <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
-            {isAdmin ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
-            {product.resources.find((resource) => resource.type === "website" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "website" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />サイトを開く</a> : null}
-            {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />資料を開く</a> : null}
+          <div className="flex w-full flex-col gap-4 xl:w-[520px]">
+            <div>
+              <div className="flex items-center justify-between gap-3 text-sm font-bold text-[#111827]">
+                <span className="inline-flex items-center gap-2">商材情報 <strong className="text-[#EC6F8B]">{analysis.score}%</strong> 完成 <Info className="h-4 w-4 text-[#9CA3AF]" /></span>
+                <span className="text-lg font-black text-[#EC6F8B]">{analysis.score}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F3DDE4]">
+                <div className="h-full rounded-full bg-[#EC6F8B]" style={{ width: `${analysis.score}%` }} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              {canEdit && tab !== "insights" ? <button className="inline-flex h-12 items-center gap-2 rounded-lg border border-[#F7CAD2] bg-white px-5 text-sm font-bold text-[#EC6F8B] shadow-sm" onClick={() => setEditing(true)} type="button"><Edit2 className="h-4 w-4" />編集</button> : null}
+              {websiteResource?.url ? <a className="grid h-12 w-12 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] shadow-sm" href={websiteResource.url} rel="noreferrer" target="_blank" aria-label="サイトを開く"><ExternalLink className="h-5 w-5" /></a> : null}
+              {proposalResource?.url ? <a className="grid h-12 w-12 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] shadow-sm" href={proposalResource.url} rel="noreferrer" target="_blank" aria-label="資料を開く"><FileText className="h-5 w-5" /></a> : null}
+              <button className="grid h-12 w-12 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] shadow-sm" type="button" aria-label="その他"><MoreHorizontal className="h-5 w-5" /></button>
+              {isAdmin ? <button className="inline-flex h-12 items-center gap-2 rounded-lg border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] shadow-sm disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
+            </div>
           </div>
         </div>
       </section>
-      <section className="flex min-h-[calc(100vh-280px)] flex-col rounded-none border border-[#F0E7E9] bg-white shadow-sm">
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ProductSummaryCard icon={<Users className="h-5 w-5" />} label="主な対象" value={firstText(product.target.industries, "未設定")} description="詳細は顧客・課題で設定" tone="pink" />
+        <ProductSummaryCard icon={<Target className="h-5 w-5" />} label="解決する課題" value={firstText(product.problems, "未設定")} description="顧客データの課題を整理" tone="orange" />
+        <ProductSummaryCard icon={<Gem className="h-5 w-5" />} label="提供する価値" value={firstText(product.values, "未設定")} description="顧客に伝える価値" tone="green" />
+        <ProductSummaryCard icon={<BarChart3 className="h-5 w-5" />} label="商材情報の理解度" value={`${analysis.score}%`} description={completionMessage} tone="blue" />
+      </div>
+
+      <section className="flex min-h-[calc(100vh-390px)] flex-col bg-white">
         <ProductSectionNav activeTab={tab} onTabChange={onTabChange} />
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-auto p-5 xl:p-6">
+          <div className="min-h-0 flex-1 overflow-auto py-5">
             {tab === "notes" ? <ProductNotesTab currentUserId={user.id} isAdmin={isAdmin} memos={memos} onCreate={onAddMemo} onDelete={onDeleteMemo} onUpdate={onUpdateMemo} /> : editing && tab !== "insights" ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView analysis={analysis} isAdmin={isAdmin} product={product} tab={tab} />}
             {tab !== "notes" && tab !== "insights" ? <div className="mt-6 flex justify-end gap-3 border-t border-[#F0E7E9] pt-5">
               {editing ? (
@@ -266,7 +326,7 @@ function ProductDetail({
                   <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button>
                 </>
               ) : canEdit ? (
-                <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">この項目を編集</button>
+                <button className="h-10 rounded-lg border border-[#F7CAD2] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">この項目を編集</button>
               ) : null}
             </div> : null}
           </div>
@@ -278,15 +338,16 @@ function ProductDetail({
 
 function ProductSectionNav({ activeTab, onTabChange }: { activeTab: ProductTab; onTabChange: (tab: ProductTab) => void }) {
   return (
-    <nav className="border-b border-[#F0E7E9] px-4 py-3" aria-label="商材情報タブ">
+    <nav className="border-b border-[#E5E7EB]" aria-label="商材情報タブ">
       <div className="flex gap-2 overflow-x-auto">
-        {productTabs.map((item) => (
+        {productDetailTabs.map((item) => (
           <button
-            className={`h-9 shrink-0 rounded-none px-4 text-sm font-bold transition ${activeTab === item.value ? "bg-[#EC6F8B] text-white shadow-sm" : "bg-[#FFFBFC] text-[#6F676B] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]"}`}
+            className={`inline-flex h-14 shrink-0 items-center gap-2 border-b-2 px-5 text-sm font-bold transition ${activeTab === item.value ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#374151] hover:text-[#EC6F8B]"}`}
             key={item.value}
             onClick={() => onTabChange(item.value)}
             type="button"
           >
+            {item.icon}
             {item.label}
           </button>
         ))}
@@ -297,13 +358,9 @@ function ProductSectionNav({ activeTab, onTabChange }: { activeTab: ProductTab; 
 
 function ProductReadView({ product, tab, isAdmin, analysis }: { product: Product; tab: ProductTab; isAdmin: boolean; analysis: ProductAnalysis }) {
   if (tab === "basic") return <ProductOverview product={product} analysis={analysis} />;
-  if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["ターゲット地域", product.target.regions.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"], ["刺さりやすい顧客条件", product.target.idealCustomerConditions.join(" / ") || "未設定"], ["見込みが薄い条件", product.target.lowPotentialConditions.join(" / ") || "未設定"], ["勝ちパターン", product.target.winningPatterns.join(" / ") || "未設定"], ["失注パターン", product.target.losingPatterns.join(" / ") || "未設定"], ["刺さった言葉", product.target.effectivePhrases.join(" / ") || "未設定"], ["避ける表現", product.target.avoidPhrases.join(" / ") || "未設定"], ["業種別提案角度", product.target.industryProposalAngles.map((item) => `${item.industry}: ${item.proposalAngle}${item.cautions ? `（注意: ${item.cautions}）` : ""}`).join("\n") || "未設定"]]} />;
-  if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金メモ", product.pricing.notes || "未設定"], ["料金プラン", formatPricingPlans(product.pricing.plans)]]} />;
-  if (tab === "features") return <FeatureReadView product={product} />;
-  if (tab === "implementation") return <ObjectionHandbookReadView product={product} />;
-  if (tab === "sales") return <SalesSettingsReadView product={product} />;
-  if (tab === "new") return <SalesPlaybookReadView product={product} segment="new" />;
-  if (tab === "existing") return <SalesPlaybookReadView product={product} segment="existing" />;
+  if (tab === "target") return <CustomerProblemView product={product} />;
+  if (tab === "features") return <ProductDetailReadView isAdmin={isAdmin} product={product} />;
+  if (tab === "sales") return <SalesStrategyView product={product} />;
   if (tab === "insights") return <ProductInsights analysis={analysis} />;
   if (tab === "resources") return <ResourceReadView product={product} />;
   return null;
@@ -311,34 +368,148 @@ function ProductReadView({ product, tab, isAdmin, analysis }: { product: Product
 
 function ProductOverview({ product, analysis }: { product: Product; analysis: ProductAnalysis }) {
   const actual = analysis.actual;
+  const missingTop = analysis.missing.slice(0, 3);
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <section>
-        <p className="text-sm font-black text-[#EC6F8B]">この商材とは</p>
-        <h2 className="mt-2 text-2xl font-black text-[#2B2B2B]">{product.displayName || product.name}</h2>
-        {product.tagline ? <p className="mt-2 text-lg font-bold text-[#655D62]">{product.tagline}</p> : null}
-        <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm font-semibold leading-7 text-[#6F676B]">{product.summary || "商材概要はまだ登録されていません。"}</p>
-      </section>
-
-      <div className="grid gap-8 border-y border-[#F0E7E9] py-7 md:grid-cols-3">
-        <ProductKnowledgeList title="主な対象" items={product.target.industries} empty="対象業種を追加してください" />
-        <ProductKnowledgeList title="解決すること" items={product.problems} empty="解決課題を追加してください" />
-        <ProductKnowledgeList title="提供する価値" items={product.values} empty="提供価値を追加してください" />
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="space-y-5">
+        <DetailCard icon={<FileText className="h-5 w-5" />} title="商材概要">
+          <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-[#374151]">{product.summary || "商材概要はまだ登録されていません。"}</p>
+          <div className="mt-7 grid gap-7 md:grid-cols-2">
+            <ProductKnowledgeList title="提供する価値" items={product.values} empty="提供価値を追加してください" />
+            <ProductKnowledgeList title="主なターゲット" items={topTargets(product)} empty="ターゲットを追加してください" />
+          </div>
+          <div className="mt-7 grid gap-4 border-t border-[#E5E7EB] pt-5 sm:grid-cols-2 xl:grid-cols-4">
+            <CompactFact label="料金の目安" value={product.pricing.monthlyFee ? `${yen(product.pricing.monthlyFee)}〜` : pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"} sub={product.pricing.plans[0]?.name || "プランにより変動"} />
+            <CompactFact label="契約形態" value={pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"} sub={product.pricing.minimumContractMonths ? `最低契約期間 ${product.pricing.minimumContractMonths}ヶ月` : "最低契約期間 未設定"} />
+            <CompactFact label="導入までの期間" value={product.implementation.estimatedDays ? `約${product.implementation.estimatedDays}日` : "未設定"} sub="初期設定を含む" />
+            <CompactFact label="提供開始日" value={product.createdAt.toDate().toLocaleDateString("ja-JP")} sub="登録日ベース" />
+          </div>
+        </DetailCard>
+        <DetailCard icon={<Layers className="h-5 w-5" />} title="最近の商談から得たナレッジ">
+          {actual.records.length ? <div className="grid gap-7 md:grid-cols-2"><ProductKnowledgeList title="よく刺さっている" items={actual.positiveSignals} empty="具体的な反応はまだありません" /><ProductKnowledgeList title="よく出る懸念" items={actual.lossRisks} empty="懸念はまだ集計されていません" /></div> : <EmptyPanel title="まだナレッジがありません" description="商談が進むと、AIが自動で学習して商材の理解を深めます" />}
+        </DetailCard>
       </div>
+      <aside className="space-y-5">
+        <DetailCard icon={<Target className="h-5 w-5" />} title="営業準備サポート">
+          <div className="rounded-xl bg-[#FFF0F3] p-4">
+            <p className="text-sm font-black text-[#EC6F8B]">次に登録すると良い情報 TOP3</p>
+            <div className="mt-4 divide-y divide-[#F0D4DC]">
+              {(missingTop.length ? missingTop : ["営業準備は整っています"]).map((item, index) => (
+                <a className="flex items-center justify-between gap-3 py-3" href={`?id=${product.id}&tab=${missingTab(item)}`} key={item}>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#EC6F8B] text-sm font-black text-white">{index + 1}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black text-[#111827]">{item}</span>
+                      <span className="mt-1 block truncate text-xs font-semibold text-[#6B7280]">この商材の営業情報を補強しましょう</span>
+                    </span>
+                  </span>
+                  <span className="text-lg text-[#6B7280]">›</span>
+                </a>
+              ))}
+            </div>
+            <a className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#EC6F8B] text-sm font-bold text-white shadow-[0_10px_20px_rgba(236,111,139,0.18)]" href={`?id=${product.id}&tab=${missingTab(analysis.missing[0])}`}>情報を追加する</a>
+          </div>
+          <p className="mt-4 text-sm font-semibold text-[#6B7280]">残り {analysis.missing.length} 項目の情報を登録できます</p>
+        </DetailCard>
+        <DetailCard icon={<FolderOpen className="h-5 w-5" />} title="よく使う資料">
+          {product.resources.length ? <div className="grid gap-3">{product.resources.slice(0, 3).map((resource) => <a className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm font-bold text-[#374151] hover:border-[#F7CAD2] hover:text-[#EC6F8B]" href={resource.url ?? "#"} key={resource.id} rel="noreferrer" target="_blank">{resource.title || resourceTypeLabels[resource.type]}</a>)}</div> : <><p className="text-sm font-medium text-[#6B7280]">登録された資料はありません</p><a className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#F7CAD2] bg-white text-sm font-bold text-[#EC6F8B]" href={`?id=${product.id}&tab=resources`}>資料を追加する</a></>}
+        </DetailCard>
+      </aside>
+    </div>
+  );
+}
 
-      <section className="bg-[#FFF8FA] p-6">
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div><p className="text-sm font-black text-[#EC6F8B]">MOGCIAの商材理解度</p><p className="mt-2 text-4xl font-black text-[#2B2B2B]">{analysis.score}%</p><p className="mt-2 text-sm font-semibold text-[#6F676B]">商材の良し悪しではなく、営業支援に使える情報の充足度です。</p></div>
-          <a className="inline-flex h-10 items-center border border-[#F0DDE2] bg-white px-4 text-sm font-bold text-[#EC6F8B]" href={`?id=${product.id}&tab=${missingTab(analysis.missing[0])}`}>不足情報を追加</a>
+function DetailCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span>
+        <h3 className="text-lg font-bold text-[#111827]">{title}</h3>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ProductSummaryCard({ icon, label, value, description, tone }: { icon: React.ReactNode; label: string; value: string; description: string; tone: "pink" | "orange" | "green" | "blue" }) {
+  const toneClass = tone === "pink" ? "bg-[#FFF0F3] text-[#EC6F8B]" : tone === "orange" ? "bg-[#FFF4E8] text-[#F97316]" : tone === "green" ? "bg-[#ECFDF3] text-[#16A34A]" : "bg-[#EEF5FF] text-[#2563EB]";
+  return (
+    <section className="flex min-h-28 gap-4 rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${toneClass}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="text-xs font-bold text-[#6B7280]">{label}</p>
+        <p className="mt-2 line-clamp-2 text-base font-black leading-6 text-[#111827]">{value}</p>
+        <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-[#6B7280]">{description}</p>
+      </div>
+    </section>
+  );
+}
+
+function CompactFact({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return <div className="border-l border-[#E5E7EB] pl-4 first:border-l-0 first:pl-0"><p className="text-sm font-bold text-[#6B7280]">{label}</p><p className="mt-2 text-base font-black text-[#111827]">{value}</p><p className="mt-1 text-sm font-medium text-[#6B7280]">{sub}</p></div>;
+}
+
+function EmptyPanel({ title, description }: { title: string; description: string }) {
+  return <div className="grid min-h-32 place-items-center rounded-lg border border-[#E5E7EB] bg-[#FAFAFA] p-5 text-center"><div><MessageDots /><p className="mt-3 text-sm font-bold text-[#111827]">{title}</p><p className="mt-1 text-sm font-medium text-[#6B7280]">{description}</p></div></div>;
+}
+
+function MessageDots() {
+  return <span className="mx-auto grid h-8 w-8 place-items-center rounded-full border-2 border-[#D1D5DB] text-[#9CA3AF]">…</span>;
+}
+
+function CustomerProblemView({ product }: { product: Product }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <DetailCard icon={<Users className="h-5 w-5" />} title="顧客・ターゲット">
+        <div className="grid gap-7 md:grid-cols-2">
+          <ProductKnowledgeList title="対象業種" items={product.target.industries} empty="対象業種を追加してください" />
+          <ProductKnowledgeList title="想定担当者" items={product.target.roles} empty="想定担当者を追加してください" />
+          <ProductKnowledgeList title="向いている企業" items={product.target.suitableConditions} empty="向いている条件を追加してください" />
+          <ProductKnowledgeList title="向いていない企業" items={product.target.unsuitableConditions} empty="対象外条件を追加してください" />
         </div>
-        <div className="mt-5 h-2 bg-[#F2E4E8]"><div className="h-full bg-[#EC6F8B]" style={{ width: `${analysis.score}%` }} /></div>
-        {analysis.missing.length ? <div className="mt-5"><p className="text-xs font-black text-[#91868B]">不足している情報</p><ul className="mt-2 flex flex-wrap gap-2">{analysis.missing.map((item) => <li className="bg-white px-3 py-1.5 text-xs font-bold text-[#6F676B]" key={item}>{item}</li>)}</ul></div> : null}
-      </section>
+      </DetailCard>
+      <DetailCard icon={<Target className="h-5 w-5" />} title="課題・見込み判定">
+        <div className="grid gap-7 md:grid-cols-2">
+          <ProductKnowledgeList title="解決する課題" items={product.problems} empty="解決課題を追加してください" />
+          <ProductKnowledgeList title="導入条件" items={product.target.requiredConditions} empty="導入条件を追加してください" />
+          <ProductKnowledgeList title="刺さりやすい条件" items={product.target.idealCustomerConditions} empty="刺さりやすい条件を追加してください" />
+          <ProductKnowledgeList title="見込みが薄い条件" items={product.target.lowPotentialConditions} empty="見込みが薄い条件を追加してください" />
+        </div>
+      </DetailCard>
+    </div>
+  );
+}
 
-      <section>
-        <div className="flex items-center justify-between gap-4"><h2 className="text-xl font-black text-[#2B2B2B]">最近の商談から</h2><a className="text-sm font-bold text-[#EC6F8B]" href={`?id=${product.id}&tab=insights`}>商談インサイトを見る</a></div>
-        {actual.records.length ? <div className="mt-5 grid gap-7 md:grid-cols-2"><ProductKnowledgeList title="よく刺さっている" items={actual.positiveSignals} empty="具体的な反応はまだありません" /><ProductKnowledgeList title="よく出る懸念" items={actual.lossRisks} empty="懸念はまだ集計されていません" /></div> : <p className="mt-4 text-sm font-semibold text-[#8A8186]">この商材に紐づく商談データはまだありません。</p>}
-      </section>
+function ProductDetailReadView({ product, isAdmin }: { product: Product; isAdmin: boolean }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <DetailCard icon={<PackageCheck className="h-5 w-5" />} title="機能・提供内容">
+        <FeatureReadView product={product} />
+      </DetailCard>
+      <DetailCard icon={<FileText className="h-5 w-5" />} title="料金・契約">
+        <InfoGrid rows={[["料金表示方法", pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : [])]} />
+      </DetailCard>
+    </div>
+  );
+}
+
+function SalesStrategyView({ product }: { product: Product }) {
+  return (
+    <div className="space-y-5">
+      <DetailCard icon={<BarChart3 className="h-5 w-5" />} title="営業設定">
+        <SalesSettingsReadView product={product} />
+      </DetailCard>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <DetailCard icon={<Users className="h-5 w-5" />} title="新規向けPlaybook">
+          <SalesPlaybookReadView product={product} segment="new" />
+        </DetailCard>
+        <DetailCard icon={<Users className="h-5 w-5" />} title="既存向けPlaybook">
+          <SalesPlaybookReadView product={product} segment="existing" />
+        </DetailCard>
+      </div>
+      <DetailCard icon={<Info className="h-5 w-5" />} title="反論想定">
+        <ObjectionHandbookReadView product={product} />
+      </DetailCard>
     </div>
   );
 }
@@ -359,7 +530,14 @@ function ProductInsights({ analysis }: { analysis: ProductAnalysis }) {
 }
 
 function ProductKnowledgeList({ empty, items, title }: { empty: string; items: string[]; title: string }) { return <div><h3 className="text-sm font-black text-[#2B2B2B]">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item) => <li className="flex gap-2 text-sm font-semibold leading-6 text-[#6F676B]" key={item}><span className="text-[#EC6F8B]">•</span>{item}</li>)}</ul> : <p className="mt-3 text-sm font-semibold text-[#A0969A]">{empty}</p>}</div>; }
-function missingTab(item?: string): ProductTab { if (!item) return "basic"; if (item.includes("資料") || item.includes("サイト")) return "resources"; if (item.includes("反論")) return "implementation"; if (item.includes("勝ち") || item.includes("失注") || item.includes("条件")) return "target"; return "basic"; }
+function missingTab(item?: string): ProductTab {
+  if (!item) return "basic";
+  if (item.includes("資料") || item.includes("サイト")) return "resources";
+  if (item.includes("反論") || item.includes("勝ち") || item.includes("失注") || item.includes("Playbook")) return "sales";
+  if (item.includes("条件") || item.includes("対象") || item.includes("課題")) return "target";
+  if (item.includes("料金") || item.includes("機能")) return "features";
+  return "basic";
+}
 
 function formatPricingPlans(plans: ProductPlan[]): string {
   if (plans.length === 0) return "未設定";
@@ -527,13 +705,12 @@ function PlaybookSceneRead({ entry, title }: { entry: ProductSalesPlaybookEntry;
 }
 
 function ProductEditForm({ draft, tab, isAdmin, user, onChange }: { draft: Product; tab: ProductTab; isAdmin: boolean; user: { id: string; name: string }; onChange: (product: Product) => void }) {
-  const set = (patch: Partial<Product>) => onChange({ ...draft, ...patch });
   if (tab === "basic") return <BasicProductEditor draft={draft} onChange={onChange} />;
   if (tab === "target") return <TargetEditor draft={draft} onChange={onChange} />;
   if (tab === "pricing") return <PricingEditor draft={draft} isAdmin={isAdmin} onChange={onChange} />;
-  if (tab === "features") return <FeatureEditor draft={draft} onChange={onChange} />;
+  if (tab === "features") return <div className="grid gap-5"><FeatureEditor draft={draft} onChange={onChange} /><PricingEditor draft={draft} isAdmin={isAdmin} onChange={onChange} /></div>;
   if (tab === "implementation") return <ObjectionHandbookEditor draft={draft} onChange={onChange} />;
-  if (tab === "sales") return <SalesSettingsEditor draft={draft} onChange={onChange} />;
+  if (tab === "sales") return <div className="grid gap-5"><SalesSettingsEditor draft={draft} onChange={onChange} /><SalesPlaybookEditor draft={draft} segment="new" onChange={onChange} /><SalesPlaybookEditor draft={draft} segment="existing" onChange={onChange} /><ObjectionHandbookEditor draft={draft} onChange={onChange} /></div>;
   if (tab === "new") return <SalesPlaybookEditor draft={draft} segment="new" onChange={onChange} />;
   if (tab === "existing") return <SalesPlaybookEditor draft={draft} segment="existing" onChange={onChange} />;
   if (tab === "resources") return <ResourceEditor draft={draft} user={user} onChange={onChange} />;
