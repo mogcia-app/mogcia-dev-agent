@@ -9,7 +9,7 @@ import { SkeletonList } from "@/components/ui/loading";
 import { SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner } from "@/components/ui/status";
 import { exportProductsCsv } from "@/lib/product-export";
-import { createDefaultSalesPlaybooks, productStatusLabels, productTypeLabels, toLines, fromLines, yen } from "@/lib/product-utils";
+import { createDefaultSalesPlaybooks, productStatusLabels, toLines, fromLines, yen } from "@/lib/product-utils";
 import { addResourceFile, uploadProductIcon } from "@/lib/products";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import { useProducts } from "@/hooks/useProducts";
@@ -283,7 +283,6 @@ function ProductDetail({
             {product.tagline ? <p className="mt-3 text-xl font-bold text-[#111827]">{product.tagline}</p> : null}
             <div className="mt-4 flex flex-wrap gap-2">
               <Pill label="カテゴリ" value={product.categoryNames.join(" / ") || "未設定"} />
-              <Pill label="提供形態" value={productTypeLabels[product.productType] ?? "未設定"} />
             </div>
           </div>
           <div className="flex w-full flex-col gap-4 xl:w-[520px]">
@@ -797,7 +796,6 @@ function BasicProductEditor({ draft, onChange }: { draft: Product; onChange: (pr
         </div>
       </div>
       <Input label="商材名" value={draft.name} onChange={(name) => set({ name, displayName: name })} />
-      <SelectField label="商材種別" value={draft.productType} options={Object.entries(productTypeLabels)} onChange={(value) => set({ productType: value as ProductType })} />
       <Input label="一言説明" value={draft.tagline} onChange={(tagline) => set({ tagline })} />
       <Text label="概要" value={draft.summary} onChange={(summary) => set({ summary })} />
       <Text label="提供価値" value={toLines(draft.values)} onChange={(value) => set({ values: fromLines(value) })} />
@@ -1072,7 +1070,7 @@ function ResourceEditor({ draft, user, onChange }: { draft: Product; user: { id:
 
 function CreateProductModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">) => Promise<void> }) {
   const [form, setForm] = useState({ name: "", productType: "own_product" as ProductType, tagline: "", status: "active" as ProductStatus });
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">新しい商材を追加</h2><div className="mt-5 grid gap-4"><Input label="商材名" value={form.name} onChange={(name) => setForm({ ...form, name })} /><SelectField label="商材種別" value={form.productType} options={Object.entries(productTypeLabels)} onChange={(value) => setForm({ ...form, productType: value as ProductType })} /><Input label="一言説明" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} /></div><div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!form.name.trim()} onClick={() => void onCreate({ ...form, displayName: form.name, categoryNames: [] })} type="button">作成</button></div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">新しい商材を追加</h2><div className="mt-5 grid gap-4"><Input label="商材名" value={form.name} onChange={(name) => setForm({ ...form, name })} /><Input label="一言説明" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} /></div><div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={!form.name.trim()} onClick={() => void onCreate({ ...form, displayName: form.name, categoryNames: [] })} type="button">作成</button></div></section></div>;
 }
 
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
