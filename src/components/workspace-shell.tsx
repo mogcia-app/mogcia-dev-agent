@@ -26,9 +26,9 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   if (!user) return null;
   const mobileItems = groups.flatMap((group) => group.items).slice(0, 5);
   const edgeToEdge = pathname === "/agent" || pathname === "/tasks" || pathname === "/leads";
-  return <div className="min-h-screen max-w-full touch-pan-y overflow-x-hidden overscroll-x-none bg-[#F8F4F3] text-[#1F1F22] lg:grid lg:grid-cols-[68px_1fr]">
+  return <div className="min-h-screen max-w-full touch-pan-y overflow-x-hidden overscroll-x-none bg-[#F8F4F3] text-[#1F1F22] lg:grid lg:grid-cols-[68px_1fr] lg:items-stretch">
     {signingOut ? <PageProgress /> : null}
-    <aside className="flex border-b border-[#E9DAD8] bg-white/95 px-4 py-3 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-b-0 lg:border-r lg:px-2 lg:py-4">
+    <aside className="flex border-b border-[#E9DAD8] bg-white/95 px-4 py-3 shadow-sm lg:min-h-screen lg:self-stretch lg:flex-col lg:border-b-0 lg:border-r lg:px-2 lg:py-4">
       <div className="flex shrink-0 items-center gap-3 lg:justify-center"><Image alt="MOGCIA" className="rounded-xl" height={42} src="/m-dev-agent.png" width={42} /><div className="lg:hidden"><p className="font-semibold">MOGCIA</p><p className="text-xs text-neutral-500">仕事とAgent</p></div></div>
       <nav className="ml-4 flex gap-1 overflow-x-auto lg:hidden" aria-label="メインナビゲーション">{mobileItems.map((item) => <Link className={`whitespace-nowrap rounded-xl px-3 py-2 text-sm ${item.href === pathname ? "bg-[#FFF0F3] font-semibold text-[#B84563]" : "text-neutral-600"}`} href={item.href as Route} key={item.href}>{item.label}</Link>)}</nav>
       <nav className="mt-8 hidden flex-1 space-y-2 lg:block" aria-label="メインナビゲーション">{groups.map((group) => <section key={group.label}><p className="sr-only">{group.label}</p><div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = item.href === pathname; return <Link aria-label={item.label} title={item.label} className={`flex h-10 items-center justify-center rounded-xl text-sm transition ${active ? "bg-[#FFF0F3] font-semibold text-[#B84563]" : "text-neutral-600 hover:bg-[#F8F4F3]"}`} href={item.href as Route} key={item.href}><Icon className="h-4 w-4" /><span className="sr-only">{item.label}</span></Link>; })}</div></section>)}</nav>
