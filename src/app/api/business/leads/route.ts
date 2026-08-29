@@ -1,6 +1,8 @@
 import { assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, cleanPatchBody, findTimeDuplicates, nullableString, requireString, serializeDoc, updateBusinessFields, withBusinessAudit } from "@/lib/server/business/api";
 import { createLeadForUser } from "@/lib/server/leads/repository";
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   try {
     const auth = await authenticateBusinessRequest(request, "readCompanies");

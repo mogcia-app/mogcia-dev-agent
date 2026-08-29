@@ -1,6 +1,8 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, cleanPatchBody, defaultBusinessFields, findTimeDuplicates, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, withBusinessAudit, type BusinessAuth } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 const activityTypes = ["call", "email", "document", "meeting", "telemarketing", "note", "status_change", "other"];
 
 export async function GET(request: Request) {

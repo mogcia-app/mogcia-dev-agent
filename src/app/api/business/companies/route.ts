@@ -15,6 +15,8 @@ import {
   type BusinessAuth
 } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   try {
     const auth = await authenticateBusinessRequest(request, "readCompanies");

@@ -1,5 +1,7 @@
 import { assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, cleanPatchBody, defaultBusinessFields, findCollectionNameDuplicates, nullableString, optionalString, requireString, serializeDoc, slugFromName, updateBusinessFields, withBusinessAudit, type BusinessAuth } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 const productTypes = ["own_product", "operation_service", "web_production", "custom_development", "sales_package", "other"];
 const statuses = ["active", "draft", "paused", "archived"];
 

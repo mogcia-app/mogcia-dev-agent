@@ -1,6 +1,8 @@
 import { createAgentNotification, deleteAgentNotifications, listAgentNotifications, markAllAgentNotificationsRead, updateAgentNotificationStatus } from "@/lib/server/agent/repository";
 import { authenticateBusinessRequest, businessFailure, businessSuccess, requireString, withBusinessAudit } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   try {
     const auth = await authenticateBusinessRequest(request, "readTasks");

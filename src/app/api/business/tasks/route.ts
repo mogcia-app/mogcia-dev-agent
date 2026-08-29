@@ -17,6 +17,8 @@ import {
   type BusinessAuth
 } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 const taskStatuses = ["todo", "in_progress", "waiting", "completed", "cancelled"];
 const priorities = ["high", "medium", "low"];
 

@@ -1,6 +1,8 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, BusinessApiError, cleanPatchBody, defaultBusinessFields, findTimeDuplicates, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, withBusinessAudit, type BusinessAuth } from "@/lib/server/business/api";
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   try {
     const auth = await authenticateBusinessRequest(request, "readTasks");
