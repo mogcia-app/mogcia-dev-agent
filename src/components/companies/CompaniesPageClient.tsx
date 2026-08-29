@@ -636,8 +636,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     <Modal title={mode === "create" ? "新しい会社を追加" : "会社情報を編集"} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label="会社名" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
-        <Input label="都道府県" value={form.prefecture} onChange={(prefecture) => setForm({ ...form, prefecture })} />
-        <Input label="市区町村" value={form.city} onChange={(city) => setForm({ ...form, city })} />
         <Input label="所在地" value={form.address} onChange={(address) => setForm({ ...form, address })} />
         <Input label="Webサイト" value={form.website} onChange={(website) => setForm({ ...form, website })} />
         <MultiSelect
