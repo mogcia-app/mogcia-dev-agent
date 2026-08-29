@@ -16,6 +16,7 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { draftToCalendarPayload } from "@/lib/calendar-utils";
 import { isAdminUser } from "@/lib/task-utils";
 import type { CalendarEvent, CalendarEventDraft } from "@/types/calendar";
@@ -116,23 +117,23 @@ export function subscribeCalendarEvents(currentUser: CalendarAccessUser | null, 
 }
 
 export async function createCalendarEvent(draft: CalendarEventDraft, currentUser: MemberOption & { uid: string }): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await addDoc(collection(db, COLLECTION), {
-    ...draftToCalendarPayload(draft, currentUser),
-    createdBy: currentUser.uid,
-    createdByName: currentUser.name,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+  await businessApi<{ id: string; calendarEventId?: string }>("/api/business/calendar", {
+    method: "POST",
+    body: toJsonBody({
+      ...draftToCalendarPayload(draft, currentUser),
+      createdBy: currentUser.uid,
+      createdByName: currentUser.name
+    })
   });
 }
 
 export async function updateCalendarEvent(eventId: string, draft: CalendarEventDraft, currentUser: MemberOption): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, COLLECTION, eventId), {
-    ...draftToCalendarPayload(draft, currentUser),
-    updatedAt: serverTimestamp()
+  await businessApi<{ event: CalendarEvent }>("/api/business/calendar", {
+    method: "PATCH",
+    body: toJsonBody({
+      ...draftToCalendarPayload(draft, currentUser),
+      id: eventId
+    })
   });
 }
 

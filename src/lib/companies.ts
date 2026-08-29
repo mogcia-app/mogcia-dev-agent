@@ -2,6 +2,7 @@
 
 import { Timestamp, addDoc, collection, collectionGroup, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import { createEmptyCompany } from "@/lib/company-utils";
 import type { ActivityDirection, ActivityLogType, Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
@@ -223,16 +224,18 @@ function normalizeMemo(id: string, data: DocumentData): CompanyMemo {
 }
 
 export async function createCompany(user: { id: string; name: string }, patch: Partial<Company>): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const ref = await addDoc(collection(db, companiesCollection), { ...createEmptyCompany(user), ...patch, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  return ref.id;
+  const result = await businessApi<{ id: string; companyId?: string }>("/api/business/companies", {
+    method: "POST",
+    body: toJsonBody({ ...createEmptyCompany(user), ...patch })
+  });
+  return result.companyId ?? result.id;
 }
 
 export async function updateCompany(companyId: string, user: { id: string; name: string }, patch: Partial<Company>): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, companiesCollection, companyId), { ...patch, updatedAt: serverTimestamp() });
+  await businessApi<{ company: Company }>("/api/business/companies", {
+    method: "PATCH",
+    body: toJsonBody({ ...patch, id: companyId, updatedBy: user.id, updatedByName: user.name })
+  });
 }
 
 export async function toggleCompanyFavorite(company: Company, userId: string): Promise<void> {
@@ -246,29 +249,28 @@ export async function addCompanyLog(companyId: string, user: { id: string; name:
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   const ref = await addDoc(collection(db, companiesCollection, companyId, "activityLogs"), { companyId, userId: user.id, userName: user.name, createdBy: user.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), source: "manual", ...input });
-  await addDoc(collection(db, "activities"), {
-    leadId: null,
-    companyId,
-    dealId: input.dealId ?? null,
-    type: toCommonActivityType(input.type),
-    title: input.title,
-    content: input.content ?? "",
-    productId: null,
-    productName: null,
-    audioId: null,
-    transcriptId: null,
-    analysisId: null,
-    legacyCompanyActivityLogId: ref.id,
-    nextActionAt: input.nextAction?.dueAt ?? null,
-    nextActionTitle: input.nextAction?.title ?? null,
-    occurredAt: input.occurredAt,
-    createdBy: user.id,
-    createdByName: user.name,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+  const result = await businessApi<{ id: string; activityId?: string }>("/api/business/activities", {
+    method: "POST",
+    body: toJsonBody({
+      leadId: null,
+      companyId,
+      dealId: input.dealId ?? null,
+      type: toCommonActivityType(input.type),
+      title: input.title,
+      content: input.content ?? "",
+      productId: null,
+      productName: null,
+      audioId: null,
+      transcriptId: null,
+      analysisId: null,
+      nextActionAt: input.nextAction?.dueAt ?? null,
+      nextActionTitle: input.nextAction?.title ?? null,
+      occurredAt: input.occurredAt,
+      legacyCompanyActivityLogId: ref.id
+    })
   });
   await updateDoc(doc(db, companiesCollection, companyId), { lastContactAt: input.occurredAt, nextActionTitle: input.nextAction?.title ?? null, nextActionAt: input.nextAction?.dueAt ?? null, updatedAt: serverTimestamp() });
-  return ref.id;
+  return ref.id || result.activityId || result.id;
 }
 
 function toCommonActivityType(type: ActivityLogType): "call" | "email" | "document" | "meeting" | "telemarketing" | "note" | "status_change" | "other" {

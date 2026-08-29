@@ -17,6 +17,7 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { draftToTaskPayload } from "@/lib/task-utils";
 import type { MemberOption, Task, TaskDraft, TaskProgressLog, TaskProgressLogType } from "@/types/task";
 
@@ -114,27 +115,26 @@ export function subscribeTasks(onNext: (tasks: Task[]) => void, onError: (error:
 }
 
 export async function createTask(draft: TaskDraft, currentUser: MemberOption & { uid: string }): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-
   const progressLogs = [
     createProgressLog("created", "タスクを作成しました", currentUser),
     ...(draft.assigneeId && draft.assigneeId !== currentUser.uid ? [createProgressLog("assignee", `${draft.assigneeName || "選択したメンバー"}さんに依頼しました`, currentUser)] : []),
     ...(draft.comments.trim() ? [createProgressLog("progress", "進捗状況を追加しました", currentUser, draft.comments.trim())] : [])
   ];
 
-  const taskRef = await addDoc(collection(db, TASKS_COLLECTION), {
-    ...draftToTaskPayload(draft, currentUser),
-    createdBy: currentUser.uid,
-    progressLogs,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    completedAt: null
+  const result = await businessApi<{ id: string; taskId?: string }>("/api/business/tasks", {
+    method: "POST",
+    body: toJsonBody({
+      ...draftToTaskPayload(draft, currentUser),
+      createdBy: currentUser.uid,
+      progressLogs,
+      completedAt: null
+    })
   });
+  const taskId = result.taskId ?? result.id;
 
   if (draft.assigneeId && draft.assigneeId !== currentUser.uid) {
     await notifyTaskAssignee({
-      taskId: taskRef.id,
+      taskId,
       taskTitle: draft.title.trim(),
       taskDescription: draft.description.trim(),
       assigneeId: draft.assigneeId,
@@ -174,12 +174,14 @@ export async function updateTask(taskId: string, draft: TaskDraft, currentUser: 
     nextLogs.push(createProgressLog(draft.status === "completed" ? "completed" : "status", statusTitle, currentUser, statusLabel(draft.status)));
   }
 
-  const statusPatch = draft.status === "completed" ? { completedAt: serverTimestamp() } : { completedAt: null };
-  await updateDoc(taskRef, {
-    ...draftToTaskPayload(draft, currentUser),
-    ...statusPatch,
-    progressLogs: nextLogs,
-    updatedAt: serverTimestamp()
+  await businessApi<{ task: Task }>("/api/business/tasks", {
+    method: "PATCH",
+    body: toJsonBody({
+      ...draftToTaskPayload(draft, currentUser),
+      id: taskId,
+      progressLogs: nextLogs,
+      completedAt: draft.status === "completed" ? Timestamp.now() : null
+    })
   });
 
   if (draft.assigneeId && draft.assigneeId !== previousAssigneeId) {

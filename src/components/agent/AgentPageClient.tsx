@@ -31,10 +31,10 @@ const statusLabels: Record<AgentRunStatus, string> = {
 };
 
 const exampleRequests = [
-  "Signal.の月次レポートを改修したい",
-  "commo.の管理画面を整理したい",
-  "明日までに対応が必要な会社を確認したい",
-  "商談結果からタスクを作りたい"
+  "MOGCIAの会社画面で保存エラーを直したい",
+  "通知APIの競合防止を実装したい",
+  "Vercel本番APIの500原因を調査したい",
+  "FirestoreルールとAPI仕様を整理したい"
 ];
 
 type ProjectDraft = CreateDevelopmentProjectInput;
@@ -293,8 +293,8 @@ export function AgentPageClient() {
   return (
     <section>
       <PageHeader
-        title="Agent"
-        description="管理画面、Desktop Agent、CLIをつなぐ操作入口です。"
+        title="Dev Agent"
+        description="開発依頼だけをDevelopmentJobへ登録する専用画面です。通常業務の登録・更新は各業務画面から行います。"
         actions={
           <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" href={"/settings/desktop" as Route}>
             <Code2 className="h-4 w-4" />
@@ -310,8 +310,8 @@ export function AgentPageClient() {
           <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-[#2B2B2B]">新しい依頼</h2>
-                <p className="mt-1 text-sm font-semibold text-[#8A8186]">自然文で依頼できます。読み取りはそのまま回答し、データ変更は確認後に実行します。</p>
+                <h2 className="text-xl font-bold text-[#2B2B2B]">新しい開発依頼</h2>
+                <p className="mt-1 text-sm font-semibold text-[#8A8186]">コード修正、API実装、調査などの開発作業だけを受け付けます。</p>
               </div>
               <div className="min-w-56">
                 <select className="task-input h-11" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
@@ -324,7 +324,7 @@ export function AgentPageClient() {
               <textarea
                 className="min-h-28 w-full resize-y bg-transparent text-base font-semibold leading-7 text-[#2B2B2B] outline-none placeholder:text-[#B7B0B3]"
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="Agentに依頼したい内容を入力"
+                placeholder="開発Agentに依頼したい内容を入力"
                 value={message}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#F0E7E9] pt-3">
@@ -335,7 +335,7 @@ export function AgentPageClient() {
                 </div>
                 <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!message.trim() || savingRequest} onClick={() => void submitRequest()} type="button">
                   {savingRequest ? <LoadingSpinner label="保存中" /> : <MessageSquarePlus className="h-4 w-4" />}
-                  Agentに依頼
+                  開発Agentに依頼
                 </button>
               </div>
             </div>

@@ -17,6 +17,7 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { activityTypeLabels, leadStatusLabels } from "@/lib/lead-utils";
 import type { Activity, ActivityDraft, ActivityType, Lead, LeadDraft, LeadStatus } from "@/types/lead";
 
@@ -116,17 +117,12 @@ export function subscribeCompanyActivities(companyId: string, onNext: (activitie
 }
 
 export async function createLead(draft: LeadDraft, user: { id: string; name: string }): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const ref = await addDoc(collection(db, leadsCollection), {
-    ...leadDraftPayload(draft),
-    createdBy: user.id,
-    createdByName: user.name,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+  const result = await businessApi<{ id: string; leadId?: string }>("/api/business/leads", {
+    method: "POST",
+    body: toJsonBody({ ...leadDraftPayload(draft), createdBy: user.id, createdByName: user.name })
   });
   await createActivity({
-    leadId: ref.id,
+    leadId: result.leadId ?? result.id,
     companyId: draft.companyId || null,
     type: "status_change",
     title: "見込み客を登録しました",
@@ -135,13 +131,14 @@ export async function createLead(draft: LeadDraft, user: { id: string; name: str
     productName: draft.productName || null,
     occurredAt: Timestamp.now()
   }, user);
-  return ref.id;
+  return result.leadId ?? result.id;
 }
 
 export async function updateLead(leadId: string, draft: LeadDraft, user: { id: string; name: string }): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, leadsCollection, leadId), { ...leadDraftPayload(draft), updatedAt: serverTimestamp() });
+  await businessApi<{ lead: Lead }>("/api/business/leads", {
+    method: "PATCH",
+    body: toJsonBody({ ...leadDraftPayload(draft), id: leadId, updatedBy: user.id, updatedByName: user.name })
+  });
   if (draft.status === "won" && draft.companyId) {
     await createActivity({
       leadId,
@@ -193,39 +190,29 @@ export async function createManualActivity(target: { leadId?: string | null; com
 }
 
 export async function createActivity(input: Omit<Activity, "id" | "createdBy" | "createdByName" | "createdAt" | "updatedAt">, user: { id: string; name: string }): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const payload = {
-    leadId: input.leadId ?? null,
-    companyId: input.companyId ?? null,
-    dealId: input.dealId ?? null,
-    type: input.type,
-    title: input.title ?? activityTypeLabels[input.type],
-    content: input.content ?? "",
-    productId: input.productId ?? null,
-    productName: input.productName ?? null,
-    audioId: input.audioId ?? null,
-    transcriptId: input.transcriptId ?? null,
-    analysisId: input.analysisId ?? null,
-    legacyCompanyActivityLogId: input.legacyCompanyActivityLogId ?? null,
-    nextActionAt: input.nextActionAt ?? null,
-    nextActionTitle: input.nextActionTitle ?? null,
-    occurredAt: input.occurredAt,
-    createdBy: user.id,
-    createdByName: user.name,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  };
-  const ref = await addDoc(collection(db, activitiesCollection), payload);
-  if (input.leadId) {
-    await updateDoc(doc(db, leadsCollection, input.leadId), {
-      lastActivityAt: input.occurredAt,
+  const result = await businessApi<{ id: string; activityId?: string }>("/api/business/activities", {
+    method: "POST",
+    body: toJsonBody({
+      leadId: input.leadId ?? null,
+      companyId: input.companyId ?? null,
+      dealId: input.dealId ?? null,
+      type: input.type,
+      title: input.title ?? activityTypeLabels[input.type],
+      content: input.content ?? "",
+      productId: input.productId ?? null,
+      productName: input.productName ?? null,
+      audioId: input.audioId ?? null,
+      transcriptId: input.transcriptId ?? null,
+      analysisId: input.analysisId ?? null,
+      legacyCompanyActivityLogId: input.legacyCompanyActivityLogId ?? null,
       nextActionAt: input.nextActionAt ?? null,
       nextActionTitle: input.nextActionTitle ?? null,
-      updatedAt: serverTimestamp()
-    });
-  }
-  return ref.id;
+      occurredAt: input.occurredAt,
+      createdBy: user.id,
+      createdByName: user.name
+    })
+  });
+  return result.activityId ?? result.id;
 }
 
 function leadDraftPayload(draft: LeadDraft) {

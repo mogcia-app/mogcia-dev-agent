@@ -2,6 +2,7 @@
 
 import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, writeBatch, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
 import { createDefaultProduct, createDefaultSalesPlaybooks, slugify } from "@/lib/product-utils";
 import type { Product, ProductChangeLog, ProductMemo, ProductResource, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab } from "@/types/product";
@@ -166,17 +167,19 @@ function normalizeMemo(id: string, data: DocumentData): ProductMemo {
 }
 
 export async function createProduct(user: { id: string; name: string }, input: Pick<Product, "name" | "displayName" | "categoryNames" | "productType" | "tagline" | "status">): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const ref = await addDoc(collection(db, collectionName), createDefaultProduct(user, input));
-  await addChangeLog(ref.id, user, "basic", "商材を作成しました");
-  return ref.id;
+  const result = await businessApi<{ id: string; productId?: string }>("/api/business/products", {
+    method: "POST",
+    body: toJsonBody({ ...createDefaultProduct(user, input), ...input })
+  });
+  await addChangeLog(result.productId ?? result.id, user, "basic", "商材を作成しました");
+  return result.productId ?? result.id;
 }
 
 export async function updateProduct(productId: string, user: { id: string; name: string }, tab: ProductTab, patch: Partial<Product>): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, collectionName, productId), { ...patch, updatedAt: serverTimestamp() });
+  await businessApi<{ product: Product }>("/api/business/products", {
+    method: "PATCH",
+    body: toJsonBody({ ...patch, id: productId, updatedBy: user.id, updatedByName: user.name })
+  });
   await addChangeLog(productId, user, tab, "商材情報を更新しました");
 }
 
