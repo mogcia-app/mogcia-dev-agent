@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Timestamp } from "firebase/firestore";
-import { Archive, Building2, CalendarDays, CheckCircle2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, UploadCloud, X } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, UploadCloud, X } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,7 +12,7 @@ import { SkeletonList } from "@/components/ui/loading";
 import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadStatusLabels, leadStatusOptions, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
+import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
 import { createLead, createManualActivity, linkLeadToCompany, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeCompaniesMaster } from "@/lib/companies";
 import { subscribeProductsMaster } from "@/lib/products";
@@ -51,6 +51,7 @@ export function LeadsPageClient() {
   const [draft, setDraft] = useState<LeadDraft>(() => createEmptyLeadDraft());
   const [activityDraft, setActivityDraft] = useState<ActivityDraft>(() => createEmptyActivityDraft());
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -158,6 +159,32 @@ export function LeadsPageClient() {
     }
   };
 
+  const openCreateLead = () => {
+    setDraft(createEmptyLeadDraft());
+    setCreateOpen(true);
+  };
+
+  const openEditLead = (lead: Lead) => {
+    setDraft(leadToDraft(lead));
+    setEditingLead(lead);
+  };
+
+  const saveLeadEdit = async () => {
+    if (!editingLead || !user || !draft.companyName.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateLead(editingLead.id, draft, currentUser);
+      setEditingLead(null);
+      setDraft(createEmptyLeadDraft());
+      setToast("見込み客を更新しました");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "見込み客を保存できませんでした。");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveActivity = async () => {
     if (!selectedLead || !user) return;
     setSaving(true);
@@ -185,7 +212,7 @@ export function LeadsPageClient() {
       <PageHeader
         title="営業リスト"
         description="契約前の営業対象について、現在の段階と次の対応を確認します。"
-        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />見込み客を登録</button>}
+        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={openCreateLead} type="button"><Plus className="h-4 w-4" />見込み客を登録</button>}
       />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
@@ -208,7 +235,7 @@ export function LeadsPageClient() {
 
       {selectedLead ? <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setRoute({ id: null }); }}><aside className="ml-auto h-full w-full max-w-3xl overflow-y-auto border-l border-[#EAE5E3] bg-white shadow-2xl">
           <div className="sticky top-0 z-10 flex justify-end border-b border-[#EEEAE8] bg-white/95 p-3"><button className="grid h-9 w-9 place-items-center rounded-lg hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div>
-          <div className="space-y-4 p-5"><LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onBack={() => setRoute({ id: null })} />
+          <div className="space-y-4 p-5"><LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onBack={() => setRoute({ id: null })} onEdit={() => openEditLead(selectedLead)} />
           <div className="rounded-xl border border-[#F0E7E9] bg-white shadow-sm">
             <div className="flex overflow-x-auto border-b border-[#F0E7E9]">
               {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
@@ -224,7 +251,8 @@ export function LeadsPageClient() {
           </div>
           </div></aside></div> : null}
 
-      {createOpen ? <LeadModal companies={companies} draft={draft} members={members} onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} products={products} saving={saving} /> : null}
+      {createOpen ? <LeadModal draft={draft} mode="create" onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} saving={saving} /> : null}
+      {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} saving={saving} /> : null}
       {activityOpen && selectedLead ? <ActivityModal draft={activityDraft} onChange={setActivityDraft} onClose={() => setActivityOpen(false)} onSave={saveActivity} products={products} saving={saving} /> : null}
     </section>
   );
@@ -244,7 +272,7 @@ function LeadRow({ lead, onSelect }: { lead: Lead; onSelect: () => void }) {
   );
 }
 
-function LeadHeader({ lead, onBack, onActivity }: { lead: Lead; onBack: () => void; onActivity: () => void }) {
+function LeadHeader({ lead, onBack, onActivity, onEdit }: { lead: Lead; onBack: () => void; onActivity: () => void; onEdit: () => void }) {
   return (
     <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -258,6 +286,7 @@ function LeadHeader({ lead, onBack, onActivity }: { lead: Lead; onBack: () => vo
         <div className="flex flex-wrap gap-2">
           {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${lead.email}`}><Mail className="h-4 w-4" />メール</a> : null}
           {lead.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${lead.phone}`}><Phone className="h-4 w-4" />電話</a> : null}
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
           <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onActivity} type="button"><MessageSquarePlus className="h-4 w-4" />活動ログを追加</button>
         </div>
       </div>
@@ -381,24 +410,16 @@ function NotesTab({ lead, currentUser, onSave }: { lead: Lead; currentUser: { id
   );
 }
 
-function LeadModal({ draft, products, companies, members, saving, onChange, onSave, onClose }: { draft: LeadDraft; products: Product[]; companies: Company[]; members: Array<{ id: string; name: string }>; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
+function LeadModal({ draft, mode, saving, onChange, onSave, onClose }: { draft: LeadDraft; mode: "create" | "edit"; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
   return (
-    <Modal title="見込み客を登録" onClose={onClose}>
+    <Modal title={mode === "create" ? "見込み客を登録" : "見込み客を編集"} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label="会社名" value={draft.companyName} onChange={(companyName) => onChange({ ...draft, companyName })} required />
         <Input label="担当者" value={draft.contactName} onChange={(contactName) => onChange({ ...draft, contactName })} />
         <Input label="役職" value={draft.contactRole} onChange={(contactRole) => onChange({ ...draft, contactRole })} />
         <Input label="電話" value={draft.phone} onChange={(phone) => onChange({ ...draft, phone })} />
         <Input label="メール" value={draft.email} onChange={(email) => onChange({ ...draft, email })} />
-        <Input label="流入元" value={draft.source} onChange={(source) => onChange({ ...draft, source })} />
-        <SelectBox label="ステータス" value={draft.status} options={leadStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
-        <Input label="見込みランク" value={draft.prospectRank} onChange={(prospectRank) => onChange({ ...draft, prospectRank })} />
-        <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(value) => { const product = products.find((item) => item.id === value); onChange({ ...draft, productId: value, productName: product?.name ?? "" }); }} />
-        <SearchBox label="担当者" value={draft.assignedUserId} options={members.map((member) => ({ value: member.id, label: member.name }))} onChange={(value) => { const member = members.find((item) => item.id === value); onChange({ ...draft, assignedUserId: value, assignedUserName: member?.name ?? "" }); }} />
-        <Input label="アポ日時" type="datetime-local" value={draft.appointmentAt} onChange={(appointmentAt) => onChange({ ...draft, appointmentAt })} />
-        <Input label="次回予定日時" type="datetime-local" value={draft.nextActionAt} onChange={(nextActionAt) => onChange({ ...draft, nextActionAt })} />
-        <Input label="次回予定" value={draft.nextActionTitle} onChange={(nextActionTitle) => onChange({ ...draft, nextActionTitle })} />
-        <SearchBox label="既存Company" value={draft.companyId} options={companies.map((company) => ({ value: company.id, label: company.name }))} onChange={(companyId) => onChange({ ...draft, companyId })} />
+        <SelectBox label="ステータス" value={draft.status === "document_sent" ? "document_sent" : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
       </div>
       <div className="mt-6 flex justify-end gap-3">

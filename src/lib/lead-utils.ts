@@ -3,8 +3,8 @@ import type { ActivityType, LeadDraft, LeadStatus } from "@/types/lead";
 export const leadStatusLabels: Record<LeadStatus, string> = {
   new: "新規",
   contacting: "対応中",
-  document_sent: "資料送付",
-  appointment: "アポ取得",
+  document_sent: "資料請求",
+  appointment: "アポ獲得",
   meeting: "商談中",
   considering: "検討中",
   hold: "保留",
@@ -24,6 +24,10 @@ export const activityTypeLabels: Record<ActivityType, string> = {
 };
 
 export const leadStatusOptions = Object.entries(leadStatusLabels) as Array<[LeadStatus, string]>;
+export const leadCreateStatusOptions: Array<[LeadStatus, string]> = [
+  ["appointment", leadStatusLabels.appointment],
+  ["document_sent", leadStatusLabels.document_sent]
+];
 export const activityTypeOptions = Object.entries(activityTypeLabels) as Array<[ActivityType, string]>;
 
 export function createEmptyLeadDraft(): LeadDraft {
@@ -36,7 +40,7 @@ export function createEmptyLeadDraft(): LeadDraft {
     source: "",
     productId: "",
     productName: "",
-    status: "new",
+    status: "appointment",
     prospectRank: "",
     appointmentAt: "",
     nextActionAt: "",
@@ -65,5 +69,5 @@ export function toDatetimeLocalInput(date?: Date | null): string {
 
 export function formatMaybeDate(date?: Date | null): string {
   if (!date) return "未設定";
-  return date.toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
 }
