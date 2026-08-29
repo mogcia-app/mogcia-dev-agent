@@ -1,0 +1,12 @@
+#!/bin/bash
+
+CONSOLE_USER="$(/usr/bin/stat -f '%Su' /dev/console)"
+
+if [[ -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" && "$CONSOLE_USER" != "loginwindow" ]]; then
+  CONSOLE_UID="$(/usr/bin/id -u "$CONSOLE_USER")"
+  /usr/bin/pkill -x MOGCIADesktop >/dev/null 2>&1 || true
+  /bin/sleep 1
+  /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/open -na /Applications/MOGCIA.app >/dev/null 2>&1 || true
+fi
+
+exit 0

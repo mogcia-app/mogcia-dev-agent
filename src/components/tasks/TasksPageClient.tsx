@@ -3,12 +3,13 @@
 import { Archive, Bot, CalendarDays, Check, CheckSquare, Circle, Clock3, Inbox, ListChecks, Plus, Search, Sparkles, Trash2, User, UserPlus, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
+import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
 import { TaskProgressTimeline } from "@/components/tasks/TaskProgressTimeline";
 import { SingleSelect } from "@/components/ui/select";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTasks } from "@/hooks/useTasks";
 import { useWorkspaceOptions } from "@/hooks/useWorkspaceOptions";
-import { createEmptyTaskDraft, getDueBadge, getDueBadgeTone, taskToDraft } from "@/lib/task-utils";
+import { createEmptyTaskDraft, getDueBadge, getDueBadgeTone, isTaskOverdue, taskToDraft } from "@/lib/task-utils";
 import type { MemberOption, Task, TaskDraft, TaskSort, TaskStatusFilter, TaskView } from "@/types/task";
 
 type SuggestedTask = {
@@ -29,7 +30,7 @@ type SidebarEntry = {
 
 const viewLabels: Record<TaskView, string> = {
   mine: "マイタスク",
-  ai: "AI作成",
+  ai: "MOGCIA作成",
   members: "メンバー",
   assigned: "依頼したタスク",
   log: "ログ"
@@ -53,16 +54,20 @@ export function TasksPageClient() {
   const [quickTitle, setQuickTitle] = useState("");
   const [isSplitting, setSplitting] = useState(false);
   const [splitError, setSplitError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestedTask[]>([]);
   const [query, setQuery] = useState("");
   const isLogView = filters.view === "log";
 
   const visibleTasks = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return filters.filteredTasks;
-    return filters.filteredTasks.filter((task) => [task.title, task.description, task.companyName, task.productName, task.assigneeName].filter(Boolean).join(" ").toLowerCase().includes(needle));
+    const openTasks = filters.filteredTasks.filter((task) => task.status !== "completed");
+    if (!needle) return openTasks;
+    return openTasks.filter((task) => [task.title, task.description, task.companyName, task.productName, task.assigneeName].filter(Boolean).join(" ").toLowerCase().includes(needle));
   }, [filters.filteredTasks, query]);
 
   const selectedTask = useMemo(() => selectedTaskId ? visibleTasks.find((task) => task.id === selectedTaskId) ?? null : null, [selectedTaskId, visibleTasks]);
+  const overdueTasks = filters.status === "today" ? visibleTasks.filter(isTaskOverdue) : [];
+  const currentTasks = filters.status === "today" ? visibleTasks.filter((task) => !isTaskOverdue(task)) : visibleTasks;
 
   const createQuickTask = async () => {
     const title = quickTitle.trim();
@@ -83,9 +88,7 @@ export function TasksPageClient() {
         setSplitError("分解できる内容が見つかりませんでした。");
         return;
       }
-      await Promise.all(tasksToCreate.map((task) => taskStore.createTask(suggestionToDraft(task, content, taskStore.currentMember))));
-      setQuickTitle("");
-      filters.setFilter("view", "ai");
+      setSuggestions(tasksToCreate);
     } catch (error) {
       setSplitError(error instanceof Error ? error.message : "AI分解に失敗しました。");
     } finally {
@@ -93,79 +96,46 @@ export function TasksPageClient() {
     }
   };
 
+  const confirmSuggestions = async () => {
+    const source = quickTitle.trim();
+    await Promise.all(suggestions.map((task) => taskStore.createTask(suggestionToDraft(task, source, taskStore.currentMember))));
+    setSuggestions([]);
+    setQuickTitle("");
+  };
+
   return (
-    <div className="min-h-[calc(100vh-40px)] overflow-hidden border border-[#EFE3E6] bg-white shadow-sm xl:grid xl:grid-cols-[280px_minmax(420px,1fr)_420px]">
-      <TaskSidebar counts={filters.counts} currentUserId={taskStore.user?.uid ?? ""} filters={filters} onCreate={() => setSelectedTaskId("")} tasks={taskStore.tasks} />
+    <div className="min-h-[calc(100vh-65px)] overflow-hidden bg-white lg:min-h-screen xl:grid xl:grid-cols-[260px_minmax(0,1fr)]">
+      <TaskSidebar counts={filters.counts} currentUserId={taskStore.user?.uid ?? ""} filters={filters} tasks={taskStore.tasks} />
 
-      <main className="min-w-0 border-[#EFE3E6] xl:border-l xl:border-r">
-        <div className="flex min-h-16 items-center justify-between gap-3 border-b border-[#EFE3E6] px-5">
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold text-[#2B2B2B]">{viewLabels[filters.view]}</h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <TaskSortSelect sort={filters.sort} setFilter={filters.setFilter} />
-          </div>
-        </div>
-
+      <main className="min-w-0 border-[#EFE3E6] xl:border-l">
         {taskStore.error ? <p className="m-4 rounded-none bg-[#FFF2F5] px-4 py-3 text-sm font-bold text-[#D94F6E]">{taskStore.error}</p> : null}
 
-        <section className="border-b border-[#EFE3E6] p-5">
-          <div className="flex min-h-12 items-center gap-3 rounded-none bg-[#F7F5F5] px-4 py-1.5 text-sm font-bold text-[#9A9296]">
-            <Plus className="h-4 w-4" />
-            <input
-              className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#B7B0B3]"
-              disabled={!taskStore.user || isSplitting}
-              onChange={(event) => setQuickTitle(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void createQuickTask();
-              }}
-              placeholder="タスクやメモを入力します。Enterで保存、AIで分解できます。"
-              value={quickTitle}
-            />
-            <button
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-none bg-white px-3 text-xs font-black text-[#EC6F8B] ring-1 ring-[#F0DEE2] transition hover:bg-[#FFF0F3] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!quickTitle.trim() || !taskStore.user || isSplitting}
-              onClick={() => void splitQuickTaskWithAi()}
-              type="button"
-            >
-              <Sparkles className="h-4 w-4" />
-              {isSplitting ? "分解中..." : "AIで分解"}
-            </button>
-          </div>
-          {splitError ? <p className="mt-2 text-xs font-bold text-[#D94F6E]">{splitError}</p> : null}
-          <label className="mt-3 flex h-10 items-center gap-2 border border-[#EFE3E6] px-3 text-sm font-semibold text-[#8A8186]">
+        <section className="border-b border-[#EFE3E6] px-5 py-4">
+          <label className="flex h-10 items-center gap-2 rounded-lg border border-[#EFE3E6] px-3 text-sm font-semibold text-[#8A8186]">
             <Search className="h-4 w-4" />
             <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="タイトル・会社・商材で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
         </section>
 
-        <section className="max-h-[calc(100vh-220px)] overflow-auto px-5 py-4">
+        <section className="max-h-[calc(100vh-85px)] overflow-auto px-5 py-5">
           {taskStore.loading ? <TaskRowsSkeleton /> : null}
           {!taskStore.loading && isLogView ? <TaskLogPicker currentUserId={taskStore.user?.uid ?? ""} onSelect={setSelectedTaskId} selectedTask={selectedTask} tasks={visibleTasks} /> : null}
           {!taskStore.loading && !isLogView ? (
-            <TaskRows
-              canEditTask={taskStore.canEditTask}
-              currentUserId={taskStore.user?.uid ?? ""}
-              onSelect={setSelectedTaskId}
-              onToggle={(task, completed) => void taskStore.completeTask(task, completed)}
-              selectedTaskId={selectedTask?.id}
-              tasks={visibleTasks}
-            />
+            <div className="space-y-7">{filters.status === "today" ? <TaskSection title="今日やること" count={currentTasks.length}><TaskRows canEditTask={taskStore.canEditTask} currentUserId={taskStore.user?.uid ?? ""} onSelect={setSelectedTaskId} onToggle={(task, completed) => void taskStore.completeTask(task, completed)} selectedTaskId={selectedTask?.id} tasks={currentTasks} /></TaskSection> : <TaskRows canEditTask={taskStore.canEditTask} currentUserId={taskStore.user?.uid ?? ""} onSelect={setSelectedTaskId} onToggle={(task, completed) => void taskStore.completeTask(task, completed)} selectedTaskId={selectedTask?.id} tasks={currentTasks} />}{overdueTasks.length ? <TaskSection title="期限超過" count={overdueTasks.length} warning><TaskRows canEditTask={taskStore.canEditTask} currentUserId={taskStore.user?.uid ?? ""} onSelect={setSelectedTaskId} onToggle={(task, completed) => void taskStore.completeTask(task, completed)} selectedTaskId={selectedTask?.id} tasks={overdueTasks} /></TaskSection> : null}</div>
           ) : null}
           {!taskStore.loading ? <p className="mt-5 text-center text-xs font-bold text-[#A0979B]">{visibleTasks.length}件を表示</p> : null}
         </section>
       </main>
 
-      <TaskInspector
+      <TaskDetailDrawer
         canDelete={selectedTask ? taskStore.canDeleteTask() : false}
         canEdit={selectedTask ? taskStore.canEditTask(selectedTask) : false}
         companies={workspaceOptions.companies}
-        currentMember={taskStore.currentMember}
         currentUserId={taskStore.user?.uid ?? ""}
         isAdmin={taskStore.isAdmin}
-        key={selectedTask ? `task-${selectedTask.id}` : `new-${taskStore.currentMember.id}`}
+        key={selectedTask?.id ?? "no-task"}
         members={taskStore.members}
-        onCreate={taskStore.createTask}
+        onClose={() => setSelectedTaskId("")}
         onDelete={taskStore.deleteTask}
         onDuplicate={taskStore.duplicateTask}
         onSave={taskStore.updateTask}
@@ -186,14 +156,8 @@ async function fetchTaskSuggestions(content: string, user: { getIdToken: () => P
     body: JSON.stringify({ companyName: "", title: "タスク分解", content, nextActions: content, productNames: [], contactNames: [] })
   });
   if (!response.ok) return localTaskSuggestions(content);
-  const data = await safeJson<{ tasks?: SuggestedTask[] }>(response);
+  const data = (await response.json()) as { tasks?: SuggestedTask[] };
   return data.tasks?.length ? data.tasks : localTaskSuggestions(content);
-}
-
-async function safeJson<T>(response: Response): Promise<T> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) throw new Error("サーバーからJSON以外の応答が返りました。");
-  return response.json() as Promise<T>;
 }
 
 function suggestionToDraft(task: SuggestedTask, sourceContent: string, currentMember: MemberOption): TaskDraft {
@@ -223,29 +187,27 @@ function localTaskSuggestions(content: string): SuggestedTask[] {
     }));
 }
 
-function TaskSidebar({ tasks, counts, currentUserId, filters, onCreate }: { tasks: Task[]; counts: Record<TaskStatusFilter, number>; currentUserId: string; filters: ReturnType<typeof useTaskFilters>; onCreate: () => void }) {
+function TaskSidebar({ tasks, counts, currentUserId, filters }: { tasks: Task[]; counts: Record<TaskStatusFilter, number>; currentUserId: string; filters: ReturnType<typeof useTaskFilters> }) {
   const entries: SidebarEntry[] = [
     { label: "今日", icon: CalendarDays, count: counts.today, active: filters.status === "today", onClick: () => filters.setFilter("status", "today") },
-    { label: "受信トレイ", icon: Inbox, count: counts.open, active: filters.status === "open" && filters.view === "mine", onClick: () => { filters.setFilter("view", "mine"); filters.setFilter("status", "open"); } },
-    { label: "完了", icon: CheckSquare, count: counts.completed, active: filters.status === "completed", onClick: () => filters.setFilter("status", "completed") }
+    { label: "受信トレイ", icon: Inbox, count: counts.open, active: filters.status === "open" && filters.view === "mine", onClick: () => { filters.setFilter("view", "mine"); filters.setFilter("status", "open"); } }
   ];
   const viewEntries: Array<{ value: TaskView; label: string; icon: typeof User }> = [
     { value: "mine", label: "マイタスク", icon: User },
     { value: "members", label: "メンバータスク", icon: UsersRound },
     { value: "assigned", label: "依頼したタスク", icon: UserPlus },
-    { value: "ai", label: "AI作成", icon: Bot }
+    { value: "ai", label: "MOGCIA作成", icon: Bot }
   ];
   const viewCounts: Record<TaskView, number> = {
-    mine: currentUserId ? tasks.filter((task) => task.assigneeId === currentUserId || task.collaboratorIds?.includes(currentUserId)).length : 0,
-    members: currentUserId ? tasks.filter((task) => task.assigneeId !== currentUserId || task.collaboratorIds?.some((id) => id !== currentUserId)).length : 0,
-    assigned: currentUserId ? tasks.filter((task) => task.createdBy === currentUserId && task.assigneeId !== currentUserId).length : 0,
-    ai: tasks.filter((task) => task.source === "ai").length,
+    mine: currentUserId ? tasks.filter((task) => task.status !== "completed" && (task.assigneeId === currentUserId || task.collaboratorIds?.includes(currentUserId))).length : 0,
+    members: currentUserId ? tasks.filter((task) => task.status !== "completed" && (task.assigneeId !== currentUserId || task.collaboratorIds?.some((id) => id !== currentUserId))).length : 0,
+    assigned: currentUserId ? tasks.filter((task) => task.status !== "completed" && task.createdBy === currentUserId && task.assigneeId !== currentUserId).length : 0,
+    ai: tasks.filter((task) => task.status !== "completed" && task.source === "ai").length,
     log: tasks.length
   };
 
   return (
     <aside className="bg-[#FBFAFA] p-4">
-      <button className="mb-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button"><Plus className="h-4 w-4" />新しいタスク</button>
       <div className="grid gap-1">
         {entries.map((entry) => <SidebarButton entry={entry} key={entry.label} />)}
       </div>
@@ -263,14 +225,6 @@ function TaskSidebar({ tasks, counts, currentUserId, filters, onCreate }: { task
           );
         })}
       </div>
-      <div className="my-5 border-t border-[#EFE3E6]" />
-      <p className="px-3 text-xs font-black text-[#B3AAAE]">フィルター</p>
-      <div className="mt-3 grid gap-2 rounded-none bg-[#F4F2F2] p-3 text-xs font-bold text-[#8A8186]">
-        <FilterSelect label="期限" value={filters.due} onChange={(value) => filters.setFilter("due", value)} options={[["all", "すべて"], ["today", "今日"], ["tomorrow", "明日"], ["week", "今週"], ["month", "今月"], ["overdue", "期限切れ"], ["none", "期限なし"]]} />
-        <FilterSelect label="優先度" value={filters.priority} onChange={(value) => filters.setFilter("priority", value)} options={[["all", "すべて"], ["high", "高"], ["medium", "中"], ["low", "低"]]} />
-        <FilterSelect label="作成元" value={filters.source} onChange={(value) => filters.setFilter("source", value)} options={[["all", "すべて"], ["ai", "AI"], ["manual", "手動"], ["automation", "自動"]]} />
-      </div>
-      <button className="mt-5 flex h-11 w-full items-center gap-2 rounded-none px-3 text-sm font-bold text-[#6F676B] hover:bg-white" onClick={() => filters.setFilter("status", "completed")} type="button"><Archive className="h-4 w-4" />完了済み</button>
     </aside>
   );
 }
@@ -331,6 +285,10 @@ function TaskRows({ tasks, selectedTaskId, currentUserId, canEditTask, onSelect,
       })}
     </div>
   );
+}
+
+function TaskSection({ title, count, warning = false, children }: { title: string; count: number; warning?: boolean; children: React.ReactNode }) {
+  return <section><div className="mb-3 flex items-center gap-2"><h2 className={`text-sm font-bold ${warning ? "text-[#C85C39]" : "text-[#2B2B2B]"}`}>{title}</h2><span className="text-xs font-semibold text-[#9A9296]">{count}件</span></div>{children}</section>;
 }
 
 function TaskLogPicker({ tasks, selectedTask, currentUserId, onSelect }: { tasks: Task[]; selectedTask: Task | null; currentUserId: string; onSelect: (taskId: string) => void }) {

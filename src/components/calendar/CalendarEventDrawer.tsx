@@ -1,11 +1,11 @@
 "use client";
 
-import { ExternalLink, Trash2, X } from "lucide-react";
+import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import { formatShortDate, formatTime, getCategoryMeta } from "@/lib/calendar-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
 
-export function CalendarEventDrawer({ item, event, canDelete, onClose, onDelete }: { item: CalendarItem | null; event: CalendarEvent | null; canDelete: boolean; onClose: () => void; onDelete: (eventId: string) => Promise<void> }) {
+export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, onEdit, onDelete }: { item: CalendarItem | null; event: CalendarEvent | null; canEdit: boolean; canDelete: boolean; onClose: () => void; onEdit: (event: CalendarEvent) => void; onDelete: (eventId: string) => Promise<void> }) {
   if (!item) return null;
   const meta = getCategoryMeta(item.category);
   const remove = async () => {
@@ -39,6 +39,7 @@ export function CalendarEventDrawer({ item, event, canDelete, onClose, onDelete 
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">
             {item.meetingUrl ? <a className="inline-flex h-11 items-center gap-2 rounded-none bg-[#F47E96] px-5 text-sm font-bold text-white" href={item.meetingUrl} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" />オンライン会議を開く</a> : null}
+            {event && canEdit ? <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#655D62]" onClick={() => onEdit(event)} type="button"><Pencil className="h-4 w-4" />編集</button> : null}
           </div>
           {event && canDelete ? <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F7CAD2] px-5 text-sm font-bold text-[#E65A78]" onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />削除</button> : null}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Bookmark, Copy, Download, Edit2, Eye, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { Archive, ArrowRight, Bookmark, Copy, Download, Edit2, Eye, MessageSquareText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -166,6 +166,8 @@ function KnowledgeListItem({ item, active, favorite, onSelect, onFavorite }: { i
 
 function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdit, onDuplicate, onArchive, onDelete }: { item: Knowledge; favorite: boolean; canEdit: boolean; canDelete: boolean; onFavorite: () => void; onEdit: () => void; onDuplicate: () => Promise<void>; onArchive: () => Promise<void>; onDelete: () => Promise<void>; }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const chatMessage = `ナレッジ「${item.title}」について相談したいです。${item.summary ? `\n概要: ${item.summary}` : ""}`;
+  const chatHref = `/agent?message=${encodeURIComponent(chatMessage)}&contextType=knowledge&contextId=${encodeURIComponent(item.id)}` as Route;
   return (
     <article className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -180,6 +182,7 @@ function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdi
           </div>
         </div>
         <div className="relative flex gap-2">
+          <Link aria-label="このナレッジをチャットで相談" className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" href={chatHref}><MessageSquareText className="h-4 w-4" />チャットで相談<ArrowRight className="h-4 w-4" /></Link>
           <button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9] text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
           {canEdit ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button> : null}
           <button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9] text-[#6F676B]" onClick={() => setMenuOpen((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>

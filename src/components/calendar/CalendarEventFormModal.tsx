@@ -20,8 +20,8 @@ const eventTypeOptions: Array<[CalendarEventType, string]> = [
   ["other", "その他"]
 ];
 
-export function CalendarEventFormModal({ currentMember, members, companies, projects, meetings, isAdmin, onClose, onSubmit }: { currentMember: MemberOption; members: MemberOption[]; companies: CompanyOption[]; projects: ProjectOption[]; meetings: MeetingOption[]; isAdmin: boolean; onClose: () => void; onSubmit: (draft: CalendarEventDraft) => Promise<void> }) {
-  const [draft, setDraft] = useState(() => createEmptyCalendarDraft(currentMember));
+export function CalendarEventFormModal({ currentMember, members, companies, projects, meetings, isAdmin, initialDraft, onClose, onSubmit }: { currentMember: MemberOption; members: MemberOption[]; companies: CompanyOption[]; projects: ProjectOption[]; meetings: MeetingOption[]; isAdmin: boolean; initialDraft?: CalendarEventDraft; onClose: () => void; onSubmit: (draft: CalendarEventDraft) => Promise<void> }) {
+  const [draft, setDraft] = useState(() => initialDraft ?? createEmptyCalendarDraft(currentMember));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const setValue = <K extends keyof CalendarEventDraft>(key: K, value: CalendarEventDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
@@ -44,7 +44,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm">
       <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-[#2B2B2B]">予定を追加</h2>
+          <h2 className="text-2xl font-bold text-[#2B2B2B]">{initialDraft ? "予定を編集" : "予定を追加"}</h2>
           <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF0F3]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
         <div className="grid gap-5">

@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Timestamp } from "firebase/firestore";
-import { Archive, Building2, CalendarDays, CheckCircle2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, UploadCloud } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, UploadCloud, X } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -34,7 +34,7 @@ export function LeadsPageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const selectedId = params.get("id");
+  const selectedId = params.get("leadId") ?? params.get("id");
   const selectedTab = (params.get("tab") as TabKey | null) ?? "overview";
   const [user, setUser] = useState<User | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -114,6 +114,7 @@ export function LeadsPageClient() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return leads
+      .filter((lead) => status === "won" || status === "lost" ? true : lead.status !== "won" && lead.status !== "lost")
       .filter((lead) => status === "all" || lead.status === status)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
@@ -134,7 +135,8 @@ export function LeadsPageClient() {
 
   const setRoute = (next: { id?: string | null; tab?: TabKey }) => {
     const search = new URLSearchParams(params.toString());
-    if (next.id !== undefined) next.id ? search.set("id", next.id) : search.delete("id");
+    search.delete("id");
+    if (next.id !== undefined) next.id ? search.set("leadId", next.id) : search.delete("leadId");
     if (next.tab) search.set("tab", next.tab);
     router.replace(`${pathname}${search.toString() ? `?${search.toString()}` : ""}` as Route, { scroll: false });
   };
@@ -180,38 +182,30 @@ export function LeadsPageClient() {
 
   return (
     <section>
-      {!selectedLead ? (
-        <PageHeader
-          title="見込み客"
-          description="テレアポ、問い合わせ、紹介、商談中の会社を管理します。"
-          actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい見込み客</button>}
-        />
-      ) : null}
+      <PageHeader title="営業リスト" description="契約前の営業対象について、現在の段階と次の対応を確認します。" />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
 
-      {!selectedLead ? (
-        <section className="mt-5 rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-          <div className="grid gap-3 xl:grid-cols-[1fr_180px_220px_220px_220px]">
-            <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
+        <section className="mt-5 overflow-hidden rounded-xl border border-[#EAE5E3] bg-white shadow-sm">
+          <div className="flex gap-1 overflow-x-auto border-b border-[#EEEAE8] px-4 pt-3">{(["all", "new", "contacting", "appointment", "meeting", "considering"] as const).map((value) => { const label = value === "all" ? "すべて" : leadStatusLabels[value]; const count = leads.filter((lead) => lead.status !== "won" && lead.status !== "lost" && (value === "all" || lead.status === value)).length; return <button className={`shrink-0 border-b-2 px-3 py-3 text-sm font-semibold ${status === value ? "border-[#EC6F8B] text-[#B84563]" : "border-transparent text-neutral-500"}`} key={value} onClick={() => setStatus(value)} type="button">{label} <span className="ml-1 text-xs text-neutral-400">{count}</span></button>; })}</div>
+          <div className="border-b border-[#EEEAE8] p-4">
+            <label className="flex h-10 max-w-xl items-center gap-2 rounded-lg border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#777]">
               <Search className="h-4 w-4" />
-              <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・商材で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
+              <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             </label>
-            <SingleSelect options={[{ value: "all", label: "すべて" }, ...leadStatusOptions.map(([value, label]) => ({ value, label }))]} value={status} onChange={(value) => setStatus(value as LeadStatus | "all")} />
-            <SingleSelect options={[{ value: "all", label: "商材すべて" }, ...products.map((product) => ({ value: product.id, label: product.name }))]} value={productId} onChange={setProductId} />
-            <SingleSelect options={[{ value: "all", label: "担当者すべて" }, ...members.map((member) => ({ value: member.id, label: member.name }))]} value={assigneeId} onChange={setAssigneeId} />
-            <SingleSelect options={sortOptions.map(([value, label]) => ({ value, label }))} value={sort} onChange={(value) => setSort(value as LeadSort)} />
           </div>
-          <div className="mt-4 space-y-3">
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[940px] grid-cols-[1.3fr_1fr_0.8fr_0.7fr_1.15fr_0.9fr_0.75fr] gap-3 border-b border-[#EEEAE8] bg-[#FAF9F8] px-4 py-3 text-xs font-semibold text-neutral-400"><span>会社</span><span>担当者</span><span>状態</span><span>見込み</span><span>次回対応</span><span>営業担当</span><span>更新</span></div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
-            {!loading && filtered.length === 0 ? <EmptyState title="見込み客はまだありません" description="テレアポ対象や問い合わせを登録すると、ここに表示されます。" actionLabel="新規登録" onAction={() => setCreateOpen(true)} /> : null}
+            {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
             {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} onSelect={() => setRoute({ id: lead.id, tab: "overview" })} />)}
           </div>
         </section>
-      ) : (
-        <section className="mt-0 space-y-4">
-          <LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onBack={() => setRoute({ id: null })} />
-          <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
+
+      {selectedLead ? <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setRoute({ id: null }); }}><aside className="ml-auto h-full w-full max-w-3xl overflow-y-auto border-l border-[#EAE5E3] bg-white shadow-2xl">
+          <div className="sticky top-0 z-10 flex justify-end border-b border-[#EEEAE8] bg-white/95 p-3"><button className="grid h-9 w-9 place-items-center rounded-lg hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div>
+          <div className="space-y-4 p-5"><LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onBack={() => setRoute({ id: null })} />
+          <div className="rounded-xl border border-[#F0E7E9] bg-white shadow-sm">
             <div className="flex overflow-x-auto border-b border-[#F0E7E9]">
               {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
             </div>
@@ -224,8 +218,7 @@ export function LeadsPageClient() {
               {selectedTab === "notes" ? <NotesTab lead={selectedLead} currentUser={currentUser} onSave={(nextDraft) => updateLead(selectedLead.id, nextDraft, currentUser)} /> : null}
             </div>
           </div>
-        </section>
-      )}
+          </div></aside></div> : null}
 
       {createOpen ? <LeadModal companies={companies} draft={draft} members={members} onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} products={products} saving={saving} /> : null}
       {activityOpen && selectedLead ? <ActivityModal draft={activityDraft} onChange={setActivityDraft} onClose={() => setActivityOpen(false)} onSave={saveActivity} products={products} saving={saving} /> : null}
@@ -235,14 +228,14 @@ export function LeadsPageClient() {
 
 function LeadRow({ lead, onSelect }: { lead: Lead; onSelect: () => void }) {
   return (
-    <button className="grid w-full gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-left transition hover:border-[#F7CAD2] lg:grid-cols-[1.2fr_0.9fr_0.7fr_0.7fr_0.9fr_0.9fr_0.8fr]" onClick={onSelect} type="button">
-      <span className="min-w-0"><span className="block truncate font-black text-[#2B2B2B]">{lead.companyName}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{lead.contactName || "担当者未設定"}</span></span>
-      <span className="truncate text-sm font-bold text-[#6F676B]">{lead.productName || "商材未設定"}</span>
-      <span className={`h-fit rounded-none px-2.5 py-1 text-center text-xs font-black ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
-      <span className="text-sm font-bold text-[#EC6F8B]">{lead.prospectRank || "未判定"}</span>
-      <span className="text-sm font-semibold text-[#777]">{formatMaybeDate(lead.lastActivityAt?.toDate())}</span>
-      <span className="text-sm font-semibold text-[#777]">{formatMaybeDate(lead.nextActionAt?.toDate())}</span>
-      <span className="truncate text-sm font-bold text-[#6F676B]">{lead.assignedUserName || "未設定"}</span>
+    <button className="grid min-w-[940px] w-full grid-cols-[1.3fr_1fr_0.8fr_0.7fr_1.15fr_0.9fr_0.75fr] items-center gap-3 border-b border-[#EEEAE8] px-4 py-3 text-left transition hover:bg-[#FCFAFA]" onClick={onSelect} type="button">
+      <span className="min-w-0"><span className="block truncate text-sm font-bold text-[#2B2B2B]">{lead.companyName}</span><span className="mt-1 block truncate text-xs font-medium text-[#999]">{lead.productName || "商材未設定"}</span></span>
+      <span className="min-w-0"><span className="block truncate text-sm font-medium text-[#5E565A]">{lead.contactName || "未設定"}</span><span className="mt-1 block truncate text-xs text-[#999]">{lead.contactRole || lead.phone || ""}</span></span>
+      <span className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
+      <span className="text-sm font-bold text-[#B84563]">{lead.prospectRank || "—"}</span>
+      <span className="min-w-0"><span className="block truncate text-sm font-medium text-[#5E565A]">{lead.nextActionTitle || "未設定"}</span><span className="mt-1 block text-xs text-[#999]">{formatMaybeDate(lead.nextActionAt?.toDate())}</span></span>
+      <span className="truncate text-sm font-medium text-[#5E565A]">{lead.assignedUserName || "未設定"}</span>
+      <span className="text-xs font-medium text-[#888]">{formatRelativeDate(lead.updatedAt.toDate())}</span>
     </button>
   );
 }
@@ -252,7 +245,6 @@ function LeadHeader({ lead, onBack, onActivity }: { lead: Lead; onBack: () => vo
     <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-bold text-[#2B2B2B]">{lead.companyName}</h2>
             <span className={`rounded-none px-2.5 py-1 text-xs font-black ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
@@ -489,4 +481,14 @@ function compareLeads(a: Lead, b: Lead, sort: LeadSort): number {
   if (sort === "lastActivity") return (b.lastActivityAt?.toMillis() ?? 0) - (a.lastActivityAt?.toMillis() ?? 0);
   if (sort === "rank") return (a.prospectRank ?? "").localeCompare(b.prospectRank ?? "", "ja");
   return b.updatedAt.toMillis() - a.updatedAt.toMillis();
+}
+
+function formatRelativeDate(date: Date): string {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((start - target) / 86_400_000);
+  if (days <= 0) return "今日";
+  if (days === 1) return "昨日";
+  return `${days}日前`;
 }

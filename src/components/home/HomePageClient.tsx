@@ -336,8 +336,8 @@ export function HomePageClient() {
   return (
     <section>
       <PageHeader
-        title="Home"
-        description={`${getUserDisplayName(user)}さんの今週の予定、タスク、確認する会社をまとめています。`}
+        title={`おはようございます、${getUserDisplayName(user)}さん`}
+        description="今日、確認が必要なものだけをまとめています。"
         actions={
           <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(236,111,139,0.18)] transition hover:bg-[#E65C7C]" href={"/tasks" as Route}>
             <Plus className="h-4 w-4" />
@@ -348,8 +348,8 @@ export function HomePageClient() {
 
       <div className="mt-5"><StatusBanner message={error} type="error" /></div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.8fr]">
-        <Panel icon={ListChecks} title="今週のやること">
+      <div className="mt-6 grid gap-5 xl:grid-cols-3">
+        <Panel icon={ListChecks} title="次にやるタスク">
           {loading ? <SkeletonList count={4} media={false} /> : null}
           {!loading && dashboard.weekTasks.length === 0 ? <EmptyLine text="今週のタスクはありません。" /> : null}
           <div className="grid gap-3">
@@ -357,7 +357,7 @@ export function HomePageClient() {
           </div>
         </Panel>
 
-        <Panel icon={CalendarDays} title="今週の予定">
+        <Panel icon={CalendarDays} title="次の予定">
           {loading ? <SkeletonList count={3} media={false} /> : null}
           {!loading && dashboard.weekScheduleItems.length === 0 ? <EmptyLine text="今週の予定はありません。" /> : null}
           <div className="grid gap-3">
@@ -365,12 +365,22 @@ export function HomePageClient() {
           </div>
         </Panel>
 
-        <Panel icon={Clock3} title="期限が近いタスク">
+        <Panel icon={Clock3} title="対応が必要">
           {loading ? <SkeletonList count={3} media={false} /> : null}
           {!loading ? <DueSummary summary={dashboard.dueSummary} /> : null}
         </Panel>
       </div>
 
+      <div className="mt-5">
+        <Panel icon={Bot} title="Agent">
+          {loading ? <SkeletonList count={2} media={false} /> : null}
+          {!loading ? <AgentActivitySummary activity={agentActivity} /> : null}
+        </Panel>
+      </div>
+
+      <details className="mt-6 rounded-2xl border border-[#E8DDDF] bg-white/70">
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-neutral-600">最近の会社・分析・履歴を表示</summary>
+        <div className="border-t border-[#F0E7E9] p-5">
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <Panel icon={Building2} title="最近動いた会社">
           {loading ? <SkeletonList count={3} media={false} /> : null}
@@ -399,13 +409,6 @@ export function HomePageClient() {
         </Panel>
       </div>
 
-      <div className="mt-5">
-        <Panel icon={Bot} title="Agent Activity">
-          {loading ? <SkeletonList count={3} media={false} /> : null}
-          {!loading ? <AgentActivitySummary activity={agentActivity} /> : null}
-        </Panel>
-      </div>
-
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
         <Panel bodyClassName="max-h-[420px] overflow-y-auto pr-1" icon={MessageSquareText} title="最近の動き">
           {loading ? <SkeletonList count={4} media={false} /> : null}
@@ -422,6 +425,8 @@ export function HomePageClient() {
           </div>
         </Panel>
       </div>
+        </div>
+      </details>
     </section>
   );
 }
@@ -450,7 +455,7 @@ function AgentActivitySummary({ activity }: { activity: { running: number; appro
         <AgentMetric label="本日完了" value={activity.completedToday} tone="text-[#5E9B61]" />
       </div>
       <div className="grid gap-3">
-        {activity.recent.map((run) => (
+        {activity.recent.filter((run) => run.status === "running" || run.status === "requires_approval" || run.requiresApproval).slice(0, 2).map((run) => (
           <Link className="flex items-center justify-between gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2]" href={`/agent?runId=${run.id}` as Route} key={run.id}>
             <span className="min-w-0">
               <span className="block truncate font-semibold text-[#2B2B2B]">{run.title}</span>
@@ -459,7 +464,7 @@ function AgentActivitySummary({ activity }: { activity: { running: number; appro
             <ArrowRight className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
           </Link>
         ))}
-        {activity.recent.length === 0 ? <EmptyLine text="Agent Runはまだありません。" /> : null}
+        {activity.running === 0 && activity.approval === 0 ? <EmptyLine text="確認が必要なAgent Runはありません。" /> : null}
       </div>
     </div>
   );
