@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth } from "@/lib/firebase/admin-auth";
 import { requireUserFromRequest } from "@/lib/server/auth";
 
 type NotificationReason = "created" | "reassigned";

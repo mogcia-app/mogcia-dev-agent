@@ -4,7 +4,7 @@ import { FieldValue, Timestamp, type DocumentData, type Firestore } from "fireba
 import { NextResponse } from "next/server";
 import { DesktopApiError } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, writeDesktopAuditLog } from "@/lib/desktop/auth";
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
 import { findLooseDuplicates, findNameDuplicates, normalizeComparableName } from "@/lib/server/duplicate-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 
@@ -35,6 +35,7 @@ export async function authenticateBusinessRequest(request: Request, desktopPermi
   if (!token) throw new BusinessApiError("UNAUTHORIZED", "認証に失敗しました。", 401);
 
   try {
+    const { getAdminAuth } = await import("@/lib/firebase/admin-auth");
     const decoded = await getAdminAuth().verifyIdToken(token);
     return {
       db: getAdminDb(),

@@ -1,11 +1,10 @@
 import "server-only";
 
 import { applicationDefault, cert, getApps, initializeApp, type ServiceAccount } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-function getAdminApp() {
+export function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
 
   const serviceAccount = readServiceAccountFromEnv();
@@ -92,10 +91,6 @@ function normalizePrivateKey(value?: string): string | undefined {
 
 export function getAdminDb() {
   return getFirestore(getAdminApp());
-}
-
-export function getAdminAuth() {
-  return getAuth(getAdminApp());
 }
 
 export function getAdminStorageBucket() {

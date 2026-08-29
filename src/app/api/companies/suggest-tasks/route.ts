@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth } from "@/lib/firebase/admin-auth";
 
 const taskSchema = {
   name: "company_meeting_task_suggestions",
