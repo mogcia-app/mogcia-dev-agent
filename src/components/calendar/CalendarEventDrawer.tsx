@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
-import { formatShortDate, formatTime, getCategoryMeta } from "@/lib/calendar-utils";
+import { formatShortDate, getCategoryMeta } from "@/lib/calendar-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
 
@@ -21,7 +21,7 @@ export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, 
           <div>
             <span className={`inline-flex rounded-none px-3 py-1 text-xs font-bold ${meta.soft} ${meta.text}`}>{meta.label}</span>
             <h2 className="mt-3 text-2xl font-bold text-[#2B2B2B]">{item.title}</h2>
-            <p className="mt-2 text-sm font-bold text-[#777]">{formatShortDate(item.startAt)} {item.allDay ? "終日" : `${formatTime(item.startAt)}${item.endAt ? ` - ${formatTime(item.endAt)}` : ""}`}</p>
+            <p className="mt-2 text-sm font-bold text-[#777]">{formatShortDate(item.startAt)}{item.allDay ? " / 終日" : ""}</p>
           </div>
           <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF0F3]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
@@ -33,8 +33,8 @@ export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, 
           {item.projectName ? <Info label="案件" value={item.projectName} /> : null}
           {item.location ? <Info label="場所" value={item.location} /> : null}
           {item.createdBy ? <Info label="作成者" value={getUserDisplayNameById(item.createdBy, item.createdByName)} /> : null}
-          {item.createdAt ? <Info label="作成日時" value={item.createdAt.toLocaleString("ja-JP")} /> : null}
-          {item.updatedAt ? <Info label="更新日時" value={item.updatedAt.toLocaleString("ja-JP")} /> : null}
+          {item.createdAt ? <Info label="作成日" value={item.createdAt.toLocaleDateString("ja-JP")} /> : null}
+          {item.updatedAt ? <Info label="更新日" value={item.updatedAt.toLocaleDateString("ja-JP")} /> : null}
         </div>
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">

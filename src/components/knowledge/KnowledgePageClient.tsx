@@ -157,7 +157,7 @@ function KnowledgeListItem({ item, active, favorite, onSelect, onFavorite }: { i
         <span className="block truncate text-base font-bold text-[#2B2B2B]">{item.title}</span>
         <span className="mt-2 flex flex-wrap gap-2"><Badge type={item.type} />{item.productNames?.slice(0, 1).map((name) => <span className="rounded-none bg-[#FFF0F3] px-2 py-1 text-xs font-bold text-[#EC6F8B]" key={name}>{name}</span>)}</span>
         <span className="mt-2 line-clamp-2 text-sm font-semibold text-[#777]">{item.summary || item.customerQuote || item.content || "概要未登録"}</span>
-        <span className="mt-3 block text-xs font-semibold text-[#777]">{getUserDisplayNameById(item.createdBy, item.createdByName)} / {item.createdAt.toDate().toLocaleString("ja-JP")}</span>
+        <span className="mt-3 block text-xs font-semibold text-[#777]">{getUserDisplayNameById(item.createdBy, item.createdByName)} / {item.createdAt.toDate().toLocaleDateString("ja-JP")}</span>
       </span>
       <span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span>
     </button>
@@ -176,8 +176,8 @@ function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdi
           <h2 className="mt-3 text-2xl font-bold text-[#2B2B2B]">{item.title}</h2>
           <div className="mt-4 flex flex-wrap gap-5 text-sm font-semibold text-[#777]">
             <span>{getUserDisplayNameById(item.createdBy, item.createdByName)}</span>
-            <span>{item.createdAt.toDate().toLocaleString("ja-JP")}</span>
-            <span>更新: {item.updatedAt.toDate().toLocaleString("ja-JP")}</span>
+            <span>{item.createdAt.toDate().toLocaleDateString("ja-JP")}</span>
+            <span>更新: {item.updatedAt.toDate().toLocaleDateString("ja-JP")}</span>
             <span className="inline-flex items-center gap-1"><Eye className="h-4 w-4" />閲覧: {item.viewCount}</span>
           </div>
         </div>

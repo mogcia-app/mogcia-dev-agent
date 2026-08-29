@@ -321,7 +321,7 @@ function ActivityItem({ activity }: { activity: Activity }) {
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
-        <span className="text-xs font-bold text-[#8A8186]">{activity.occurredAt.toDate().toLocaleString("ja-JP")}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</span>
       </div>
       <h3 className="mt-2 font-black text-[#2B2B2B]">{activity.title || activityTypeLabels[activity.type]}</h3>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#6F676B]">{activity.content}</p> : null}
@@ -337,7 +337,7 @@ function RecordItem({ record }: { record: TeleapoRecord }) {
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]"><Mic2 className="h-4 w-4" /></span>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
-        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleString("ja-JP")}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span>
         {record.audioDownloadUrl ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">音声あり</span> : null}
         {record.aiAdvice ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">AI分析あり</span> : null}
       </div>

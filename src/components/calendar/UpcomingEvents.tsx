@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, MapPin } from "lucide-react";
-import { formatDateBadge, formatTime, formatWeekday, getCategoryMeta, upcomingItems } from "@/lib/calendar-utils";
+import { formatDateBadge, formatWeekday, getCategoryMeta, upcomingItems } from "@/lib/calendar-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarItem } from "@/types/calendar";
 
@@ -23,7 +23,7 @@ export function UpcomingEvents({ items, selectedDate, onOpen, onShowAll }: { ite
               <span className="min-w-0 pt-0.5">
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className={`rounded-none px-2 py-0.5 text-[11px] font-bold ${meta.soft} ${meta.text}`}>{meta.label}</span>
-                  <span className="text-xs font-bold text-[#8A8186]">{item.allDay ? "終日" : formatTime(item.startAt)}</span>
+                  {item.allDay ? <span className="text-xs font-bold text-[#8A8186]">終日</span> : null}
                 </span>
                 <span className="mt-1 block break-words text-sm font-bold leading-5 text-[#2B2B2B]">{item.title || "無題の予定"}</span>
                 <span className="mt-1 flex min-w-0 items-start gap-1 text-xs font-semibold leading-5 text-[#777]">{item.location ? <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : null}<span className="min-w-0 break-words">{item.location || item.companyName || (item.assigneeId ? getUserDisplayNameById(item.assigneeId, item.assigneeName) : item.assigneeName) || "詳細未設定"}</span></span>

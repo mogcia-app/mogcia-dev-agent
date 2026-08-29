@@ -49,7 +49,7 @@ export function TaskProgressTimeline({ task, currentUserId }: { task: Task | nul
                   <p className="text-sm font-semibold text-[#2D2A2C]">{log.title}</p>
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-[#9A9296]">
                     <Clock className="h-3 w-3" />
-                    {log.createdAt.toDate().toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {log.createdAt.toDate().toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
                   </span>
                 </div>
                 {log.content ? <p className="mt-2 whitespace-pre-wrap border border-[#F3E7EA] bg-[#FFFBFC] p-3 text-sm font-medium leading-6 text-[#5F585C]">{log.content}</p> : null}

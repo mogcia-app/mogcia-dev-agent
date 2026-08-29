@@ -16,7 +16,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCategoryMeta } from "@/lib/calendar-utils";
 import { leadStatusLabels, leadStatusTone } from "@/lib/lead-utils";
 import { subscribeLeads } from "@/lib/leads";
-import { formatTaskTime, getDueBadgeTone, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
+import { getDueBadgeTone, isAdminUser, isTaskOverdue, sortTasks, startOfToday } from "@/lib/task-utils";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName, getUserDisplayNameById } from "@/lib/user-display";
@@ -71,7 +71,7 @@ function endOfTomorrow(): Date {
 }
 
 function formatDateTime(date: Date): string {
-  return date.toLocaleString("ja-JP", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
 }
 
 function formatDate(date: Date): string {
@@ -645,7 +645,7 @@ function ScheduleRow({ item }: { item: CalendarItem }) {
     <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] sm:grid-cols-[116px_1fr]" href={href as Route}>
       <span className={`grid min-h-12 place-items-center rounded-none px-2 text-center text-xs font-semibold ${meta.soft} ${meta.text}`}>
         <span>{formatDate(item.startAt)}</span>
-        <span>{item.allDay ? "終日" : formatTaskTime(item.startAt)}</span>
+        {item.allDay ? <span>終日</span> : null}
       </span>
       <span className="min-w-0">
         <span className="flex items-center gap-2">

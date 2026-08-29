@@ -894,7 +894,7 @@ function phaseLabel(record: TeleapoRecord): string {
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
+  return date.toLocaleDateString("ja-JP", { dateStyle: "medium" });
 }
 
 function formatTemperature(temperature?: string): string {
@@ -928,7 +928,7 @@ function formatScheduleCandidate(candidate: { label: string; datetime: string; r
   const parsed = new Date(candidate.datetime);
   const dateText = Number.isNaN(parsed.getTime())
     ? candidate.datetime
-    : parsed.toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
+    : parsed.toLocaleDateString("ja-JP", { dateStyle: "medium" });
   return `${candidate.label}: ${dateText}${candidate.reason ? `（${candidate.reason}）` : ""}`;
 }
 
@@ -948,7 +948,7 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
 }
 
 function AnalysisRecordCard({ record }: { record: TeleapoRecord }) {
-  const date = record.recordedAt.toDate().toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
+  const date = record.recordedAt.toDate().toLocaleDateString("ja-JP", { dateStyle: "medium" });
   const hasAdvice = record.aiAdviceStatus === "completed" && Boolean(record.aiAdvice);
   const summary = record.aiAdvice?.summary || record.transcriptText || "分析内容を確認できます。";
 

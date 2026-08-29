@@ -1,9 +1,9 @@
 "use client";
 
-import { CalendarDays, Clock, Plus } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
-import { formatTaskDate, formatTaskTime } from "@/lib/task-utils";
+import { formatTaskDate } from "@/lib/task-utils";
 
 export function TaskPageHeader({ onCreate }: { onCreate: () => void }) {
   const [now, setNow] = useState(() => new Date());
@@ -23,10 +23,6 @@ export function TaskPageHeader({ onCreate }: { onCreate: () => void }) {
           <span className="inline-flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[#EC6F8B]" />
             {formatTaskDate(now)}
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            {formatTaskTime(now)}
           </span>
         </div>
         <button className="inline-flex h-11 items-center justify-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_12px_24px_rgba(236,111,139,0.24)] transition hover:bg-[#E35D7D]" onClick={onCreate} type="button">

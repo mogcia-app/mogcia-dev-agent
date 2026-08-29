@@ -439,7 +439,7 @@ function ProductNotesTab({ memos, currentUserId, isAdmin, onCreate, onDelete, on
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
-                    <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleString("ja-JP")}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleDateString("ja-JP")}</p>
                   </div>
                   {canManageSelectedMemo ? (
                     <div className="flex shrink-0 gap-2">

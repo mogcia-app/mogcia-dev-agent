@@ -1599,11 +1599,7 @@ function formatScheduleCandidate(candidate: { label: string; datetime: string; r
 function formatScheduleDateTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const dateLabel = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(date);
-  const start = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
-  const endDate = new Date(date.getTime() + 60 * 60 * 1000);
-  const end = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(endDate);
-  return `${dateLabel} ${start}-${end}`;
+  return new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(date);
 }
 
 function formatRecordDateTime(date: Date): string {
@@ -1612,10 +1608,7 @@ function formatRecordDateTime(date: Date): string {
     year: "numeric",
     month: "long",
     day: "numeric",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
+    weekday: "short"
   }).format(date);
 }
 

@@ -221,13 +221,13 @@ function OverviewTab({ company, products, tasks, commonActivities, logs, records
     ...records.filter((item) => item.companyId === company.id || (!item.companyId && item.customerName === company.name)).map((item) => ({ id: `r-${item.id}`, date: item.recordedAt.toDate(), type: item.salesDomain === "teleapo" ? "テレアポ" : "商談", title: item.meetingTitle || item.productName || "音声分析", content: item.aiAdvice?.summary || "" }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
   return <div className="mx-auto max-w-5xl space-y-10">
-    <ChartSection title="現在の状況"><InfoGrid rows={[["状態", companyStatusLabel(company.status)], ["自社担当", company.internalOwnerName || "未設定"], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleString("ja-JP") : "未接触"], ["次回アクション", nextTask?.title || company.nextActionTitle || "未設定"], ["次回予定", nextTask?.dueDate?.toDate().toLocaleString("ja-JP") || company.nextActionAt?.toDate().toLocaleString("ja-JP") || "未設定"]]} /></ChartSection>
+    <ChartSection title="現在の状況"><InfoGrid rows={[["状態", companyStatusLabel(company.status)], ["自社担当", company.internalOwnerName || "未設定"], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleDateString("ja-JP") : "未接触"], ["次回アクション", nextTask?.title || company.nextActionTitle || "未設定"], ["次回予定", nextTask?.dueDate?.toDate().toLocaleDateString("ja-JP") || company.nextActionAt?.toDate().toLocaleDateString("ja-JP") || "未設定"]]} /></ChartSection>
     <ChartSection title="次にやること">
       {openTasks.length ? <div className="divide-y divide-[#F0E7E9]">{openTasks.slice(0, 5).map((task, index) => <div className="grid gap-1 py-3 sm:grid-cols-[24px_1fr_auto]" key={task.id ?? `${task.title}-${index}`}><span className="text-[#EC6F8B]">□</span><span className="font-bold text-[#2B2B2B]">{task.title}</span><span className="text-xs font-bold text-[#8A8186]">{task.dueDate ? `${task.dueDate.toDate().toLocaleDateString("ja-JP")}まで` : "期限未設定"}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">未完了タスクはありません。</p>}
       {!company.nextActionAt && !nextTask ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">⚠ 次回アクションが未設定です</p> : null}
     </ChartSection>
     <ChartSection action={<button className="text-sm font-bold text-[#EC6F8B]" onClick={onActivity} type="button">すべて見る →</button>} title="最近の活動">
-      {recent.length ? <div className="divide-y divide-[#F0E7E9]">{recent.map((item) => <div className="grid gap-2 py-4 md:grid-cols-[130px_100px_1fr]" key={item.id}><time className="text-xs font-bold text-[#8A8186]">{item.date.toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time><span className="text-xs font-bold text-[#EC6F8B]">{item.type}</span><span><strong className="block text-sm text-[#2B2B2B]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-semibold text-[#6F676B]">{item.content}</span> : null}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">活動履歴はまだありません。</p>}
+      {recent.length ? <div className="divide-y divide-[#F0E7E9]">{recent.map((item) => <div className="grid gap-2 py-4 md:grid-cols-[130px_100px_1fr]" key={item.id}><time className="text-xs font-bold text-[#8A8186]">{item.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</time><span className="text-xs font-bold text-[#EC6F8B]">{item.type}</span><span><strong className="block text-sm text-[#2B2B2B]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-semibold text-[#6F676B]">{item.content}</span> : null}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">活動履歴はまだありません。</p>}
     </ChartSection>
     <ChartSection title="先方担当者"><InfoGrid rows={[["氏名", primaryContact ? formatContactName(primaryContact) : company.primaryContactName || "未設定"], ["電話", primaryContact?.phone || company.phone || "未設定"], ["メール", primaryContact?.email || company.email || "未設定"]]} /></ChartSection>
     <ChartSection title="利用中サービス"><p className="text-sm font-bold text-[#2B2B2B]">{company.productNames?.join(" / ") || "未設定"}</p></ChartSection>
@@ -293,11 +293,11 @@ function CommonActivityTimelineItem({ activity }: { activity: Activity }) {
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]}</span>
-        <span className="text-xs font-bold text-[#8A8186]">{occurredAt.toLocaleString("ja-JP")}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{occurredAt.toLocaleDateString("ja-JP")}</span>
       </div>
       <h3 className="mt-2 text-base font-black text-[#2B2B2B]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{activity.content}</p> : null}
-      {activity.nextActionTitle ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">次回予定: {activity.nextActionTitle} / {activity.nextActionAt?.toDate().toLocaleString("ja-JP") ?? "期限未設定"}</p> : null}
+      {activity.nextActionTitle ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">次回予定: {activity.nextActionTitle} / {activity.nextActionAt?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"}</p> : null}
     </article>
   );
 }
@@ -309,7 +309,7 @@ function AnalysisTimelineItem({ record }: { record: TeleapoRecord }) {
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">分</span>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
-        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleString("ja-JP")}</span>
+        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span>
         {record.audioDownloadUrl ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">音声あり</span> : null}
         {record.aiAdvice ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">AI分析あり</span> : null}
       </div>
@@ -322,7 +322,6 @@ function AnalysisTimelineItem({ record }: { record: TeleapoRecord }) {
 
 function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
   const occurredAt = log.occurredAt.toDate();
-  const time = occurredAt.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   const date = occurredAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
   return (
     <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
@@ -331,7 +330,7 @@ function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-none px-3 py-1 text-xs font-bold ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
-            <span className="text-xs font-bold text-[#8A8186]">{date} {time}</span>
+            <span className="text-xs font-bold text-[#8A8186]">{date}</span>
           </div>
           <h3 className="mt-2 text-base font-black text-[#2B2B2B]">{log.title || "無題のログ"}</h3>
         </div>
@@ -346,7 +345,7 @@ function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
         <div className="mt-3 border-l-2 border-[#EC6F8B] bg-[#FFF7F8] px-3 py-2">
           <p className="text-xs font-black text-[#D94F6E]">次のアクション</p>
           <p className="mt-1 text-sm font-bold text-[#2B2B2B]">{log.nextAction.title}</p>
-          <p className="mt-1 text-xs font-semibold text-[#8A8A8A]">{log.nextAction.dueAt?.toDate().toLocaleString("ja-JP") ?? "期限未設定"}</p>
+          <p className="mt-1 text-xs font-semibold text-[#8A8A8A]">{log.nextAction.dueAt?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"}</p>
         </div>
       ) : null}
     </article>
@@ -368,7 +367,7 @@ function ActivityLogEmptyCard({ title, description, compact = false }: { title: 
 }
 
 function MeetingsTab({ meetings, onCreate }: { meetings: CompanyMeeting[]; onCreate: () => void }) {
-  return <div><button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">＋ 打ち合わせ情報を入力</button><div className="grid gap-3">{meetings.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">打ち合わせはまだありません。</p> : meetings.map((meeting) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={meeting.id}><p className="text-sm font-bold text-[#777]">{meeting.startAt.toDate().toLocaleString("ja-JP")} / {meeting.source === "manual" ? "手動入力" : "録音アップロード"}</p><h4 className="mt-1 font-bold text-[#2B2B2B]">{meeting.title}</h4><p className="mt-2 text-xs font-bold text-[#8A8186]">商材: {meeting.productNames?.join(" / ") || "未設定"} / 先方: {meeting.contactNames?.join(" / ") || meeting.participants?.join(" / ") || "未設定"}</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{meeting.summary || "内容未登録"}</p>{meeting.nextActions?.length ? <p className="mt-2 text-sm font-bold text-[#D94F6E]">次回アクション: {meeting.nextActions.join(" / ")}</p> : null}</div>)}</div></div>;
+  return <div><button className="mb-4 h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">＋ 打ち合わせ情報を入力</button><div className="grid gap-3">{meetings.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">打ち合わせはまだありません。</p> : meetings.map((meeting) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={meeting.id}><p className="text-sm font-bold text-[#777]">{meeting.startAt.toDate().toLocaleDateString("ja-JP")} / {meeting.source === "manual" ? "手動入力" : "録音アップロード"}</p><h4 className="mt-1 font-bold text-[#2B2B2B]">{meeting.title}</h4><p className="mt-2 text-xs font-bold text-[#8A8186]">商材: {meeting.productNames?.join(" / ") || "未設定"} / 先方: {meeting.contactNames?.join(" / ") || meeting.participants?.join(" / ") || "未設定"}</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#6F676B]">{meeting.summary || "内容未登録"}</p>{meeting.nextActions?.length ? <p className="mt-2 text-sm font-bold text-[#D94F6E]">次回アクション: {meeting.nextActions.join(" / ")}</p> : null}</div>)}</div></div>;
 }
 
 function TasksTab({ tasks }: { tasks: Parameters<typeof TaskCard>[0]["task"][] }) {
@@ -449,7 +448,7 @@ function AnalysisDealCard({ record }: { record: TeleapoRecord }) {
         <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{summary}</p>
       </div>
       <div className="grid content-between gap-3 text-sm font-bold text-[#8A8186] lg:min-w-48 lg:text-right">
-        <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />{record.recordedAt.toDate().toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" })}</span>
+        <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />{record.recordedAt.toDate().toLocaleDateString("ja-JP", { dateStyle: "medium" })}</span>
         <span>{record.conversationLogs.length}ブロック</span>
       </div>
     </Link>
@@ -458,7 +457,7 @@ function AnalysisDealCard({ record }: { record: TeleapoRecord }) {
 
 function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string; url: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number }>; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
   const [progress, setProgress] = useState(0);
-  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-bold text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}<span className="ml-3 text-xs text-[#777]">{file.createdByName ?? ""} / {file.createdAt.toDate().toLocaleString("ja-JP")}</span></a>)}</div></div>;
+  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-bold text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-bold text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}<span className="ml-3 text-xs text-[#777]">{file.createdByName ?? ""} / {file.createdAt.toDate().toLocaleDateString("ja-JP")}</span></a>)}</div></div>;
 }
 
 function NotesTab({
@@ -512,7 +511,7 @@ function NotesTab({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="break-words text-lg font-black text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
-                  <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleString("ja-JP")}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"} / {selectedMemo.createdAt.toDate().toLocaleDateString("ja-JP")}</p>
                 </div>
                 {canManageSelectedMemo ? (
                   <div className="flex shrink-0 gap-2">

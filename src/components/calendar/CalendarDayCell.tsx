@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTime, getCategoryMeta, isSameCalendarDate } from "@/lib/calendar-utils";
+import { getCategoryMeta, isSameCalendarDate } from "@/lib/calendar-utils";
 import type { CalendarItem } from "@/types/calendar";
 
 export function CalendarDayCell({ date, month, selectedDate, items, showRightBorder, onSelect, onOpen }: { date: Date; month: Date; selectedDate: Date; items: CalendarItem[]; showRightBorder: boolean; onSelect: (date: Date) => void; onOpen: (item: CalendarItem) => void }) {
@@ -27,7 +27,7 @@ export function CalendarDayCell({ date, month, selectedDate, items, showRightBor
             <button className={`min-w-0 rounded-none border px-1.5 py-1 text-left text-[11px] font-bold leading-4 ${meta.soft} ${meta.text} ${meta.border} hover:brightness-[0.98]`} key={item.id} onClick={() => onOpen(item)} type="button">
               <span className="flex min-w-0 items-center gap-1">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
-                <span className="truncate">{!item.allDay && startsOnThisDate ? `${formatTime(item.startAt)} ` : ""}{item.title || "無題"}</span>
+                <span className="truncate">{item.title || "無題"}</span>
               </span>
             </button>
           );

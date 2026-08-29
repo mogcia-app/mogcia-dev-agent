@@ -453,7 +453,7 @@ function RunRow({ run }: { run: AgentRun }) {
           <span className="text-xs font-bold text-[#8A8186]">{sourceLabel(run.source)}</span>
         </span>
         <span className="mt-2 block truncate text-base font-black text-[#2B2B2B]">{run.title}</span>
-        <span className="mt-1 block text-xs font-bold text-[#9A8F94]">{run.createdAt.toDate().toLocaleString("ja-JP")}</span>
+        <span className="mt-1 block text-xs font-bold text-[#9A8F94]">{run.createdAt.toDate().toLocaleDateString("ja-JP")}</span>
       </span>
       <span className="flex items-center gap-3 text-sm font-bold text-[#EC6F8B]">
         {run.progress ?? 0}%
