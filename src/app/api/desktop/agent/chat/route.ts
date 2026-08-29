@@ -10,6 +10,8 @@ export async function POST(request: Request) {
     const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "agent_chat", async () => {
       const result = await handleDesktopCommand(auth, { ...body, rawMessage });
       return {
+        requestId: "",
+        runId: "",
         answer: result.message,
         handled: result.handled,
         kind: result.kind,

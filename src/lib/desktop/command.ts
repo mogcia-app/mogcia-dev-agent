@@ -19,8 +19,13 @@ export type CalendarDraft = {
   endAt: string;
   allDay: boolean;
   description: string;
-  companyId: string | null;
-  companyName: string | null;
+  companyId: string;
+  companyName: string;
+  attendeeIds: string[];
+  attendeeNames: string[];
+  productName: string;
+  contactName: string;
+  leadId: string;
   eventType: string;
 };
 
@@ -30,7 +35,7 @@ export async function handleDesktopCommand(auth: DesktopAuth, body: Record<strin
 
   if (kind === "calendar") {
     const draft = await buildCalendarDraft(auth, body, rawMessage);
-    return { handled: true, kind, message: "予定内容を確認しました", items: [], draft };
+    return { handled: true, kind: "draft" as const, message: "予定内容を確認しました", items: [], draft };
   }
   if (kind === "company") return createCompanyFromCommand(auth, body, rawMessage);
   if (kind === "task") return createTaskFromCommand(auth, body, rawMessage);
@@ -130,8 +135,13 @@ async function buildCalendarDraft(auth: DesktopAuth, body: Record<string, unknow
     endAt: endAt.toISOString(),
     allDay: Boolean(explicit.allDay),
     description: optionalString(explicit.description, "説明", 3000),
-    companyId: company?.id ?? (optionalString(explicit.companyId, "会社ID", 160) || null),
-    companyName: company?.name ?? (companyName || null),
+    companyId: company?.id ?? (optionalString(explicit.companyId, "会社ID", 160) || ""),
+    companyName: company?.name ?? companyName,
+    attendeeIds: [],
+    attendeeNames: [],
+    productName: optionalString(explicit.productName, "商品名", 200),
+    contactName: optionalString(explicit.contactName, "担当者名", 120),
+    leadId: optionalString(explicit.leadId, "見込み客ID", 160),
     eventType: optionalString(explicit.eventType, "予定種別", 80) || "meeting"
   };
 }
