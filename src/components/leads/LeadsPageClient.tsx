@@ -119,7 +119,7 @@ export function LeadsPageClient() {
       .filter((lead) => status === "all" || lead.status === status)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
-      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
+      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
       .sort((a, b) => compareLeads(a, b, sort));
   }, [assigneeId, leads, productId, query, sort, status]);
 
@@ -251,8 +251,8 @@ export function LeadsPageClient() {
           </div>
           </div></aside></div> : null}
 
-      {createOpen ? <LeadModal draft={draft} mode="create" onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} saving={saving} /> : null}
-      {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} saving={saving} /> : null}
+      {createOpen ? <LeadModal draft={draft} mode="create" onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} products={products} saving={saving} /> : null}
+      {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} products={products} saving={saving} /> : null}
       {activityOpen && selectedLead ? <ActivityModal draft={activityDraft} onChange={setActivityDraft} onClose={() => setActivityOpen(false)} onSave={saveActivity} products={products} saving={saving} /> : null}
     </section>
   );
@@ -302,11 +302,9 @@ function OverviewTab({ lead, companies, records, onLinkCompany }: { lead: Lead; 
         ["担当者", [lead.contactName, lead.contactRole].filter(Boolean).join(" / ") || "未設定"],
         ["電話", lead.phone || "未設定"],
         ["メール", lead.email || "未設定"],
-        ["流入元", lead.source || "未設定"],
+        ["業種", lead.industry || "未設定"],
         ["商材", lead.productName || "未設定"],
-        ["見込みランク", lead.prospectRank || "未判定"],
-        ["担当者", lead.assignedUserName || "未設定"],
-        ["次回予定", formatMaybeDate(lead.nextActionAt?.toDate())],
+        ["営業担当", lead.assignedUserName || "未設定"],
         ["メモ", lead.notes || "未設定"]
       ]} />
       <aside className="space-y-4">
@@ -314,7 +312,7 @@ function OverviewTab({ lead, companies, records, onLinkCompany }: { lead: Lead; 
           <h3 className="font-bold text-[#2B2B2B]">会社一覧との関連</h3>
           {lead.companyId ? <Link className="mt-3 inline-flex h-10 items-center gap-2 rounded-none bg-white px-4 text-sm font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]" href={`/sales/companies?id=${lead.companyId}&tab=overview` as Route}><Building2 className="h-4 w-4" />会社詳細を開く</Link> : (
             <div className="mt-3">
-              <SearchSelect clearable emptyLabel="会社がありません。" options={companies.map((company) => ({ value: company.id, label: company.name, description: company.industry }))} placeholder="既存Companyへ関連付け" value="" onChange={onLinkCompany} />
+              <SearchSelect clearable emptyLabel="会社がありません。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder="既存Companyへ関連付け" value="" onChange={onLinkCompany} />
             </div>
           )}
         </section>
@@ -410,7 +408,7 @@ function NotesTab({ lead, currentUser, onSave }: { lead: Lead; currentUser: { id
   );
 }
 
-function LeadModal({ draft, mode, saving, onChange, onSave, onClose }: { draft: LeadDraft; mode: "create" | "edit"; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
+function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }: { draft: LeadDraft; mode: "create" | "edit"; products: Product[]; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
   return (
     <Modal title={mode === "create" ? "見込み客を登録" : "見込み客を編集"} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -419,6 +417,8 @@ function LeadModal({ draft, mode, saving, onChange, onSave, onClose }: { draft: 
         <Input label="役職" value={draft.contactRole} onChange={(contactRole) => onChange({ ...draft, contactRole })} />
         <Input label="電話" value={draft.phone} onChange={(phone) => onChange({ ...draft, phone })} />
         <Input label="メール" value={draft.email} onChange={(email) => onChange({ ...draft, email })} />
+        <Input label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
+        <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <SelectBox label="ステータス" value={draft.status === "document_sent" ? "document_sent" : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
       </div>
@@ -485,6 +485,7 @@ function leadToDraft(lead: Lead): LeadDraft {
     contactRole: lead.contactRole ?? "",
     phone: lead.phone ?? "",
     email: lead.email ?? "",
+    industry: lead.industry ?? "",
     source: lead.source ?? "",
     productId: lead.productId ?? "",
     productName: lead.productName ?? "",

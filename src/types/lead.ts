@@ -12,6 +12,7 @@ export interface Lead {
   contactRole?: string;
   phone?: string;
   email?: string;
+  industry?: string;
   source?: string;
   productId?: string | null;
   productName?: string | null;
@@ -37,6 +38,7 @@ export interface LeadDraft {
   contactRole: string;
   phone: string;
   email: string;
+  industry: string;
   source: string;
   productId: string;
   productName: string;

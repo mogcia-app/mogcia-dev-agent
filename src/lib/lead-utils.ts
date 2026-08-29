@@ -37,6 +37,7 @@ export function createEmptyLeadDraft(): LeadDraft {
     contactRole: "",
     phone: "",
     email: "",
+    industry: "",
     source: "",
     productId: "",
     productName: "",
