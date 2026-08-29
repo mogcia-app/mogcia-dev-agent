@@ -35,7 +35,7 @@ export async function handleDesktopCommand(auth: DesktopAuth, body: Record<strin
 
   if (kind === "calendar") {
     const draft = await buildCalendarDraft(auth, body, rawMessage);
-    return { handled: true, kind: "draft" as const, message: "予定内容を確認しました", items: [], draft };
+    return { handled: true, kind: "calendar" as const, message: "予定内容を確認しました", items: [], draft };
   }
   if (kind === "company") return createCompanyFromCommand(auth, body, rawMessage);
   if (kind === "task") return createTaskFromCommand(auth, body, rawMessage);

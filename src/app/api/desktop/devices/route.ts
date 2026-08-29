@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       os: null,
       appVersion: null,
       notificationEnabled: false,
-      agentEnabled: false,
+      agentEnabled: true,
       tokenHash: hashDesktopToken(token),
       permissions: defaultDesktopPermissions,
       status: "active",

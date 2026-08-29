@@ -12,6 +12,11 @@ export async function GET(request: Request) {
         device: {
           id: auth.device.id,
           deviceName: auth.device.deviceName,
+          deviceType: auth.device.deviceType ?? "unknown",
+          os: auth.device.os ?? null,
+          appVersion: auth.device.appVersion ?? null,
+          notificationEnabled: auth.device.notificationEnabled ?? false,
+          agentEnabled: auth.device.agentEnabled ?? false,
           permissions: auth.device.permissions,
           status: auth.device.status
         }
