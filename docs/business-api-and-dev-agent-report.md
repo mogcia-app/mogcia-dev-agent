@@ -139,15 +139,18 @@ Previous production diagnostics confirmed `FIREBASE_SERVICE_ACCOUNT_BASE64` is s
 
 ## Deployment Result
 
-Pending for this Desktop 0.7.18 compatibility change. The latest code must be deployed by Vercel and verified with:
+Deployed to Vercel production.
 
-- `/api/diagnostics/firebase-admin`
-- `POST /api/desktop/command`
-- `PUT /api/desktop/command`
-- `GET /api/desktop/search`
-- `GET /api/desktop/companies/:id`
-- `GET/PATCH /api/agent/notifications`
-- `GET/PATCH /api/agent/recommendations`
+- Production URL: `https://mogcia-dev-agent.vercel.app`
+- Production commit: `4ae7986dd0411ecf0838c917c9a02215fb57da41`
+- `GET /api/diagnostics/env`: `200 application/json`
+- `POST /api/desktop/command` without token: `401 application/json`
+- `GET /api/desktop/search` without token: `401 application/json`
+- `GET /api/desktop/members` without token: `401 application/json`
+- `GET /api/agent/notifications` without token: `401 application/json`
+- `GET /api/agent/recommendations` without token: `401 application/json`
+
+The production checks above confirm the routes are deployed and no longer return HTML 500 pages. Authenticated Desktop 0.7.18 integration still requires a real Desktop device token.
 
 ## Incomplete Items
 
