@@ -52,9 +52,11 @@ export function TasksPageClient() {
   const filters = useTaskFilters(taskStore.tasks, taskStore.user?.uid ?? "");
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [quickTitle, setQuickTitle] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
   const [isSplitting, setSplitting] = useState(false);
   const [splitError, setSplitError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestedTask[]>([]);
+  const [quickMessage, setQuickMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const isLogView = filters.view === "log";
 
@@ -71,9 +73,20 @@ export function TasksPageClient() {
 
   const createQuickTask = async () => {
     const title = quickTitle.trim();
-    if (!title) return;
-    await taskStore.createTask({ ...createEmptyTaskDraft(taskStore.currentMember), title });
-    setQuickTitle("");
+    if (!title || quickSaving) return;
+    setQuickSaving(true);
+    setSplitError(null);
+    setQuickMessage(null);
+    try {
+      await taskStore.createTask({ ...createEmptyTaskDraft(taskStore.currentMember), title });
+      setQuickTitle("");
+      setSuggestions([]);
+      setQuickMessage("タスクを登録しました");
+    } catch (error) {
+      setSplitError(error instanceof Error ? error.message : "タスクを登録できませんでした。");
+    } finally {
+      setQuickSaving(false);
+    }
   };
 
   const splitQuickTaskWithAi = async () => {
@@ -98,9 +111,20 @@ export function TasksPageClient() {
 
   const confirmSuggestions = async () => {
     const source = quickTitle.trim();
-    await Promise.all(suggestions.map((task) => taskStore.createTask(suggestionToDraft(task, source, taskStore.currentMember))));
-    setSuggestions([]);
-    setQuickTitle("");
+    if (!suggestions.length || quickSaving) return;
+    setQuickSaving(true);
+    setSplitError(null);
+    setQuickMessage(null);
+    try {
+      await Promise.all(suggestions.map((task) => taskStore.createTask(suggestionToDraft(task, source, taskStore.currentMember))));
+      setSuggestions([]);
+      setQuickTitle("");
+      setQuickMessage("タスクを登録しました");
+    } catch (error) {
+      setSplitError(error instanceof Error ? error.message : "タスクを登録できませんでした。");
+    } finally {
+      setQuickSaving(false);
+    }
   };
 
   return (
@@ -109,6 +133,35 @@ export function TasksPageClient() {
 
       <main className="min-w-0 border-[#EFE3E6] xl:border-l">
         {taskStore.error ? <p className="m-4 rounded-none bg-[#FFF2F5] px-4 py-3 text-sm font-bold text-[#D94F6E]">{taskStore.error}</p> : null}
+
+        <section className="border-b border-[#EFE3E6] px-5 py-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div>
+              <label className="flex min-h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-semibold text-[#6F676B]">
+                <Plus className="h-4 w-4 shrink-0 text-[#EC6F8B]" />
+                <input className="min-w-0 flex-1 bg-transparent outline-none" disabled={!taskStore.user || quickSaving} placeholder="タスクを入力して追加" value={quickTitle} onChange={(event) => { setQuickTitle(event.target.value); setQuickMessage(null); }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) void createQuickTask(); }} />
+              </label>
+              {splitError ? <p className="mt-2 rounded-none bg-[#FFF2F5] px-3 py-2 text-xs font-bold text-[#D94F6E]">{splitError}</p> : null}
+              {quickMessage ? <p className="mt-2 rounded-none bg-[#F3FFF6] px-3 py-2 text-xs font-bold text-[#2F8C52]">{quickMessage}</p> : null}
+              {suggestions.length ? (
+                <div className="mt-3 rounded-none border border-[#F0E7E9] bg-white p-3">
+                  <p className="text-xs font-black text-[#8A8186]">分解候補</p>
+                  <div className="mt-2 grid gap-2">
+                    {suggestions.map((task, index) => <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#2B2B2B]" key={`${task.title}-${index}`}>{task.title}</p>)}
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button className="h-9 rounded-none border border-[#F0E7E9] px-3 text-xs font-bold text-[#6F676B]" disabled={quickSaving} onClick={() => setSuggestions([])} type="button">キャンセル</button>
+                    <button className="h-9 rounded-none bg-[#EC6F8B] px-3 text-xs font-bold text-white disabled:opacity-50" disabled={quickSaving} onClick={() => void confirmSuggestions()} type="button">{quickSaving ? "保存中..." : "まとめて登録"}</button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white disabled:opacity-50" disabled={!taskStore.user || quickSaving || !quickTitle.trim()} onClick={() => void createQuickTask()} type="button">{quickSaving ? "保存中..." : "追加"}</button>
+              <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#EC6F8B] disabled:opacity-50" disabled={!taskStore.user || isSplitting || !quickTitle.trim()} onClick={() => void splitQuickTaskWithAi()} type="button"><Sparkles className="h-4 w-4" />分解</button>
+            </div>
+          </div>
+        </section>
 
         <section className="border-b border-[#EFE3E6] px-5 py-4">
           <label className="flex h-10 items-center gap-2 rounded-lg border border-[#EFE3E6] px-3 text-sm font-semibold text-[#8A8186]">

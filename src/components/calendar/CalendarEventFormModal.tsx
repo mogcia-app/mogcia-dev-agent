@@ -24,6 +24,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
   const [draft, setDraft] = useState(() => initialDraft ?? createEmptyCalendarDraft(currentMember));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const setValue = <K extends keyof CalendarEventDraft>(key: K, value: CalendarEventDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const memberOptions = useMemo(() => {
     const selectableMembers = isAdmin ? members : [currentMember];
@@ -35,9 +36,15 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
   const save = async () => {
     if (!draft.title.trim()) return;
     setSaving(true);
-    await onSubmit({ ...draft, reminder: "0", recurrence: "none" });
-    setSaving(false);
-    onClose();
+    setError(null);
+    try {
+      await onSubmit({ ...draft, reminder: "0", recurrence: "none" });
+      onClose();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "予定を保存できませんでした。");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,7 +55,8 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
           <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF0F3]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
         <div className="grid gap-5">
-          <Field label="予定名"><input className="task-input" value={draft.title} onChange={(event) => setValue("title", event.target.value)} placeholder="例: 八女上陽ゴルフ倶楽部 提案" /></Field>
+          {error ? <p className="rounded-none bg-[#FFF0F3] px-4 py-3 text-sm font-bold text-[#D94F6E]">{error}</p> : null}
+          <Field label="予定名"><input className="task-input" value={draft.title} onChange={(event) => setValue("title", event.target.value)} placeholder="例: 提案打ち合わせ" /></Field>
           <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
             <Field label="種類"><SingleSelect options={eventTypeOptions.map(([value, label]) => ({ value, label }))} value={draft.eventType} onChange={(value) => setValue("eventType", value as CalendarEventType)} /></Field>
             {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{currentMember.name}</div></Field>}
@@ -75,7 +83,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-          <button className="h-11 rounded-none bg-[#F47E96] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">保存</button>
+          <button className="h-11 rounded-none bg-[#F47E96] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.title.trim()} onClick={() => void save()} type="button">{saving ? "保存中..." : "保存"}</button>
         </div>
       </section>
     </div>

@@ -182,7 +182,11 @@ export function LeadsPageClient() {
 
   return (
     <section>
-      <PageHeader title="営業リスト" description="契約前の営業対象について、現在の段階と次の対応を確認します。" />
+      <PageHeader
+        title="営業リスト"
+        description="契約前の営業対象について、現在の段階と次の対応を確認します。"
+        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />見込み客を登録</button>}
+      />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CalendarEventDrawer } from "@/components/calendar/CalendarEventDrawer";
 import { CalendarEventFormModal } from "@/components/calendar/CalendarEventFormModal";
@@ -19,6 +20,7 @@ export function CalendarPageClient() {
   const selected = useSelectedDate();
   const [month, setMonth] = useState(() => new Date(selected.selectedDate.getFullYear(), selected.selectedDate.getMonth(), 1));
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const selectedEvent = useMemo(() => {
@@ -44,13 +46,14 @@ export function CalendarPageClient() {
 
   return (
     <div className="">
-      <CalendarPageHeader />
+      <CalendarPageHeader actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!calendar.user} onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />予定を追加</button>} />
       {calendar.error ? <p className="mt-4 rounded-xl bg-[#FFF0F3] px-4 py-3 text-sm font-bold text-[#D94F6E]">{calendar.error}</p> : null}
       {calendar.loading ? (
         <div className="mt-5"><CalendarSkeleton /></div>
       ) : (
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"><MonthCalendar items={calendar.items} month={month} onMonthChange={setMonth} onOpen={openCalendarItem} onSelectDate={updateSelectedDate} selectedDate={selected.selectedDate} /><aside className="rounded-2xl border border-[#ECE7E4] bg-white p-4 shadow-sm"><h2 className="text-base font-semibold text-neutral-900">{formatShortDate(selected.selectedDate)}</h2><p className="mt-1 text-xs text-neutral-400">{selectedDayItems.length}件の予定</p><div className="mt-4 space-y-3">{selectedDayItems.map((item) => <TimelineEventCard item={item} key={item.id} onOpen={openCalendarItem} />)}{selectedDayItems.length === 0 ? <div className="rounded-xl border border-dashed border-[#E5E0DD] bg-[#FCFBFA] px-4 py-10 text-center"><p className="text-sm font-semibold text-neutral-600">予定はありません</p><p className="mt-1 text-xs text-neutral-400">この日は空いています。</p></div> : null}</div></aside></div>
       )}
+      {createOpen ? <CalendarEventFormModal companies={workspaceOptions.companies} currentMember={calendar.currentMember} isAdmin={calendar.isAdmin} meetings={workspaceOptions.meetings} members={calendar.members} onClose={() => setCreateOpen(false)} onSubmit={calendar.createEvent} projects={workspaceOptions.projects} /> : null}
       {editingEvent ? <CalendarEventFormModal companies={workspaceOptions.companies} currentMember={calendar.currentMember} initialDraft={eventToDraft(editingEvent)} isAdmin={calendar.isAdmin} meetings={workspaceOptions.meetings} members={calendar.members} onClose={() => setEditingEvent(null)} onSubmit={(draft) => calendar.updateEvent(editingEvent.id, draft)} projects={workspaceOptions.projects} /> : null}
       <CalendarEventDrawer canDelete={eventCanDelete} canEdit={eventCanEdit} event={selectedEvent} item={selectedItem?.sourceCollection === "calendarEvents" ? selectedItem : null} onClose={() => setSelectedItem(null)} onDelete={calendar.deleteEvent} onEdit={(event) => { setEditingEvent(event); setSelectedItem(null); }} />
     </div>
