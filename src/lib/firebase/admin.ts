@@ -101,3 +101,37 @@ export function getAdminAuth() {
 export function getAdminStorageBucket() {
   return getStorage(getAdminApp()).bucket();
 }
+
+export async function getFirebaseAdminDiagnostics() {
+  const hasBase64 = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64);
+  const hasJson = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const hasSplitCredentials = Boolean(
+    process.env.FIREBASE_ADMIN_PROJECT_ID &&
+    process.env.FIREBASE_ADMIN_CLIENT_EMAIL &&
+    process.env.FIREBASE_ADMIN_PRIVATE_KEY
+  );
+
+  try {
+    const serviceAccount = readServiceAccountFromEnv();
+    const db = getAdminDb();
+    await db.collection("_diagnostics").limit(1).get();
+
+    return {
+      ok: true,
+      credentialSource: serviceAccount ? (hasBase64 ? "FIREBASE_SERVICE_ACCOUNT_BASE64" : "FIREBASE_SERVICE_ACCOUNT_JSON") : hasSplitCredentials ? "FIREBASE_ADMIN_*" : "applicationDefault",
+      hasBase64,
+      hasJson,
+      hasSplitCredentials,
+      projectId: serviceAccount?.projectId ?? process.env.FIREBASE_ADMIN_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? null
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      credentialSource: hasBase64 ? "FIREBASE_SERVICE_ACCOUNT_BASE64" : hasJson ? "FIREBASE_SERVICE_ACCOUNT_JSON" : hasSplitCredentials ? "FIREBASE_ADMIN_*" : "applicationDefault",
+      hasBase64,
+      hasJson,
+      hasSplitCredentials,
+      error: error instanceof Error ? error.message : "Firebase Adminの確認に失敗しました"
+    };
+  }
+}
