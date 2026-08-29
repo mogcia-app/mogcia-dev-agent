@@ -50,7 +50,13 @@ export class MogciaDesktopClient {
         ...(init.headers ?? {})
       }
     });
-    const result = (await response.json()) as ApiResponse<T>;
+    const text = await response.text();
+    let result: ApiResponse<T>;
+    try {
+      result = JSON.parse(text) as ApiResponse<T>;
+    } catch {
+      throw new MogciaDesktopApiError("INVALID_RESPONSE", response.ok ? "APIの応答形式が正しくありません" : `サーバーへ接続できませんでした (${response.status})`);
+    }
     if (!result.success) throw new MogciaDesktopApiError(result.error.code, result.error.message);
     return result.data;
   }

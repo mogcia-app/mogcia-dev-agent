@@ -3,14 +3,20 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 
 let mainWindow;
-const defaultBaseUrl = () => (process.env.MOGCIA_DESKTOP_BASE_URL || process.env.NEXT_PUBLIC_MOGCIA_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+const productionBaseUrl = "https://mogcia-dev-agent.vercel.app";
+const defaultBaseUrl = () => (process.env.MOGCIA_DESKTOP_BASE_URL || process.env.NEXT_PUBLIC_MOGCIA_APP_URL || productionBaseUrl).replace(/\/$/, "");
 const configFile = () => path.join(app.getPath("userData"), "config.json");
+const normalizeBaseUrl = (value) => {
+  const baseUrl = String(value || defaultBaseUrl()).replace(/\/$/, "");
+  if (app.isPackaged && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(baseUrl)) return productionBaseUrl;
+  return baseUrl;
+};
 
 async function readConfig() {
   try {
     const raw = JSON.parse(await fs.readFile(configFile(), "utf8"));
     return {
-      baseUrl: String(raw.baseUrl || defaultBaseUrl()).replace(/\/$/, ""),
+      baseUrl: normalizeBaseUrl(raw.baseUrl),
       encryptedToken: raw.encryptedToken || "",
       alwaysOnTop: raw.alwaysOnTop !== false,
       launchAtLogin: Boolean(raw.launchAtLogin)
@@ -97,7 +103,7 @@ ipcMain.handle("settings:save", async (_event, input) => {
   const shouldReplaceToken = Object.prototype.hasOwnProperty.call(input, "token") && String(input.token || "").length > 0;
   const shouldClearToken = Boolean(input.clearToken);
   const next = {
-    baseUrl: String(input.baseUrl || current.baseUrl || defaultBaseUrl()).replace(/\/$/, ""),
+    baseUrl: normalizeBaseUrl(input.baseUrl || current.baseUrl || defaultBaseUrl()),
     encryptedToken: shouldClearToken ? "" : shouldReplaceToken ? encryptToken(String(input.token)) : current.encryptedToken,
     alwaysOnTop: input.alwaysOnTop !== false,
     launchAtLogin: Boolean(input.launchAtLogin)
@@ -145,18 +151,22 @@ ipcMain.handle("api:request", async (_event, input) => {
   const token = decryptToken(config.encryptedToken);
   if (!token) return { success: false, error: { message: "アクセストークンが未設定です" } };
 
-  const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}${input.path}`, {
-    method: input.method || "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: input.body ? JSON.stringify(input.body) : undefined
-  });
-  const text = await response.text();
   try {
-    return JSON.parse(text);
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}${input.path}`, {
+      method: input.method || "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: input.body ? JSON.stringify(input.body) : undefined
+    });
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: false, error: { message: response.ok ? "APIの応答形式が正しくありません" : `サーバーへ接続できませんでした (${response.status})` } };
+    }
   } catch {
-    return { success: false, error: { message: `APIの応答を読めませんでした (${response.status})` } };
+    return { success: false, error: { message: "サーバーへ接続できませんでした。通信環境とMOGCIA URLを確認してください" } };
   }
 });

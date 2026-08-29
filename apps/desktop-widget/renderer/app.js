@@ -23,6 +23,17 @@ let latestMemoId = null;
 let alwaysOnTop = true;
 let launchAtLogin = false;
 
+function clearTransientState() {
+  selectedCompany = null;
+  parsedMemo = null;
+  latestMemoId = null;
+  companyInput.value = "";
+  memoInput.value = "";
+  selectedCompanyLabel.textContent = "";
+  setStatus("");
+  renderPreview();
+}
+
 function setStatus(message, loading = false) {
   statusText.innerHTML = loading ? `${message} <span class="loading-blocks"><i></i><i></i><i></i><i></i></span>` : message;
 }
@@ -182,7 +193,10 @@ companyInput.addEventListener("keydown", (event) => {
 parseButton.addEventListener("click", parseMemo);
 commitButton.addEventListener("click", commitMemo);
 document.querySelector("#openHomeButton").addEventListener("click", () => api.openWeb("/home"));
-document.querySelector("#closeButton").addEventListener("click", () => api.close());
+document.querySelector("#closeButton").addEventListener("click", () => {
+  clearTransientState();
+  api.close();
+});
 document.querySelector("#minimizeButton").addEventListener("click", () => api.minimize());
 pinButton.addEventListener("click", async () => {
   alwaysOnTop = !alwaysOnTop;
@@ -192,3 +206,4 @@ pinButton.addEventListener("click", async () => {
 });
 
 loadSettings();
+window.addEventListener("pagehide", clearTransientState);
