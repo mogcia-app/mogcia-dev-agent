@@ -97,6 +97,9 @@ service cloud.firestore {
         && data.title is string
         && data.message is string
         && data.type in ["info", "success", "warning", "error", "approval"]
+        && data.source in ["web", "desktop", "cli"]
+        && data.environment in ["production", "test", "development"]
+        && data.completed is bool
         && data.read is bool;
     }
 

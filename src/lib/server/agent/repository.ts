@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
-import type { AgentRunStep, AgentSource, CreateDevelopmentProjectInput } from "@/types/agent";
+import type { AgentNotificationEnvironment, AgentRunStep, AgentSource, CreateDevelopmentProjectInput } from "@/types/agent";
 
 export const agentRequestsCollection = "agentRequests";
 export const agentRunsCollection = "agentRuns";
@@ -145,27 +145,77 @@ export async function createAgentNotification(input: {
   title: string;
   message: string;
   type?: string;
+  source?: AgentSource;
+  environment?: AgentNotificationEnvironment;
   runId?: string | null;
   projectId?: string | null;
   targetUrl?: string | null;
 }) {
+  const environment = input.environment ?? runtimeNotificationEnvironment();
+  if (isProductionRuntime() && environment === "test") {
+    throw new Error("本番環境ではテスト通知を作成できません。");
+  }
   const ref = await getAdminDb().collection(agentNotificationsCollection).add({
     userId: input.userId,
     title: input.title,
     message: input.message,
     type: input.type ?? "info",
+    source: input.source ?? "web",
+    environment,
     runId: input.runId ?? null,
     projectId: input.projectId ?? null,
     targetUrl: input.targetUrl ?? null,
     read: false,
+    completed: false,
+    updatedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp()
   });
   return { id: ref.id };
 }
 
-export async function listAgentNotifications(userId: string, count = 40) {
+export async function listAgentNotifications(userId: string, count = 40, options?: { includeTest?: boolean }) {
   const snapshot = await getAdminDb().collection(agentNotificationsCollection).where("userId", "==", userId).orderBy("createdAt", "desc").limit(count).get();
-  return snapshot.docs.map((entry) => ({ id: entry.id, ...serializeTimestamps(entry.data()) }));
+  return snapshot.docs
+    .map((entry): DocumentData => ({ id: entry.id, ...serializeTimestamps(entry.data()) }))
+    .filter((notification) => options?.includeTest || notification.environment !== "test");
+}
+
+export async function updateAgentNotificationStatus(userId: string, notificationId: string, patch: { read?: boolean; completed?: boolean }) {
+  const ref = getAdminDb().collection(agentNotificationsCollection).doc(notificationId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists || snapshot.data()?.userId !== userId) throw new Error("通知が見つかりません。");
+  await ref.update({ ...patch, updatedAt: FieldValue.serverTimestamp() });
+  return { id: notificationId };
+}
+
+export async function markAllAgentNotificationsRead(userId: string) {
+  const snapshot = await getAdminDb().collection(agentNotificationsCollection).where("userId", "==", userId).get();
+  const batch = getAdminDb().batch();
+  let count = 0;
+  snapshot.docs.forEach((entry) => {
+    if (entry.data().environment === "test") return;
+    batch.update(entry.ref, { read: true, updatedAt: FieldValue.serverTimestamp() });
+    count += 1;
+  });
+  if (count > 0) await batch.commit();
+  return { count };
+}
+
+export async function deleteAgentNotifications(userId: string, notificationIds?: string[]) {
+  const db = getAdminDb();
+  const snapshot = notificationIds?.length
+    ? await db.getAll(...notificationIds.map((id) => db.collection(agentNotificationsCollection).doc(id)))
+    : (await db.collection(agentNotificationsCollection).where("userId", "==", userId).get()).docs;
+  const batch = db.batch();
+  let count = 0;
+  snapshot.forEach((entry) => {
+    const data = entry.data();
+    if (!entry.exists || data?.userId !== userId || data?.environment === "test") return;
+    batch.delete(entry.ref);
+    count += 1;
+  });
+  if (count > 0) await batch.commit();
+  return { count };
 }
 
 export async function listDevelopmentProjects() {
@@ -216,6 +266,16 @@ function sourceLabel(source: AgentSource): string {
   if (source === "desktop") return "Desktop Agent";
   if (source === "cli") return "CLI";
   return "管理画面";
+}
+
+function runtimeNotificationEnvironment(): AgentNotificationEnvironment {
+  if (process.env.MOGCIA_ENV === "test" || process.env.NEXT_PUBLIC_MOGCIA_ENV === "test") return "test";
+  if (process.env.NODE_ENV === "development") return "development";
+  return "production";
+}
+
+function isProductionRuntime() {
+  return process.env.VERCEL_ENV === "production" || process.env.MOGCIA_ENV === "production" || process.env.NODE_ENV === "production";
 }
 
 function stringOrEmpty(value: unknown): string {

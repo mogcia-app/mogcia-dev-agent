@@ -294,11 +294,15 @@ function normalizeNotification(id: string, data: DocumentData): AgentNotificatio
     title: String(data.title ?? ""),
     message: String(data.message ?? ""),
     type: data.type === "success" || data.type === "warning" || data.type === "error" || data.type === "approval" ? data.type : "info",
+    source: data.source === "desktop" || data.source === "cli" ? data.source : "web",
+    environment: data.environment === "test" || data.environment === "development" ? data.environment : "production",
     runId: optionalString(data.runId),
     projectId: optionalString(data.projectId),
     targetUrl: optionalString(data.targetUrl),
     read: Boolean(data.read),
-    createdAt: timestamp(data.createdAt)
+    completed: Boolean(data.completed),
+    createdAt: timestamp(data.createdAt),
+    updatedAt: nullableTimestamp(data.updatedAt)
   };
 }
 
@@ -327,7 +331,7 @@ export function subscribeAgentNotifications(userId: string, onNext: (notificatio
   if (!db || !userId) return () => undefined;
   return onSnapshot(
     query(collection(db, agentNotificationsCollection), where("userId", "==", userId), orderBy("createdAt", "desc"), limit(count)),
-    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeNotification(entry.id, entry.data()))),
+    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeNotification(entry.id, entry.data())).filter((notification) => notification.environment !== "test")),
     onError
   );
 }
@@ -421,10 +425,14 @@ export async function createAgentRequest(input: CreateAgentRequestInput, user: {
     title: "Agent依頼を受け付けました",
     message: createRunTitle(rawMessage),
     type: "info",
+    source: "web" satisfies AgentSource,
+    environment: process.env.NEXT_PUBLIC_MOGCIA_ENV === "test" ? "test" : "production",
     runId: runRef.id,
     projectId: input.projectId ?? null,
     targetUrl: `/agent?runId=${runRef.id}`,
     read: false,
+    completed: false,
+    updatedAt: serverTimestamp(),
     createdAt: serverTimestamp()
   });
 

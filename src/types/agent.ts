@@ -23,6 +23,7 @@ export type AgentRunStatus = "queued" | "running" | "requires_approval" | "compl
 export type AgentStepType = "plan" | "execute" | "codex" | "review" | "build" | "preview" | "complete";
 export type AgentStepStatus = "waiting" | "running" | "success" | "error";
 export type AgentNotificationType = "info" | "success" | "warning" | "error" | "approval";
+export type AgentNotificationEnvironment = "production" | "test" | "development";
 
 export interface AgentRequest {
   id: string;
@@ -210,11 +211,15 @@ export interface AgentNotification {
   title: string;
   message: string;
   type: AgentNotificationType;
+  source: AgentSource;
+  environment: AgentNotificationEnvironment;
   runId?: string | null;
   projectId?: string | null;
   targetUrl?: string | null;
   read: boolean;
+  completed: boolean;
   createdAt: Timestamp;
+  updatedAt?: Timestamp | null;
 }
 
 export interface CreateAgentRequestInput {

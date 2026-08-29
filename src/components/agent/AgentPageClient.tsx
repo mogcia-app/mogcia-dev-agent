@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { AlertCircle, Bell, CheckCircle2, ChevronRight, Clock3, Code2, FileText, FolderKanban, Loader2, MessageSquarePlus, PlayCircle, Save, Search, Sparkles, XCircle } from "lucide-react";
+import { AlertCircle, Bell, CheckCircle2, ChevronRight, Clock3, Code2, FileText, FolderKanban, Loader2, MessageSquarePlus, PlayCircle, Save, Search, Sparkles, Trash2, XCircle } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -153,6 +153,9 @@ export function AgentPageClient() {
   const selectedRun = selectedRunId ? runs.find((run) => run.id === selectedRunId) ?? null : null;
   const selectedRequest = selectedRun ? requests.find((request) => request.id === selectedRun.requestId) ?? null : null;
   const dashboard = useMemo(() => createDashboard(runs), [runs]);
+  const visibleNotifications = useMemo(() => notifications.filter((notification) => notification.environment !== "test"), [notifications]);
+  const unreadNotificationCount = visibleNotifications.filter((notification) => !notification.read).length;
+  const completedNotificationCount = visibleNotifications.filter((notification) => notification.completed).length;
 
   const submitRequest = async () => {
     if (!user || !message.trim()) return;
@@ -250,6 +253,43 @@ export function AgentPageClient() {
     }
   };
 
+  const updateNotification = async (body: Record<string, unknown>) => {
+    if (!user) return;
+    setError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/agent/notifications", {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const json = await response.json() as { success?: boolean; error?: { message?: string } };
+      if (!response.ok || !json.success) throw new Error(json.error?.message ?? "通知を更新できませんでした。");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "通知を更新できませんでした。");
+    }
+  };
+
+  const deleteNotifications = async (notificationIds?: string[]) => {
+    if (!user) return;
+    const message = notificationIds?.length ? "選択した通知を削除しますか？" : "表示中の業務通知を一括削除しますか？";
+    if (!window.confirm(message)) return;
+    setError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/agent/notifications", {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ notificationIds })
+      });
+      const json = await response.json() as { success?: boolean; data?: { count?: number }; error?: { message?: string } };
+      if (!response.ok || !json.success) throw new Error(json.error?.message ?? "通知を削除できませんでした。");
+      setToast(`${json.data?.count ?? 0}件の通知を削除しました`);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "通知を削除できませんでした。");
+    }
+  };
+
   return (
     <section>
       <PageHeader
@@ -314,15 +354,35 @@ export function AgentPageClient() {
 
         <aside className="space-y-5">
           <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-[#2B2B2B]"><Bell className="h-5 w-5 text-[#EC6F8B]" />通知</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-[#2B2B2B]"><Bell className="h-5 w-5 text-[#EC6F8B]" />通知</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#8A8186]">未読 {unreadNotificationCount} / 完了 {completedNotificationCount}</span>
+                <button className="inline-flex h-8 items-center gap-1 rounded-none bg-[#FFF0F3] px-3 text-xs font-bold text-[#EC6F8B]" onClick={() => void updateNotification({ action: "mark_all_read" })} type="button">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  すべて既読
+                </button>
+                <button className="inline-flex h-8 items-center gap-1 rounded-none bg-white px-3 text-xs font-bold text-[#C44B63] ring-1 ring-[#F0DEE2]" onClick={() => void deleteNotifications()} type="button">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  一括削除
+                </button>
+              </div>
+            </div>
             <div className="mt-4 grid gap-2">
-              {notifications.slice(0, 5).map((notification) => (
-                <Link className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]" href={(notification.targetUrl || "/agent") as Route} key={notification.id}>
-                  <span className="block font-bold text-[#2B2B2B]">{notification.title}</span>
-                  <span className="mt-1 block">{notification.message}</span>
-                </Link>
+              {visibleNotifications.slice(0, 8).map((notification) => (
+                <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]" key={notification.id}>
+                  <Link href={(notification.targetUrl || "/agent") as Route}>
+                    <span className="block font-bold text-[#2B2B2B]">{notification.title}</span>
+                    <span className="mt-1 block">{notification.message}</span>
+                  </Link>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button className="h-8 rounded-none bg-white px-3 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]" onClick={() => void updateNotification({ notificationId: notification.id, read: true })} type="button">既読</button>
+                    <button className="h-8 rounded-none bg-white px-3 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]" onClick={() => void updateNotification({ notificationId: notification.id, completed: !notification.completed, read: true })} type="button">{notification.completed ? "未完了" : "完了"}</button>
+                    <button className="h-8 rounded-none bg-white px-3 text-xs font-bold text-[#C44B63] ring-1 ring-[#F0DEE2]" onClick={() => void deleteNotifications([notification.id])} type="button">削除</button>
+                  </div>
+                </div>
               ))}
-              {notifications.length === 0 ? <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-bold text-[#8A8186]">通知はまだありません。</p> : null}
+              {visibleNotifications.length === 0 ? <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-bold text-[#8A8186]">通知はまだありません。</p> : null}
             </div>
           </section>
 

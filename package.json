@@ -1,6 +1,6 @@
 {
   "name": "mogcia-dev-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,6 +20,8 @@
     "worker:start": "node scripts/mogcia-worker.mjs start",
     "worker:status": "node scripts/mogcia-worker.mjs status",
     "worker:doctor": "node scripts/mogcia-worker.mjs doctor",
+    "notifications:audit-e2e": "node scripts/audit-e2e-notifications.mjs",
+    "notifications:delete-e2e": "node scripts/audit-e2e-notifications.mjs --confirm-delete",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

@@ -6,10 +6,10 @@ import { routeAgentIntent } from "@/lib/server/agent/intent-router";
 import { createAgentNotification, createAgentRequestForUser, getAgentRunForExecution, getProjectMemory, listDevelopmentProjects, markStep, patchAgentRunForExecution, updateAgentRequestForUser } from "@/lib/server/agent/repository";
 import { createDevelopmentJob } from "@/lib/server/development/repository";
 import * as tools from "@/lib/server/agent/tools";
-import type { AgentIntent, AgentPendingAction, AgentPendingSelection, AgentResultCard, AgentRunStep, AgentToolLog } from "@/types/agent";
+import type { AgentIntent, AgentPendingAction, AgentPendingSelection, AgentResultCard, AgentRunStep, AgentSource, AgentToolLog } from "@/types/agent";
 
 type AgentUser = { uid: string; name?: string };
-type ExecuteInput = { user: AgentUser; rawMessage: string; projectId?: string | null };
+type ExecuteInput = { user: AgentUser; rawMessage: string; projectId?: string | null; source?: AgentSource };
 type ExecutionContext = { user: AgentUser; runId: string; requestId: string; rawMessage: string; projectId?: string | null; steps: AgentRunStep[]; toolLogs: AgentToolLog[]; logs: string[]; toolResults: AgentAnswerToolResult[] };
 type AgentExecutionResult = {
   status: "completed" | "requires_approval";
@@ -31,7 +31,7 @@ export async function executeAgentRequest(input: ExecuteInput) {
   const created = await createAgentRequestForUser({
     userId: input.user.uid,
     rawMessage: input.rawMessage,
-    source: "web",
+    source: input.source ?? "web",
     projectId: input.projectId ?? null
   });
   const run = await getAgentRunForExecution(input.user.uid, created.runId);
