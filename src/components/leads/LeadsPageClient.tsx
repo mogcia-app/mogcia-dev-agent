@@ -150,10 +150,10 @@ export function LeadsPageClient() {
       const id = await createLead(draft, currentUser);
       setDraft(createEmptyLeadDraft());
       setCreateOpen(false);
-      setToast("見込み客を登録しました");
+      setToast("営業リストを登録しました");
       setRoute({ id, tab: "overview" });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "見込み客を保存できませんでした。");
+      setError(nextError instanceof Error ? nextError.message : "営業リストを保存できませんでした。");
     } finally {
       setSaving(false);
     }
@@ -177,9 +177,9 @@ export function LeadsPageClient() {
       await updateLead(editingLead.id, draft, currentUser);
       setEditingLead(null);
       setDraft(createEmptyLeadDraft());
-      setToast("見込み客を更新しました");
+      setToast("営業リストを更新しました");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "見込み客を保存できませんでした。");
+      setError(nextError instanceof Error ? nextError.message : "営業リストを保存できませんでした。");
     } finally {
       setSaving(false);
     }
@@ -212,7 +212,7 @@ export function LeadsPageClient() {
       <PageHeader
         title="営業リスト"
         description="契約前の営業対象について、現在の段階と次の対応を確認します。"
-        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={openCreateLead} type="button"><Plus className="h-4 w-4" />見込み客を登録</button>}
+        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={openCreateLead} type="button"><Plus className="h-4 w-4" />営業リストを登録</button>}
       />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
@@ -410,7 +410,7 @@ function NotesTab({ lead, currentUser, onSave }: { lead: Lead; currentUser: { id
 
 function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }: { draft: LeadDraft; mode: "create" | "edit"; products: Product[]; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
   return (
-    <Modal title={mode === "create" ? "見込み客を登録" : "見込み客を編集"} onClose={onClose}>
+    <Modal title={mode === "create" ? "営業リストを登録" : "営業リストを編集"} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label="会社名" value={draft.companyName} onChange={(companyName) => onChange({ ...draft, companyName })} required />
         <Input label="担当者" value={draft.contactName} onChange={(contactName) => onChange({ ...draft, contactName })} />
