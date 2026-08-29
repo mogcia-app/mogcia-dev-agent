@@ -286,7 +286,8 @@ function LeadHeader({ lead, onActivity, onEdit }: { lead: Lead; onActivity: () =
     lead.contactName ? <span className="inline-flex items-center gap-1" key="contact"><Building2 className="h-4 w-4" />{lead.contactName}</span> : null,
     lead.contactRole ? <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 text-xs font-bold text-[#EC6F8B]" key="role">{lead.contactRole}</span> : null,
     lead.phone ? <span className="inline-flex items-center gap-1" key="phone"><Phone className="h-4 w-4" />{lead.phone}</span> : null,
-    lead.email ? <span className="inline-flex items-center gap-1" key="email"><Mail className="h-4 w-4" />{lead.email}</span> : null
+    lead.email ? <span className="inline-flex items-center gap-1" key="email"><Mail className="h-4 w-4" />{lead.email}</span> : null,
+    lead.website ? <a className="inline-flex items-center gap-1 text-[#EC6F8B]" href={normalizeWebsiteUrl(lead.website)} key="website" rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4" />HP</a> : null
   ].filter(Boolean);
   return (
     <section className="border-b border-[#E5E7EB] pb-5">
@@ -300,6 +301,7 @@ function LeadHeader({ lead, onActivity, onEdit }: { lead: Lead; onActivity: () =
         </div>
         <div className="flex flex-wrap gap-2">
           {lead.phone ? <a className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#374151]" href={`tel:${lead.phone}`}><Phone className="h-4 w-4 text-[#EC6F8B]" />電話</a> : null}
+          {lead.website ? <a className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#374151]" href={normalizeWebsiteUrl(lead.website)} rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4 text-[#EC6F8B]" />HP</a> : null}
           <button className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />活動を追加</button>
           <button className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
           <button className="grid h-11 w-11 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151]" type="button" aria-label="その他">…</button>
@@ -335,6 +337,7 @@ function LeadSummaryStrip({ lead }: { lead: Lead }) {
     { label: "役職", value: lead.contactRole, Icon: Archive },
     { label: "電話", value: lead.phone, Icon: Phone },
     { label: "メール", value: lead.email, Icon: Mail },
+    { label: "HP URL", value: lead.website, Icon: LinkIcon },
     { label: "ステータス", value: leadStatusLabels[lead.status], Icon: Target },
     { label: "商材", value: lead.productName, Icon: LinkIcon }
   ].filter((item) => Boolean(item.value));
@@ -501,6 +504,7 @@ function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }:
         <Input label="役職" value={draft.contactRole} onChange={(contactRole) => onChange({ ...draft, contactRole })} />
         <Input label="電話" value={draft.phone} onChange={(phone) => onChange({ ...draft, phone })} />
         <Input label="メール" value={draft.email} onChange={(email) => onChange({ ...draft, email })} />
+        <Input label="HP URL" type="url" value={draft.website} onChange={(website) => onChange({ ...draft, website })} />
         <Input label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
         <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <SelectBox label="ステータス" value={draft.status === "document_sent" ? "document_sent" : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
@@ -569,6 +573,7 @@ function leadToDraft(lead: Lead): LeadDraft {
     contactRole: lead.contactRole ?? "",
     phone: lead.phone ?? "",
     email: lead.email ?? "",
+    website: lead.website ?? "",
     industry: lead.industry ?? "",
     source: lead.source ?? "",
     productId: lead.productId ?? "",
@@ -583,6 +588,12 @@ function leadToDraft(lead: Lead): LeadDraft {
     notes: lead.notes ?? "",
     companyId: lead.companyId ?? ""
   };
+}
+
+function normalizeWebsiteUrl(value: string): string {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 function compareLeads(a: Lead, b: Lead, sort: LeadSort): number {
