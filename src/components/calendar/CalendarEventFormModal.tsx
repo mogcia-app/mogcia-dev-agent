@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { SearchSelect, SingleSelect } from "@/components/ui/select";
+import { MultiSelect, SearchSelect, SingleSelect } from "@/components/ui/select";
 import { createEmptyCalendarDraft } from "@/lib/calendar-utils";
 import type { CalendarEventDraft, CalendarEventType } from "@/types/calendar";
 import type { MemberOption } from "@/types/task";
@@ -59,9 +59,20 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
           <Field label="予定名"><input className="task-input" value={draft.title} onChange={(event) => setValue("title", event.target.value)} placeholder="例: 提案打ち合わせ" /></Field>
           <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
             <Field label="種類"><SingleSelect options={eventTypeOptions.map(([value, label]) => ({ value, label }))} value={draft.eventType} onChange={(value) => setValue("eventType", value as CalendarEventType)} /></Field>
-            {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{currentMember.name}</div></Field>}
+            {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value, attendeeIds: current.attendeeIds.filter((id) => id !== value), attendeeMemberNames: members.filter((entry) => current.attendeeIds.includes(entry.id) && entry.id !== value).map((entry) => entry.name) })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{currentMember.name}</div></Field>}
             <Field label="終日"><button className={`h-11 rounded-none border px-4 text-sm font-bold ${draft.allDay ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-[#FFFBFC] text-[#655D62]"}`} onClick={() => setValue("allDay", !draft.allDay)} type="button">{draft.allDay ? "終日" : "時間指定"}</button></Field>
           </div>
+          <MultiSelect
+            label="同行者"
+            options={members.filter((member) => member.id !== draft.assigneeId).map((member) => ({ value: member.id, label: member.name }))}
+            placeholder="同行者を選択"
+            values={draft.attendeeIds}
+            onChange={(attendeeIds) => setDraft((current) => ({
+              ...current,
+              attendeeIds,
+              attendeeMemberNames: members.filter((member) => attendeeIds.includes(member.id)).map((member) => member.name)
+            }))}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => { const startDate = event.target.value; setDraft((current) => ({ ...current, startDate, endDate: current.endDate && current.endDate >= startDate ? current.endDate : startDate })); }} /></Field>
             <Field label="開始時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field>
@@ -75,7 +86,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
           {detailsOpen ? <div className="grid gap-4 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 sm:grid-cols-2">
             <Field label="場所"><input className="task-input" value={draft.location} onChange={(event) => setValue("location", event.target.value)} placeholder="会議室 / オンライン" /></Field>
             <Field label="オンラインURL"><input className="task-input" value={draft.meetingUrl} onChange={(event) => setValue("meetingUrl", event.target.value)} /></Field>
-            <Field label="参加者"><input className="task-input" value={draft.attendeeNames} onChange={(event) => setValue("attendeeNames", event.target.value)} placeholder="カンマ区切り" /></Field>
+            <Field label="外部参加者・補足"><input className="task-input" value={draft.attendeeNames} onChange={(event) => setValue("attendeeNames", event.target.value)} placeholder="社外の参加者名などをカンマ区切りで入力" /></Field>
             <Field label="関連会社"><SearchSelect clearable disabled={companies.length === 0} emptyLabel="会社が未登録です。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder={companies.length === 0 ? "未登録" : "未選択"} value={draft.companyId} onChange={(value) => { const company = companies.find((entry) => entry.id === value); setDraft((current) => ({ ...current, companyId: value, companyName: company?.name ?? "", projectId: "", projectName: "", meetingId: "" })); }} /></Field>
             <Field label="関連案件"><SearchSelect clearable disabled={filteredProjects.length === 0} emptyLabel="案件が未登録です。" options={filteredProjects.map((project) => ({ value: project.id, label: project.name, description: project.companyName ?? undefined }))} placeholder={filteredProjects.length === 0 ? "未登録" : "未選択"} value={draft.projectId} onChange={(value) => { const project = projects.find((entry) => entry.id === value); setDraft((current) => ({ ...current, projectId: value, projectName: project?.name ?? "", companyId: project?.companyId ?? current.companyId, companyName: project?.companyName ?? current.companyName, meetingId: "" })); }} /></Field>
             <Field label="関連会議"><SearchSelect clearable disabled={filteredMeetings.length === 0} emptyLabel="会議が未登録です。" options={filteredMeetings.map((meeting) => ({ value: meeting.id, label: meeting.name, description: meeting.companyName ?? undefined }))} placeholder={filteredMeetings.length === 0 ? "未登録" : "未選択"} value={draft.meetingId} onChange={(value) => { const meeting = meetings.find((entry) => entry.id === value); setDraft((current) => ({ ...current, meetingId: value, companyId: meeting?.companyId ?? current.companyId, companyName: meeting?.companyName ?? current.companyName, projectId: meeting?.projectId ?? current.projectId, projectName: meeting?.projectName ?? current.projectName })); }} /></Field>

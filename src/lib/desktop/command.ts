@@ -73,8 +73,8 @@ export async function commitCalendarDraft(auth: DesktopAuth, body: Record<string
     allDay: Boolean(draftSource.allDay),
     assigneeId: auth.userId,
     assigneeName: userName,
-    attendeeIds: [],
-    attendeeNames: [],
+    attendeeIds: stringArray(draftSource.attendeeIds),
+    attendeeNames: stringArray(draftSource.attendeeNames),
     companyId,
     companyName: companySnapshot?.data()?.name ?? (optionalString(draftSource.companyName, "会社名", 200) || null),
     source: "manual",
@@ -358,4 +358,8 @@ function matches(item: Record<string, unknown>, keyword: string) {
 
 function runtimeEnvironment() {
   return process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production" ? "production" : "development";
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean) : [];
 }

@@ -80,6 +80,8 @@ export interface CalendarEventDraft {
   description: string;
   assigneeId: string;
   assigneeName: string;
+  attendeeIds: string[];
+  attendeeMemberNames: string[];
   attendeeNames: string;
   companyId: string;
   companyName: string;

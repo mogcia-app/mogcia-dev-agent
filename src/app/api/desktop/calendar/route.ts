@@ -21,6 +21,8 @@ export async function GET(request: Request) {
         endAt: timestampToIso(event.endAt),
         companyId: event.companyId ?? null,
         companyName: event.companyName ?? null,
+        attendeeIds: Array.isArray(event.attendeeIds) ? event.attendeeIds : [],
+        attendeeNames: Array.isArray(event.attendeeNames) ? event.attendeeNames : [],
         eventType: String(event.eventType ?? "meeting")
       }));
       return { events };
@@ -62,8 +64,8 @@ export async function POST(request: Request) {
         allDay: Boolean(body.allDay),
         assigneeId: auth.userId,
         assigneeName: userName,
-        attendeeIds: [],
-        attendeeNames: [],
+        attendeeIds: stringArray(body.attendeeIds),
+        attendeeNames: stringArray(body.attendeeNames),
         companyId,
         companyName: companySnapshot?.data()?.name ?? null,
         projectId: null,
@@ -81,4 +83,8 @@ export async function POST(request: Request) {
   } catch (error) {
     return desktopFailure(error);
   }
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean) : [];
 }

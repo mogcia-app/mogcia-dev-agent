@@ -129,6 +129,8 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
     description: "",
     assigneeId: currentUser.id,
     assigneeName: currentUser.name,
+    attendeeIds: [],
+    attendeeMemberNames: [],
     attendeeNames: "",
     companyId: "",
     companyName: "",
@@ -145,6 +147,9 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
   const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
   const endAt = draft.allDay ? parseDateTime(draft.endDate || draft.startDate, "23:59") : parseEndDateTime(draft.startDate, draft.startTime, draft.endDate, draft.endTime);
+  const attendeeIds = Array.from(new Set(draft.attendeeIds.filter((id) => id && id !== draft.assigneeId)));
+  const selectedAttendeeNames = draft.attendeeMemberNames.filter(Boolean);
+  const manualAttendeeNames = draft.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean);
   return {
     title: draft.title.trim(),
     description: draft.description.trim(),
@@ -154,7 +159,8 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
     allDay: draft.allDay,
     assigneeId: draft.assigneeId || currentUser.id,
     assigneeName: draft.assigneeName || currentUser.name,
-    attendeeNames: draft.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean),
+    attendeeIds,
+    attendeeNames: Array.from(new Set([...selectedAttendeeNames, ...manualAttendeeNames].filter(Boolean))),
     companyId: draft.companyId || null,
     companyName: draft.companyName.trim() || null,
     projectId: draft.projectId || null,

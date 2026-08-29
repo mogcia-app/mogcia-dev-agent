@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, BusinessApiError, cleanPatchBody, defaultBusinessFields, findTimeDuplicates, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, withBusinessAudit, type BusinessAuth } from "@/lib/server/business/api";
+import { arrayOfStrings, assertFreshUpdate, authenticateBusinessRequest, businessFailure, businessSuccess, BusinessApiError, cleanPatchBody, defaultBusinessFields, findTimeDuplicates, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, withBusinessAudit, type BusinessAuth } from "@/lib/server/business/api";
 
 export const runtime = "nodejs";
 
@@ -48,13 +48,15 @@ export async function PATCH(request: Request) {
       const previous = snapshot.data() ?? {};
       const startAt = body.startAt === undefined ? previous.startAt ?? null : parseDate(body.startAt);
       await ref.set({
-        ...cleanPatchBody(body),
+        ...cleanPatchBody(body, ["attendeeMemberNames"]),
         title: typeof body.title === "string" ? body.title.trim() : previous.title,
         description: optionalString(body.description ?? previous.description, 3000),
         eventType: optionalString(body.eventType ?? previous.eventType, 80) || "meeting",
         startAt,
         endAt: body.endAt === undefined ? previous.endAt ?? null : parseDate(body.endAt),
         allDay: body.allDay === undefined ? Boolean(previous.allDay) : Boolean(body.allDay),
+        attendeeIds: body.attendeeIds === undefined ? Array.isArray(previous.attendeeIds) ? previous.attendeeIds : [] : arrayOfStrings(body.attendeeIds),
+        attendeeNames: body.attendeeNames === undefined ? Array.isArray(previous.attendeeNames) ? previous.attendeeNames : [] : arrayOfStrings(body.attendeeNames),
         companyId: nullableString(body.companyId) ?? previous.companyId ?? null,
         companyName: nullableString(body.companyName) ?? previous.companyName ?? null,
         ...updateBusinessFields(auth)
@@ -78,8 +80,8 @@ function calendarPayload(auth: BusinessAuth, body: Record<string, unknown>, titl
     allDay: Boolean(body.allDay),
     assigneeId: nullableString(body.assigneeId, 160) ?? auth.userId,
     assigneeName: nullableString(body.assigneeName, 160) ?? auth.userName,
-    attendeeIds: [],
-    attendeeNames: [],
+    attendeeIds: arrayOfStrings(body.attendeeIds),
+    attendeeNames: arrayOfStrings(body.attendeeNames),
     companyId: nullableString(body.companyId, 160),
     companyName: nullableString(body.companyName, 200),
     source: "manual",
