@@ -33,7 +33,6 @@ export interface Company {
   companionNames?: string[];
   productIds?: string[];
   productNames?: string[];
-  productAccountAccess?: CompanyProductAccountAccess;
   productSalesContext?: CompanyProductSalesContext;
   decisionInfo?: CompanyDecisionInfo;
   contacts?: CompanyContactPerson[];
@@ -78,22 +77,6 @@ export interface CommoCompanyContext {
   repeatCustomerStatus?: string;
   dormantCustomerStatus?: string;
   operationOwner?: string;
-}
-
-export interface CompanyProductAccountAccess {
-  sns?: {
-    instagram?: CompanyProductAccountCredential;
-    tiktok?: CompanyProductAccountCredential;
-  };
-  commo?: {
-    officialLine?: CompanyProductAccountCredential;
-  };
-}
-
-export interface CompanyProductAccountCredential {
-  accountName?: string;
-  email?: string;
-  password?: string;
 }
 
 export interface CompanyContactPerson {

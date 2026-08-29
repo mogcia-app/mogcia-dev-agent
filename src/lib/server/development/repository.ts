@@ -6,6 +6,8 @@ import { agentRunsCollection, createAgentNotification, developmentProjectsCollec
 
 export const developmentWorkersCollection = "developmentWorkers";
 export const developmentJobsCollection = "developmentJobs";
+const ADMIN_UID = "TjDadmBAdVYaPEvG3ppfBLS4HGN2";
+export const workerOfflineThresholdMs = Math.max(60_000, Number(process.env.MOGCIA_WORKER_OFFLINE_THRESHOLD_MS ?? 90_000));
 
 type WorkerUser = { uid: string; name?: string };
 
@@ -33,12 +35,19 @@ export async function heartbeatDevelopmentWorker(user: WorkerUser, workerId: str
   const ref = getAdminDb().collection(developmentWorkersCollection).doc(workerId);
   const snapshot = await ref.get();
   if (!snapshot.exists || snapshot.data()?.userId !== user.uid) throw new Error("Workerが見つかりません。");
+  const wasOffline = snapshot.data()?.status === "offline" || Date.now() - dateMillis(snapshot.data()?.lastSeenAt) > workerOfflineThresholdMs;
   await ref.set({
     status: input.status === "busy" ? "busy" : "online",
     capabilities: stringArray(input.capabilities).length ? stringArray(input.capabilities) : snapshot.data()?.capabilities ?? [],
+    currentJobId: nullableString(input.currentJobId),
     lastSeenAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   }, { merge: true });
+  if (wasOffline) {
+    const queued = await getAdminDb().collection(developmentJobsCollection).where("status", "==", "queued").get();
+    const byUser = new Map<string, number>(); queued.docs.forEach((entry) => { const id = String(entry.data().userId ?? ""); if (id) byUser.set(id, (byUser.get(id) ?? 0) + 1); });
+    await Promise.all(Array.from(byUser).map(([userId, count]) => createAgentNotification({ userId, title: "MOGCIA Workerがオンラインになりました", message: `待機中の開発Job ${count}件を順次開始します。`, type: "success", targetUrl: "/agent", source: "development" })));
+  }
   return { workerId };
 }
 
@@ -49,6 +58,7 @@ export async function listDevelopmentProjectsForWorker() {
 
 export async function createDevelopmentJob(input: {
   userId: string;
+  requestedByName?: string;
   runId: string;
   requestId: string;
   projectId: string;
@@ -58,6 +68,7 @@ export async function createDevelopmentJob(input: {
 }) {
   const ref = await getAdminDb().collection(developmentJobsCollection).add({
     userId: input.userId,
+    requestedByName: input.requestedByName || null,
     runId: input.runId,
     requestId: input.requestId,
     projectId: input.projectId,
@@ -79,9 +90,12 @@ export async function createDevelopmentJob(input: {
 
 export async function claimDevelopmentJob(user: WorkerUser, input: { workerId: string; capabilities: string[] }) {
   const db = getAdminDb();
+  await sweepLostDevelopmentWorkers();
   const workerRef = db.collection(developmentWorkersCollection).doc(input.workerId);
   const workerSnapshot = await workerRef.get();
   if (!workerSnapshot.exists || workerSnapshot.data()?.userId !== user.uid) throw new Error("Workerが見つかりません。");
+  const active = await db.collection(developmentJobsCollection).where("assignedWorkerId", "==", input.workerId).get();
+  if (active.docs.some((entry) => ["assigned", "running"].includes(String(entry.data().status)))) return { job: null };
   const queued = await db.collection(developmentJobsCollection).where("status", "==", "queued").orderBy("createdAt", "asc").limit(10).get();
   const candidate = queued.docs.find((entry) => hasCapabilities(input.capabilities, stringArray(entry.data().requiredCapabilities)));
   if (!candidate) {
@@ -102,6 +116,7 @@ export async function claimDevelopmentJob(user: WorkerUser, input: { workerId: s
     return { id: fresh.id, ...(fresh.data() ?? {}), status: "assigned", assignedWorkerId: input.workerId } as DocumentData;
   });
   if (!claimed) return { job: null };
+  await workerRef.set({ currentJobId: claimed.id }, { merge: true });
   await updateRunForJob(claimed.runId as string, {
     status: "running",
     progress: 45,
@@ -109,6 +124,7 @@ export async function claimDevelopmentJob(user: WorkerUser, input: { workerId: s
     answer: "開発Workerに割り当てました。Repository確認とCodex実行を開始します。",
     logs: FieldValue.arrayUnion(`Development Job ${claimed.id} をWorker ${input.workerId}に割り当てました。`)
   });
+  await createAgentNotification({ userId: String(claimed.userId), title: "開発を開始しました", message: String(claimed.title ?? "Development Job"), type: "info", runId: String(claimed.runId), targetUrl: `/agent?runId=${claimed.runId}`, source: "development" });
   const project = await getProjectForWorker(String(claimed.projectId));
   const memory = await getProjectMemory(String(claimed.projectId));
   return { job: serialize(claimed), project, memory };
@@ -158,6 +174,7 @@ export async function appendDevelopmentJobLog(user: WorkerUser, jobId: string, w
 
 export async function completeDevelopmentJob(user: WorkerUser, jobId: string, workerId: string, input: Record<string, unknown>) {
   const job = await getWorkerJob(user, jobId, workerId);
+  if (!["assigned", "running"].includes(String(job.data.status))) throw new Error("このJobはすでに終了しているため、結果を重複送信できません。");
   const status = input.status === "failed" ? "failed" : input.status === "cancelled" ? "cancelled" : "completed";
   const result = input.result && typeof input.result === "object" ? input.result as Record<string, unknown> : {};
   await job.ref.update({
@@ -169,6 +186,7 @@ export async function completeDevelopmentJob(user: WorkerUser, jobId: string, wo
   });
   await getAdminDb().collection(developmentWorkersCollection).doc(workerId).set({
     status: "online",
+    currentJobId: null,
     lastSeenAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   }, { merge: true });
@@ -195,9 +213,65 @@ export async function completeDevelopmentJob(user: WorkerUser, jobId: string, wo
     message: String(job.data.title ?? "Development Job"),
     type: success ? "approval" : "error",
     runId: String(job.data.runId),
-    targetUrl: `/agent?runId=${job.data.runId}`
+    targetUrl: `/agent?runId=${job.data.runId}`,
+    source: "development"
   });
   return { jobId };
+}
+
+export async function getDevelopmentWorkerStatus() {
+  await sweepLostDevelopmentWorkers();
+  const db = getAdminDb();
+  const [workersSnapshot, jobsSnapshot, projectsSnapshot, approvalRunsSnapshot] = await Promise.all([
+    db.collection(developmentWorkersCollection).get(),
+    db.collection(developmentJobsCollection).orderBy("createdAt", "asc").limit(100).get(),
+    db.collection(developmentProjectsCollection).get(),
+    db.collection(agentRunsCollection).where("status", "==", "requires_approval").get(),
+  ]);
+  const projectNames = new Map(projectsSnapshot.docs.map((entry) => [entry.id, String(entry.data().name ?? entry.id)]));
+  const now = Date.now();
+  const jobs = jobsSnapshot.docs.map((entry): DocumentData & { id: string } => ({ id: entry.id, ...serialize(entry.data()) }));
+  const workers = workersSnapshot.docs.map((entry) => {
+    const data = entry.data(); const lastSeenAt = dateMillis(data.lastSeenAt); const online = data.status !== "disabled" && now - lastSeenAt <= workerOfflineThresholdMs;
+    const currentJob = jobs.find((job) => job.assignedWorkerId === entry.id && ["assigned", "running"].includes(String(job.status)));
+    return { id: entry.id, name: String(data.name ?? "MOGCIA Worker"), online, status: online ? String(data.status ?? "online") : "offline", lastSeenAt: lastSeenAt ? new Date(lastSeenAt).toISOString() : null, capabilities: stringArray(data.capabilities), currentJobId: currentJob?.id ?? null, currentProjectName: currentJob ? projectNames.get(String(currentJob.projectId)) ?? null : null };
+  });
+  return {
+    workers,
+    queuedJobs: jobs.filter((job) => job.status === "queued").length,
+    runningJobs: jobs.filter((job) => ["assigned", "running"].includes(String(job.status))).length,
+    approvalJobs: approvalRunsSnapshot.size,
+    lostJobs: jobs.filter((job) => job.status === "worker_lost"),
+    queue: jobs.filter((job) => job.status === "queued").map((job) => ({ id: job.id, projectId: job.projectId, projectName: projectNames.get(String(job.projectId)) ?? "Project", title: job.title, createdAt: job.createdAt, status: job.status, workerWaiting: true, requestedBy: job.requestedByName ?? "社員" })),
+    offlineThresholdSeconds: Math.round(workerOfflineThresholdMs / 1000),
+  };
+}
+
+export async function actOnLostDevelopmentJob(user: WorkerUser, jobId: string, action: "retry" | "cancel") {
+  const db = getAdminDb();
+  const profile = await db.collection("users").doc(user.uid).get();
+  const role = String(profile.data()?.role ?? "sales");
+  if (user.uid !== ADMIN_UID && !['admin', 'owner', 'developer'].includes(role)) throw new Error("Jobを再実行・キャンセルする権限がありません。");
+  const ref = db.collection(developmentJobsCollection).doc(jobId); const snapshot = await ref.get();
+  if (!snapshot.exists || snapshot.data()?.status !== "worker_lost") throw new Error("操作できるWorker停止Jobではありません。");
+  const nextStatus = action === "retry" ? "queued" : "cancelled";
+  await ref.update({ status: nextStatus, assignedWorkerId: null, startedAt: action === "retry" ? null : snapshot.data()?.startedAt ?? null, completedAt: action === "cancel" ? FieldValue.serverTimestamp() : null, errorMessage: action === "retry" ? null : "ユーザーがキャンセルしました。", updatedAt: FieldValue.serverTimestamp() });
+  await updateRunForJob(String(snapshot.data()?.runId), { status: action === "retry" ? "queued" : "cancelled", progress: action === "retry" ? 35 : 100, currentStep: action === "retry" ? "codex" : "complete", answer: action === "retry" ? "再実行を受け付けました。開発Macを待っています。" : "Development Jobをキャンセルしました。", requiresApproval: false, completedAt: action === "cancel" ? FieldValue.serverTimestamp() : null });
+  return { jobId, status: nextStatus };
+}
+
+export async function sweepLostDevelopmentWorkers() {
+  const db = getAdminDb(); const now = Date.now();
+  const workers = await db.collection(developmentWorkersCollection).get();
+  const staleIds = workers.docs.filter((entry) => entry.data().status !== "disabled" && now - dateMillis(entry.data().lastSeenAt) > workerOfflineThresholdMs).map((entry) => entry.id);
+  if (!staleIds.length) return;
+  await Promise.all(staleIds.map((id) => db.collection(developmentWorkersCollection).doc(id).set({ status: "offline", currentJobId: null, updatedAt: FieldValue.serverTimestamp() }, { merge: true })));
+  const running = await db.collection(developmentJobsCollection).where("status", "in", ["assigned", "running"]).get();
+  for (const entry of running.docs.filter((job) => staleIds.includes(String(job.data().assignedWorkerId)))) {
+    await entry.ref.update({ status: "worker_lost", errorMessage: "Worker heartbeatが途絶えました。自動再実行は行いません。", updatedAt: FieldValue.serverTimestamp() });
+    await updateRunForJob(String(entry.data().runId), { status: "requires_approval", requiresApproval: true, progress: 62, currentStep: "codex", answer: "開発Macとの接続が途絶えました。二重実行を防ぐため停止しています。再実行またはキャンセルを選択してください。", completedAt: null });
+    await createAgentNotification({ userId: String(entry.data().userId), title: "開発Workerとの接続が途絶えました", message: String(entry.data().title ?? "Development Job"), type: "warning", runId: String(entry.data().runId), targetUrl: `/agent?runId=${entry.data().runId}`, source: "development" });
+  }
 }
 
 export async function getProjectForWorker(projectId: string) {
@@ -278,6 +352,7 @@ function arrayValue(value: unknown): unknown[] {
 function numberValue(value: unknown): number {
   return typeof value === "number" ? value : 0;
 }
+function dateMillis(value: unknown): number { if (value && typeof value === "object" && "toMillis" in value && typeof value.toMillis === "function") return value.toMillis(); if (typeof value === "string" || typeof value === "number") return new Date(value).getTime() || 0; return 0; }
 
 function dateOrNow(value: unknown): Timestamp {
   if (value instanceof Timestamp) return value;

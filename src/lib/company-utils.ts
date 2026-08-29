@@ -69,7 +69,6 @@ export function createEmptyCompany(user: { id: string; name: string }): Omit<Com
     companionNames: [],
     productIds: [],
     productNames: [],
-    productAccountAccess: {},
     productSalesContext: {},
     decisionInfo: {
       decisionMakerName: "",

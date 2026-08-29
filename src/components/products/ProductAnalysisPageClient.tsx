@@ -13,7 +13,7 @@ import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import type { Product } from "@/types/product";
 import type { TeleapoRecord } from "@/types/teleapo";
 
-type ProductAnalysis = {
+export type ProductAnalysis = {
   product: Product;
   score: number;
   level: "good" | "partial" | "weak";
@@ -23,7 +23,7 @@ type ProductAnalysis = {
   actual: ProductActualAnalysis;
 };
 
-type ProductActualAnalysis = {
+export type ProductActualAnalysis = {
   records: TeleapoRecord[];
   analyzedCount: number;
   teleapoCount: number;
@@ -455,7 +455,7 @@ function EmptyAnalysis() {
   );
 }
 
-function analyzeProduct(product: Product, records: TeleapoRecord[]): ProductAnalysis {
+export function analyzeProduct(product: Product, records: TeleapoRecord[]): ProductAnalysis {
   const sections = [
     {
       label: "基本情報",

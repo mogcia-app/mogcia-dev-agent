@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { AlertCircle, Bell, CheckCircle2, ChevronRight, Clock3, Code2, FileText, FolderKanban, Loader2, MessageSquarePlus, PlayCircle, Save, Search, Sparkles, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronRight, Clock3, Code2, FileText, FolderKanban, Loader2, MessageSquarePlus, PlayCircle, Save, Search, Server, Settings, Sparkles, XCircle } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -16,14 +16,17 @@ import {
   subscribeAgentNotifications,
   subscribeAgentRequests,
   subscribeAgentRuns,
-  subscribeDevelopmentProjects
+  subscribeDevelopmentJobs,
+  subscribeDevelopmentProjects,
+  subscribeDevelopmentWorkers
 } from "@/lib/agent";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import type { AgentNotification, AgentRequest, AgentRun, AgentRunStatus, AgentRunStep, CreateDevelopmentProjectInput, DevelopmentProject, ProjectMemory } from "@/types/agent";
+import type { AgentNotification, AgentRequest, AgentRun, AgentRunStatus, AgentRunStep, CreateDevelopmentProjectInput, DevelopmentJob, DevelopmentProject, DevelopmentWorker, ProjectMemory } from "@/types/agent";
 
 const statusLabels: Record<AgentRunStatus, string> = {
   queued: "受付済み",
   running: "実行中",
+  worker_lost: "Worker停止・確認待ち",
   requires_approval: "確認待ち",
   completed: "完了",
   error: "エラー",
@@ -64,12 +67,18 @@ const emptyMemory: Omit<ProjectMemory, "projectId" | "updatedAt"> = {
 };
 
 export function AgentPageClient() {
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const initialMessage = params.get("message") ?? "";
   const [user, setUser] = useState<User | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [requests, setRequests] = useState<AgentRequest[]>([]);
   const [projects, setProjects] = useState<DevelopmentProject[]>([]);
+  const [jobs, setJobs] = useState<DevelopmentJob[]>([]);
+  const [workers, setWorkers] = useState<DevelopmentWorker[]>([]);
   const [notifications, setNotifications] = useState<AgentNotification[]>([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage);
   const [projectId, setProjectId] = useState("");
   const [projectDraft, setProjectDraft] = useState<ProjectDraft>(emptyProjectDraft);
   const [memoryProjectId, setMemoryProjectId] = useState("");
@@ -82,9 +91,8 @@ export function AgentPageClient() {
   const [savingMemory, setSavingMemory] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const params = useSearchParams();
-  const pathname = usePathname();
-  const router = useRouter();
+  const [composerOpen, setComposerOpen] = useState(Boolean(initialMessage));
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedRunId = params.get("runId");
 
   useEffect(() => {
@@ -116,11 +124,15 @@ export function AgentPageClient() {
       if (!projectId && nextProjects[0]) setProjectId(nextProjects[0].id);
       if (!memoryProjectId && nextProjects[0]) setMemoryProjectId(nextProjects[0].id);
     }, onError("developmentProjects"));
+    const unsubscribeJobs = subscribeDevelopmentJobs(user.uid, setJobs, onError("developmentJobs"));
+    const unsubscribeWorkers = subscribeDevelopmentWorkers(user.uid, setWorkers, onError("developmentWorkers"));
     const unsubscribeNotifications = subscribeAgentNotifications(user.uid, setNotifications, onError("agentNotifications"));
     return () => {
       unsubscribeRuns();
       unsubscribeRequests();
       unsubscribeProjects();
+      unsubscribeJobs();
+      unsubscribeWorkers();
       unsubscribeNotifications();
     };
   }, [memoryProjectId, projectId, user]);
@@ -150,9 +162,19 @@ export function AgentPageClient() {
     };
   }, [memoryProjectId]);
 
-  const selectedRun = selectedRunId ? runs.find((run) => run.id === selectedRunId) ?? null : null;
+  const latestProjectRun = runs.find((run) => projectId ? run.projectId === projectId : false) ?? null;
+  const selectedRun = initialMessage ? null : selectedRunId ? runs.find((run) => run.id === selectedRunId) ?? null : latestProjectRun;
   const selectedRequest = selectedRun ? requests.find((request) => request.id === selectedRun.requestId) ?? null : null;
   const dashboard = useMemo(() => createDashboard(runs), [runs]);
+  const activeJobs = useMemo(() => jobs.filter((job) => job.status === "queued" || job.status === "assigned" || job.status === "running" || job.status === "reviewing"), [jobs]);
+  const showJobsFirst = activeJobs.length > 0;
+  const selectedProject = projects.find((project) => project.id === projectId) ?? null;
+
+  const selectProject = (nextProjectId: string) => {
+    setProjectId(nextProjectId);
+    const nextRun = runs.find((run) => run.projectId === nextProjectId);
+    router.replace(nextRun ? `${pathname}?runId=${nextRun.id}` as Route : pathname as Route, { scroll: false });
+  };
 
   const submitRequest = async () => {
     if (!user || !message.trim()) return;
@@ -251,96 +273,23 @@ export function AgentPageClient() {
   };
 
   return (
-    <section>
-      <PageHeader
-        title="Agent"
-        description="管理画面、Desktop Agent、CLIをつなぐ操作入口です。"
-        actions={
-          <Link className="inline-flex h-11 items-center gap-2 rounded-none bg-white px-5 text-sm font-bold text-[#6F676B] shadow-sm ring-1 ring-[#F0E7E9]" href={"/settings/desktop" as Route}>
-            <Code2 className="h-4 w-4" />
-            デスクトップ連携
-          </Link>
-        }
-      />
+    <section className="grid min-h-[calc(100vh-65px)] max-w-full touch-pan-y overflow-x-hidden overscroll-x-none bg-white lg:min-h-screen lg:grid-cols-[260px_minmax(0,1fr)]">
       <StatusToast message={toast} onClose={() => setToast(null)} />
-      <div className="mt-4"><StatusBanner message={error} type="error" /></div>
+      <aside className="flex min-h-0 flex-col border-r border-[#E9E6E4] bg-[#F7F6F4]">
+        <div className="border-b border-[#E9E6E4] p-4"><div className="flex items-center justify-between"><h1 className="text-lg font-bold">Agent</h1><Link aria-label="Desktop連携" className="text-neutral-500 hover:text-neutral-900" href={"/settings/desktop" as Route}><Settings className="h-4 w-4" /></Link></div><button className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#DDD8D5] bg-white text-sm font-semibold hover:bg-[#FCFBFA]" onClick={() => { router.replace(pathname as Route, { scroll: false }); setMessage(""); }} type="button"><MessageSquarePlus className="h-4 w-4" />新しい依頼</button></div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3"><p className="px-2 pb-2 text-[11px] font-semibold tracking-[0.12em] text-neutral-400">プロダクト</p><div className="space-y-1">{projects.map((project) => { const count = activeJobs.filter((job) => job.projectId === project.id).length; const active = project.id === projectId; return <button className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${active ? "bg-white font-semibold shadow-sm" : "text-neutral-600 hover:bg-white/70"}`} key={project.id} onClick={() => selectProject(project.id)} type="button"><FolderKanban className={`h-4 w-4 ${active ? "text-[#EC6F8B]" : "text-neutral-400"}`} /><span className="min-w-0 flex-1 truncate">{project.name}</span>{count ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#FFF0F3] px-1 text-[11px] font-bold text-[#B84563]">{count}</span> : null}</button>; })}{!loading && projects.length === 0 ? <p className="px-3 py-4 text-sm text-neutral-500">Projectがありません。</p> : null}</div></div>
+        <div className="space-y-2 border-t border-[#E9E6E4] p-3"><WorkerState workers={workers} /><button className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-sm text-neutral-600 hover:bg-white" onClick={() => setSettingsOpen((open) => !open)} type="button"><Settings className="h-4 w-4" />Project設定</button></div>
+      </aside>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-5">
-          <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-[#2B2B2B]">新しい依頼</h2>
-                <p className="mt-1 text-sm font-semibold text-[#8A8186]">自然文で依頼できます。読み取りはそのまま回答し、データ変更は確認後に実行します。</p>
-              </div>
-              <div className="min-w-56">
-                <select className="task-input h-11" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-                  <option value="">プロジェクト未指定</option>
-                  {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="mt-4 rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-3">
-              <textarea
-                className="min-h-28 w-full resize-y bg-transparent text-base font-semibold leading-7 text-[#2B2B2B] outline-none placeholder:text-[#B7B0B3]"
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Agentに依頼したい内容を入力"
-                value={message}
-              />
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#F0E7E9] pt-3">
-                <div className="flex flex-wrap gap-2">
-                  {exampleRequests.map((example) => (
-                    <button className="h-8 rounded-none bg-white px-3 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]" key={example} onClick={() => setMessage(example)} type="button">{example}</button>
-                  ))}
-                </div>
-                <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!message.trim() || savingRequest} onClick={() => void submitRequest()} type="button">
-                  {savingRequest ? <LoadingSpinner label="保存中" /> : <MessageSquarePlus className="h-4 w-4" />}
-                  Agentに依頼
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-4 md:grid-cols-5">
-            <MetricCard icon={<MessageSquarePlus className="h-5 w-5" />} label="新しい依頼" value={`${dashboard.newRequests}件`} />
-            <MetricCard icon={<Loader2 className="h-5 w-5" />} label="実行中" value={`${dashboard.running}件`} />
-            <MetricCard icon={<AlertCircle className="h-5 w-5" />} label="確認待ち" value={`${dashboard.approval}件`} />
-            <MetricCard icon={<CheckCircle2 className="h-5 w-5" />} label="本日完了" value={`${dashboard.completedToday}件`} />
-            <MetricCard icon={<AlertCircle className="h-5 w-5" />} label="エラー" value={`${dashboard.errors}件`} />
+      <main className="flex min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden bg-white">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto min-w-0 w-full max-w-3xl overflow-x-hidden px-5 py-8">
+            <div className="mb-4"><StatusBanner message={error} type="error" /></div>
+            {settingsOpen ? <ProjectPanel draft={projectDraft} memoryDraft={memoryDraft} memoryProjectId={memoryProjectId} onDraftChange={setProjectDraft} onMemoryChange={setMemoryDraft} onMemoryProjectChange={setMemoryProjectId} onSaveMemory={submitMemory} onSaveProject={submitProject} projects={projects} savingMemory={savingMemory} savingProject={savingProject} /> : selectedRun ? <AgentChatRun approving={approvingRunId === selectedRun.id} onApprove={approveRun} request={selectedRequest} run={selectedRun} /> : <AgentWelcome project={selectedProject} onExample={setMessage} />}
           </div>
-
-          {selectedRun ? <AgentRunDetail approving={approvingRunId === selectedRun.id} onApprove={approveRun} onSelectCandidate={selectCandidate} run={selectedRun} request={selectedRequest} selectingCandidateId={selectingCandidateId} /> : <RecentRuns loading={loading} runs={runs} />}
         </div>
-
-        <aside className="space-y-5">
-          <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-[#2B2B2B]"><Bell className="h-5 w-5 text-[#EC6F8B]" />通知</h2>
-            <div className="mt-4 grid gap-2">
-              {notifications.slice(0, 5).map((notification) => (
-                <Link className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]" href={(notification.targetUrl || "/agent") as Route} key={notification.id}>
-                  <span className="block font-bold text-[#2B2B2B]">{notification.title}</span>
-                  <span className="mt-1 block">{notification.message}</span>
-                </Link>
-              ))}
-              {notifications.length === 0 ? <p className="rounded-none border border-dashed border-[#F0E7E9] bg-[#FFFBFC] p-5 text-center text-sm font-bold text-[#8A8186]">通知はまだありません。</p> : null}
-            </div>
-          </section>
-
-          <ProjectPanel
-            draft={projectDraft}
-            memoryDraft={memoryDraft}
-            memoryProjectId={memoryProjectId}
-            onDraftChange={setProjectDraft}
-            onMemoryChange={setMemoryDraft}
-            onMemoryProjectChange={setMemoryProjectId}
-            onSaveMemory={submitMemory}
-            onSaveProject={submitProject}
-            projects={projects}
-            savingMemory={savingMemory}
-            savingProject={savingProject}
-          />
-        </aside>
-      </div>
+        {!settingsOpen ? <div className="shrink-0 border-t border-[#EEEAE8] bg-white px-5 py-4"><div className="mx-auto max-w-3xl rounded-2xl border border-[#DCD7D4] bg-white p-3 shadow-sm focus-within:border-[#C9C1BD]"><textarea className="max-h-48 min-h-12 w-full resize-none bg-transparent px-1 text-sm leading-6 outline-none placeholder:text-neutral-400" onChange={(event) => setMessage(event.target.value)} placeholder={selectedRun ? "続きの質問や登録内容を入力…" : "会社・営業リスト・予定・タスク・商談について入力…"} value={message} /><div className="mt-2 flex items-center justify-between"><select className="max-w-52 bg-transparent text-xs font-medium text-neutral-500 outline-none" value={projectId} onChange={(event) => selectProject(event.target.value)}><option value="">業務入力（Projectなし）</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select><button aria-label="送信" className="grid h-8 w-8 place-items-center rounded-lg bg-[#EC6F8B] text-white disabled:bg-neutral-200" disabled={!message.trim() || savingRequest} onClick={() => void submitRequest()} type="button">{savingRequest ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}</button></div></div></div> : null}
+      </main>
     </section>
   );
 }
@@ -355,6 +304,66 @@ function createDashboard(runs: AgentRun[]) {
     completedToday: runs.filter((run) => run.status === "completed" && (run.completedAt?.toDate() ?? run.createdAt.toDate()) >= today).length,
     errors: runs.filter((run) => run.status === "error").length
   };
+}
+
+function WorkerState({ workers }: { workers: DevelopmentWorker[] }) {
+  const worker = workers[0];
+  const status = worker?.status ?? "offline";
+  const label = status === "busy" ? "Worker実行中" : status === "online" ? "Worker接続中" : status === "disabled" ? "Worker停止中" : "Workerオフライン";
+  const tone = status === "busy" ? "bg-[#EEF5FF] text-[#4E76AA]" : status === "online" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#FFF0F3] text-[#D94F6E]";
+  return <span className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-black ${tone}`}><Server className="h-4 w-4" />{label}</span>;
+}
+
+function AgentWelcome({ project, onExample }: { project: DevelopmentProject | null; onExample: (value: string) => void }) {
+  return <div className="grid min-h-[420px] place-items-center text-center"><div><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#FFF0F3] text-[#B84563]"><Sparkles className="h-6 w-6" /></span><h2 className="mt-5 text-2xl font-semibold text-neutral-900">{project ? `${project.name}を開発する` : "MOGCIAに入力・確認する"}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-neutral-500">{project ? "実装内容、守るべき制約、完了条件を伝えてください。" : "会社・営業リスト・予定・タスク・活動ログを入力したり、現在の状況を質問できます。メニューバーと同じデータへ反映されます。"}</p><div className="mt-6 flex flex-wrap justify-center gap-2">{exampleRequests.slice(0, 4).map((example) => <button className="rounded-lg border border-[#E5E0DD] px-3 py-2 text-xs font-medium text-neutral-600 hover:bg-[#F8F6F5]" key={example} onClick={() => onExample(example)} type="button">{example}</button>)}</div></div></div>;
+}
+
+function AgentChatRun({ run, request, approving, onApprove }: { run: AgentRun; request: AgentRequest | null; approving: boolean; onApprove: (runId: string, decision: "approve" | "cancel") => void }) {
+  const hasReview = Boolean(run.changeSummary || run.reviewSummary || run.buildSummary);
+  return <div className="space-y-8">
+    <div className="flex min-w-0 justify-end"><div className="min-w-0 max-w-[82%] rounded-2xl bg-[#F1EFED] px-4 py-3 text-sm font-medium leading-6 text-neutral-800"><p className="whitespace-pre-wrap break-words">{request?.rawMessage || run.title}</p></div></div>
+    <div className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFF0F3] text-[#B84563]"><Sparkles className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-neutral-900">MOGCIA Agent</p><div className="mt-2 text-sm font-medium leading-7 text-neutral-700">{run.answer ? <p className="whitespace-pre-wrap">{run.answer}</p> : <p>依頼を受け付けました。WorkerとCodexの実行を待っています。</p>}</div>
+      <div className="mt-5 overflow-hidden rounded-xl border border-[#E8E3E0]"><div className="flex items-center justify-between border-b border-[#E8E3E0] bg-[#FAF9F8] px-4 py-3"><span className="text-sm font-semibold">実行状況</span><span className="text-xs font-semibold text-neutral-500">{run.progress ?? 0}%</span></div><div className="divide-y divide-[#EEEAE8]">{run.steps.map((step) => <div className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[100px_90px_1fr]" key={step.type}><span className="font-semibold">{stepLabel(step.type)}</span><span className={step.status === "success" ? "font-semibold text-green-600" : step.status === "error" ? "font-semibold text-red-600" : step.status === "running" ? "font-semibold text-blue-600" : "text-neutral-400"}>{stepStatusLabel(step.status)}</span><span className="text-neutral-500">{step.message}</span></div>)}</div></div>
+      {hasReview ? <div className="mt-5 space-y-3"><ChatDisclosure title="変更内容" value={run.changeSummary} empty="変更内容を取得中です。" /><ChatDisclosure title="Validation" value={run.buildSummary} empty="検証結果を取得中です。" /><ChatDisclosure title="Diff" value={run.reviewSummary} empty="Diffを取得中です。" /></div> : null}
+      {run.requiresApproval || run.status === "requires_approval" ? <div className="mt-5 flex flex-wrap gap-2"><button className="rounded-lg bg-[#EC6F8B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={approving} onClick={() => onApprove(run.id, "approve")} type="button">承認</button><button className="rounded-lg border border-[#DDD8D5] px-4 py-2 text-sm font-semibold text-neutral-600 disabled:opacity-50" disabled={approving} onClick={() => onApprove(run.id, "cancel")} type="button">キャンセル</button></div> : null}
+    </div></div>
+  </div>;
+}
+
+function ChatDisclosure({ title, value, empty }: { title: string; value?: string | null; empty: string }) {
+  return <details className="min-w-0 max-w-full overflow-hidden rounded-xl border border-[#E8E3E0] bg-white"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">{title}</summary><div className="min-w-0 max-w-full overflow-hidden border-t border-[#EEEAE8] p-4">{value ? <pre className="max-h-96 max-w-full overflow-y-auto whitespace-pre-wrap break-all text-xs leading-5 text-neutral-600">{value}</pre> : <p className="text-sm text-neutral-400">{empty}</p>}</div></details>;
+}
+
+function JobCommandCenter({ jobs, runs, projects, loading }: { jobs: DevelopmentJob[]; runs: AgentRun[]; projects: DevelopmentProject[]; loading: boolean }) {
+  const runIds = new Set(jobs.map((job) => job.runId));
+  const rows = jobs.length ? jobs : runs.filter((run) => run.intent === "development_request" || runIds.has(run.id));
+  return (
+    <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h2 className="text-xl font-bold text-[#2B2B2B]">Development Jobs</h2><p className="mt-1 text-sm font-semibold text-[#8A8186]">実行状況を確認し、完了した変更を人間がレビューします。</p></div>
+        <span className="text-sm font-black text-[#8A8186]">{rows.length}件</span>
+      </div>
+      <div className="mt-4">
+        {loading ? <SkeletonList count={5} media={false} /> : null}
+        {!loading && rows.length === 0 ? <EmptyState icon={Code2} title="Development Jobはありません" description="上の入力欄から最初の開発依頼を作成できます。" /> : null}
+        <div className="grid gap-3">
+          {jobs.map((job) => {
+            const project = projects.find((entry) => entry.id === job.projectId);
+            const run = runs.find((entry) => entry.id === job.runId);
+            const status = job.status === "reviewing" ? "requires_approval" : job.status === "failed" ? "error" : job.status === "assigned" ? "running" : job.status === "completed" ? "completed" : job.status === "cancelled" ? "cancelled" : job.status;
+            return (
+              <Link className="grid gap-3 border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-center" href={`/agent?runId=${job.runId}` as Route} key={job.id}>
+                <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><StatusBadge status={status} /><span className="text-xs font-bold text-[#8A8186]">{project?.name || "Project未設定"}</span></span><span className="mt-2 block truncate text-base font-black text-[#2B2B2B]">{job.title}</span><span className="mt-1 block text-xs font-bold text-[#9A8F94]">{job.assignedWorkerId ? `Worker: ${job.assignedWorkerId}` : "Worker割り当て待ち"}</span></span>
+                <span className="text-sm font-bold text-[#6F676B]">{run?.currentStep ? `${stepLabel(run.currentStep)} / ${run.progress ?? 0}%` : job.status === "queued" ? "Worker待ち" : "詳細を確認"}</span>
+                <ChevronRight className="h-5 w-5 text-[#EC6F8B]" />
+              </Link>
+            );
+          })}
+          {!jobs.length ? runs.filter((run) => run.intent === "development_request").map((run) => <RunRow key={run.id} run={run} />) : null}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {

@@ -10,7 +10,7 @@ const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
 export function MonthCalendar({ month, selectedDate, items, onMonthChange, onSelectDate, onOpen }: { month: Date; selectedDate: Date; items: CalendarItem[]; onMonthChange: (date: Date) => void; onSelectDate: (date: Date) => void; onOpen: (item: CalendarItem) => void }) {
   const days = useMemo(() => buildCalendarGrid(month), [month]);
-  const moveMonth = (amount: number) => onMonthChange(new Date(month.getFullYear(), month.getMonth() + amount, 1));
+  const moveMonth = (amount: number) => { const next = new Date(month.getFullYear(), month.getMonth() + amount, 1); onMonthChange(next); onSelectDate(next); };
 
   return (
     <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-[0_12px_28px_rgba(142,91,96,0.06)]">

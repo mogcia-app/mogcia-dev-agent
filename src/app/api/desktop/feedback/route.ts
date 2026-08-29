@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb, getAdminStorageBucket } from "@/lib/firebase/admin";
-import { requireUserFromRequest } from "@/lib/server/auth";
+import { requireDesktopUserFromRequest } from "@/lib/desktop/auth";
 
 const allowedImageTypes = new Set(["image/png", "image/jpeg"]);
 const maxImageBytes = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUserFromRequest(request);
+    const user = await requireDesktopUserFromRequest(request);
     const body = await request.json() as Record<string, unknown>;
     const message = stringValue(body.message).slice(0, 10_000);
     if (message.length < 3) throw new Error("フィードバックを3文字以上入力してください。");

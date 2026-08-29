@@ -13,7 +13,10 @@ import { createDefaultSalesPlaybooks, productTabs, productTypeLabels, toLines, f
 import { addResourceFile, uploadProductIcon } from "@/lib/products";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import { useProducts } from "@/hooks/useProducts";
+import { subscribeTeleapoRecords } from "@/lib/teleapo";
+import { analyzeProduct, type ProductAnalysis } from "@/components/products/ProductAnalysisPageClient";
 import type { Product, ProductCustomerSegment, ProductFeature, ProductMemo, ProductObjectionItem, ProductPlan, ProductResource, ProductSalesPlaybookEntry, ProductStatus, ProductTab, ProductType } from "@/types/product";
+import type { TeleapoRecord } from "@/types/teleapo";
 
 const pricingDisplayTypeLabels: Record<Product["pricing"]["displayType"], string> = {
   fixed: "固定料金",
@@ -52,6 +55,9 @@ export function ProductsPageClient() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isCreateOpen, setCreateOpen] = useState(false);
+  const [records, setRecords] = useState<TeleapoRecord[]>([]);
+
+  useEffect(() => subscribeTeleapoRecords(setRecords, () => setRecords([])), []);
 
   const setProductRoute = useCallback((id: string, tab: ProductTab) => {
     router.replace(`${pathname}?id=${id}&tab=${tab}` as Route, { scroll: false });
@@ -78,6 +84,7 @@ export function ProductsPageClient() {
   }, [debouncedQuery, store.products]);
 
   const selectedProduct = selectedId ? store.products.find((product) => product.id === selectedId) ?? null : null;
+  const selectedAnalysis = selectedProduct ? analyzeProduct(selectedProduct, records) : null;
   return (
     <div>
       {!selectedProduct ? (
@@ -133,6 +140,7 @@ export function ProductsPageClient() {
               onSave={(tab, patch) => store.updateProduct(selectedProduct.id, tab, patch)}
               onTabChange={(tab) => setProductRoute(selectedProduct.id, tab)}
               product={selectedProduct}
+              analysis={selectedAnalysis!}
               tab={productTabs.some((entry) => entry.value === selectedTab) ? selectedTab : "basic"}
               user={store.currentUser}
             />
@@ -171,6 +179,7 @@ function ProductListItem({ product, active, onSelect }: { product: Product; acti
 
 function ProductDetail({
   product,
+  analysis,
   tab,
   canEdit,
   isAdmin,
@@ -185,6 +194,7 @@ function ProductDetail({
   onUpdateMemo
 }: {
   product: Product;
+  analysis: ProductAnalysis;
   tab: ProductTab;
   canEdit: boolean;
   isAdmin: boolean;
@@ -237,7 +247,7 @@ function ProductDetail({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canEdit ? <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
+            {canEdit && tab !== "insights" ? <button className="h-10 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#EC6F8B]" onClick={() => setEditing(true)} type="button">編集</button> : null}
             {isAdmin ? <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#D94F6E] disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 className="h-4 w-4" />{deleting ? "削除中..." : "削除"}</button> : null}
             {product.resources.find((resource) => resource.type === "website" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "website" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />サイトを開く</a> : null}
             {product.resources.find((resource) => resource.type === "proposal" && resource.url) ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-4 text-sm font-bold text-[#6F676B]" href={product.resources.find((resource) => resource.type === "proposal" && resource.url)?.url ?? "#"} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />資料を開く</a> : null}
@@ -248,8 +258,8 @@ function ProductDetail({
         <ProductSectionNav activeTab={tab} onTabChange={onTabChange} />
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-auto p-5 xl:p-6">
-            {tab === "notes" ? <ProductNotesTab currentUserId={user.id} isAdmin={isAdmin} memos={memos} onCreate={onAddMemo} onDelete={onDeleteMemo} onUpdate={onUpdateMemo} /> : editing ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView isAdmin={isAdmin} product={product} tab={tab} />}
-            {tab !== "notes" ? <div className="mt-6 flex justify-end gap-3 border-t border-[#F0E7E9] pt-5">
+            {tab === "notes" ? <ProductNotesTab currentUserId={user.id} isAdmin={isAdmin} memos={memos} onCreate={onAddMemo} onDelete={onDeleteMemo} onUpdate={onUpdateMemo} /> : editing && tab !== "insights" ? <ProductEditForm draft={draft} isAdmin={isAdmin} tab={tab} user={user} onChange={setDraft} /> : <ProductReadView analysis={analysis} isAdmin={isAdmin} product={product} tab={tab} />}
+            {tab !== "notes" && tab !== "insights" ? <div className="mt-6 flex justify-end gap-3 border-t border-[#F0E7E9] pt-5">
               {editing ? (
                 <>
                   <button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={() => { setDraft(product); setEditing(false); }} type="button">キャンセル</button>
@@ -285,8 +295,8 @@ function ProductSectionNav({ activeTab, onTabChange }: { activeTab: ProductTab; 
   );
 }
 
-function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: ProductTab; isAdmin: boolean }) {
-  if (tab === "basic") return <InfoGrid rows={[["商材名", product.name], ["商材種別", productTypeLabels[product.productType]], ...(product.tagline ? [["一言説明", product.tagline]] as Array<[string, string]> : []), ["概要", product.summary || "未設定"], ["提供価値", product.values.join(" / ") || "未設定"], ["解決する課題", product.problems.join(" / ") || "未設定"], ["商材責任者", getUserDisplayNameById(product.ownerId, product.ownerName)], ["作成日", product.createdAt.toDate().toLocaleString("ja-JP")], ["最終更新日", product.updatedAt.toDate().toLocaleString("ja-JP")]]} />;
+function ProductReadView({ product, tab, isAdmin, analysis }: { product: Product; tab: ProductTab; isAdmin: boolean; analysis: ProductAnalysis }) {
+  if (tab === "basic") return <ProductOverview product={product} analysis={analysis} />;
   if (tab === "target") return <InfoGrid rows={[["対象業種", product.target.industries.join(" / ") || "未設定"], ["ターゲット地域", product.target.regions.join(" / ") || "未設定"], ["対象企業規模", product.target.companySizes.join(" / ") || "未設定"], ["想定担当者", product.target.roles.join(" / ") || "未設定"], ["想定決裁者", product.target.decisionMakerRoles.join(" / ") || "未設定"], ["向いている企業", product.target.suitableConditions.join(" / ") || "未設定"], ["向いていない企業", product.target.unsuitableConditions.join(" / ") || "未設定"], ["導入条件", product.target.requiredConditions.join(" / ") || "未設定"], ["対象外条件", product.target.disqualificationConditions.join(" / ") || "未設定"], ["刺さりやすい顧客条件", product.target.idealCustomerConditions.join(" / ") || "未設定"], ["見込みが薄い条件", product.target.lowPotentialConditions.join(" / ") || "未設定"], ["勝ちパターン", product.target.winningPatterns.join(" / ") || "未設定"], ["失注パターン", product.target.losingPatterns.join(" / ") || "未設定"], ["刺さった言葉", product.target.effectivePhrases.join(" / ") || "未設定"], ["避ける表現", product.target.avoidPhrases.join(" / ") || "未設定"], ["業種別提案角度", product.target.industryProposalAngles.map((item) => `${item.industry}: ${item.proposalAngle}${item.cautions ? `（注意: ${item.cautions}）` : ""}`).join("\n") || "未設定"]]} />;
   if (tab === "pricing") return <InfoGrid rows={[["料金表示方法", pricingDisplayTypeLabels[product.pricing.displayType] ?? "未設定"], ["初期費用", yen(product.pricing.initialFee)], ["月額費用", yen(product.pricing.monthlyFee)], ["最低料金", yen(product.pricing.minimumFee)], ["最高料金", yen(product.pricing.maximumFee)], ["最低契約期間", product.pricing.minimumContractMonths ? `${product.pricing.minimumContractMonths}ヶ月` : "未設定"], ["支払い条件", product.pricing.paymentTerms || "未設定"], ["更新条件", product.pricing.renewalTerms || "未設定"], ["解約条件", product.pricing.cancellationTerms || "未設定"], ...(isAdmin ? [["原価", yen(product.pricing.cost)], ["粗利目安", product.pricing.grossMarginRate ? `${product.pricing.grossMarginRate}%` : "未設定"]] as Array<[string, string]> : []), ["料金メモ", product.pricing.notes || "未設定"], ["料金プラン", formatPricingPlans(product.pricing.plans)]]} />;
   if (tab === "features") return <FeatureReadView product={product} />;
@@ -294,9 +304,62 @@ function ProductReadView({ product, tab, isAdmin }: { product: Product; tab: Pro
   if (tab === "sales") return <SalesSettingsReadView product={product} />;
   if (tab === "new") return <SalesPlaybookReadView product={product} segment="new" />;
   if (tab === "existing") return <SalesPlaybookReadView product={product} segment="existing" />;
+  if (tab === "insights") return <ProductInsights analysis={analysis} />;
   if (tab === "resources") return <ResourceReadView product={product} />;
   return null;
 }
+
+function ProductOverview({ product, analysis }: { product: Product; analysis: ProductAnalysis }) {
+  const actual = analysis.actual;
+  return (
+    <div className="mx-auto max-w-5xl space-y-8">
+      <section>
+        <p className="text-sm font-black text-[#EC6F8B]">この商材とは</p>
+        <h2 className="mt-2 text-2xl font-black text-[#2B2B2B]">{product.displayName || product.name}</h2>
+        {product.tagline ? <p className="mt-2 text-lg font-bold text-[#655D62]">{product.tagline}</p> : null}
+        <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm font-semibold leading-7 text-[#6F676B]">{product.summary || "商材概要はまだ登録されていません。"}</p>
+      </section>
+
+      <div className="grid gap-8 border-y border-[#F0E7E9] py-7 md:grid-cols-3">
+        <ProductKnowledgeList title="主な対象" items={product.target.industries} empty="対象業種を追加してください" />
+        <ProductKnowledgeList title="解決すること" items={product.problems} empty="解決課題を追加してください" />
+        <ProductKnowledgeList title="提供する価値" items={product.values} empty="提供価値を追加してください" />
+      </div>
+
+      <section className="bg-[#FFF8FA] p-6">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div><p className="text-sm font-black text-[#EC6F8B]">MOGCIAの商材理解度</p><p className="mt-2 text-4xl font-black text-[#2B2B2B]">{analysis.score}%</p><p className="mt-2 text-sm font-semibold text-[#6F676B]">商材の良し悪しではなく、営業支援に使える情報の充足度です。</p></div>
+          <a className="inline-flex h-10 items-center border border-[#F0DDE2] bg-white px-4 text-sm font-bold text-[#EC6F8B]" href={`?id=${product.id}&tab=${missingTab(analysis.missing[0])}`}>不足情報を追加</a>
+        </div>
+        <div className="mt-5 h-2 bg-[#F2E4E8]"><div className="h-full bg-[#EC6F8B]" style={{ width: `${analysis.score}%` }} /></div>
+        {analysis.missing.length ? <div className="mt-5"><p className="text-xs font-black text-[#91868B]">不足している情報</p><ul className="mt-2 flex flex-wrap gap-2">{analysis.missing.map((item) => <li className="bg-white px-3 py-1.5 text-xs font-bold text-[#6F676B]" key={item}>{item}</li>)}</ul></div> : null}
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between gap-4"><h2 className="text-xl font-black text-[#2B2B2B]">最近の商談から</h2><a className="text-sm font-bold text-[#EC6F8B]" href={`?id=${product.id}&tab=insights`}>商談インサイトを見る</a></div>
+        {actual.records.length ? <div className="mt-5 grid gap-7 md:grid-cols-2"><ProductKnowledgeList title="よく刺さっている" items={actual.positiveSignals} empty="具体的な反応はまだありません" /><ProductKnowledgeList title="よく出る懸念" items={actual.lossRisks} empty="懸念はまだ集計されていません" /></div> : <p className="mt-4 text-sm font-semibold text-[#8A8186]">この商材に紐づく商談データはまだありません。</p>}
+      </section>
+    </div>
+  );
+}
+
+function ProductInsights({ analysis }: { analysis: ProductAnalysis }) {
+  const actual = analysis.actual;
+  return (
+    <div className="mx-auto max-w-5xl space-y-8">
+      <div><h2 className="text-2xl font-black text-[#2B2B2B]">商談インサイト</h2><p className="mt-2 text-sm font-semibold text-[#7A7075]">Product masterのPlaybookとは分けて、実際のテレアポ・商談から得た傾向を表示します。</p></div>
+      <dl className="grid gap-4 border-y border-[#F0E7E9] py-6 sm:grid-cols-3 lg:grid-cols-5">
+        {[['総件数', actual.records.length], ['テレアポ', actual.teleapoCount], ['商談', actual.meetingCount], ['分析済み', actual.analyzedCount], ['平均見込み', actual.averageProspectScore === null ? '—' : `${actual.averageProspectScore}%`]].map(([label, value]) => <div key={String(label)}><dt className="text-xs font-bold text-[#93888D]">{label}</dt><dd className="mt-1 text-xl font-black text-[#2B2B2B]">{value}</dd></div>)}
+      </dl>
+      {actual.analyzedCount < 5 ? <p className="border-l-2 border-[#EC6F8B] bg-[#FFF8FA] px-4 py-3 text-sm font-semibold text-[#6F676B]">まだ十分な分析データがありません。割合による断定はせず、取得できた具体的な反応だけを表示しています。</p> : null}
+      <div className="grid gap-8 md:grid-cols-2"><ProductKnowledgeList title="最近よく刺さっている内容" items={actual.positiveSignals} empty="まだ抽出されていません" /><ProductKnowledgeList title="よく出る課題" items={actual.frequentIssues} empty="まだ抽出されていません" /><ProductKnowledgeList title="決まりそうな条件" items={actual.closingRequirements} empty="まだ抽出されていません" /><ProductKnowledgeList title="よく出る懸念・失注リスク" items={actual.lossRisks} empty="まだ抽出されていません" /></div>
+      <section><h3 className="text-lg font-black text-[#2B2B2B]">最近の商談</h3>{actual.records.length ? <div className="mt-3 divide-y divide-[#F0E7E9]">{actual.records.slice(0, 8).map((record) => <a className="flex items-center justify-between gap-4 py-4" href={`/sales/analysis?recordId=${record.id}`} key={record.id}><span><span className="block text-sm font-black text-[#2B2B2B]">{record.customerName || "会社名未設定"}</span><span className="mt-1 block text-xs font-semibold text-[#8A8186]">{record.salesDomain === "meeting" ? "商談" : "テレアポ"} / {record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span></span><span className="text-sm font-black text-[#EC6F8B]">{record.aiAdvice?.prospectRank ?? "未判定"}{typeof record.aiAdvice?.prospectScore === "number" ? ` / ${record.aiAdvice.prospectScore}` : ""}</span></a>)}</div> : <p className="mt-3 text-sm font-semibold text-[#8A8186]">商談データはまだありません。</p>}</section>
+    </div>
+  );
+}
+
+function ProductKnowledgeList({ empty, items, title }: { empty: string; items: string[]; title: string }) { return <div><h3 className="text-sm font-black text-[#2B2B2B]">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item) => <li className="flex gap-2 text-sm font-semibold leading-6 text-[#6F676B]" key={item}><span className="text-[#EC6F8B]">•</span>{item}</li>)}</ul> : <p className="mt-3 text-sm font-semibold text-[#A0969A]">{empty}</p>}</div>; }
+function missingTab(item?: string): ProductTab { if (!item) return "basic"; if (item.includes("資料") || item.includes("サイト")) return "resources"; if (item.includes("反論")) return "implementation"; if (item.includes("勝ち") || item.includes("失注") || item.includes("条件")) return "target"; return "basic"; }
 
 function formatPricingPlans(plans: ProductPlan[]): string {
   if (plans.length === 0) return "未設定";
@@ -450,22 +513,17 @@ function ObjectionHandbookReadView({ product }: { product: Product }) {
 
 function SalesPlaybookReadView({ product, segment }: { product: Product; segment: ProductCustomerSegment }) {
   const playbooks = product.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
-  const entry = playbooks.meeting[segment];
-
   return (
-    <div>
-      <InfoGrid
-        rows={[
-          [segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針", entry.proposalDirection || "未設定"],
-          ["進行メモ", entry.process || "未設定"],
-          ["確認する質問", entry.keyQuestions.join("\n") || "未設定"],
-          ["トーク例", entry.talkScript || "未設定"],
-          ["必要資料", entry.materials.join("\n") || "未設定"],
-          ["注意点", entry.cautions.join("\n") || "未設定"]
-        ]}
-      />
+    <div className="grid gap-8 lg:grid-cols-2">
+      <PlaybookSceneRead title="テレアポ" entry={playbooks.teleapo[segment]} />
+      <PlaybookSceneRead title="商談" entry={playbooks.meeting[segment]} />
     </div>
   );
+}
+
+function PlaybookSceneRead({ entry, title }: { entry: ProductSalesPlaybookEntry; title: string }) {
+  const configured = Boolean(entry.proposalDirection || entry.process || entry.talkScript || entry.keyQuestions.length || entry.materials.length);
+  return <section><h3 className="text-lg font-black text-[#2B2B2B]">{title}</h3>{configured ? <InfoGrid rows={[["提案方針", entry.proposalDirection || "未設定"], ["進め方", entry.process || "未設定"], ["必ず確認すること", entry.keyQuestions.join("\n") || "未設定"], ["トーク例", entry.talkScript || "未設定"], ["必要資料", entry.materials.join("\n") || "未設定"], ["注意点", entry.cautions.join("\n") || "未設定"]]} /> : <div className="mt-3 border border-dashed border-[#E9E1E4] bg-[#FFFBFC] p-5"><p className="font-black text-[#2B2B2B]">まだPlaybookがありません。</p><p className="mt-2 text-sm font-semibold leading-6 text-[#7A7075]">MOGCIAはこの場面の質問や切り返しを十分に生成できません。「この項目を編集」からPlaybookを作成してください。</p></div>}</section>;
 }
 
 function ProductEditForm({ draft, tab, isAdmin, user, onChange }: { draft: Product; tab: ProductTab; isAdmin: boolean; user: { id: string; name: string }; onChange: (product: Product) => void }) {
@@ -767,33 +825,23 @@ function SalesSettingsEditor({ draft, onChange }: { draft: Product; onChange: (p
 
 function SalesPlaybookEditor({ draft, segment, onChange }: { draft: Product; segment: ProductCustomerSegment; onChange: (product: Product) => void }) {
   const playbooks = draft.salesSettings.salesPlaybooks ?? createDefaultSalesPlaybooks();
-  const entry = playbooks.meeting[segment];
-  const updateEntry = (patch: Partial<ProductSalesPlaybookEntry>) => {
+  const updateEntry = (scene: "teleapo" | "meeting", patch: Partial<ProductSalesPlaybookEntry>) => {
+    const entry = playbooks[scene][segment];
     onChange({
       ...draft,
       salesSettings: {
         ...draft.salesSettings,
         salesPlaybooks: {
           ...playbooks,
-          meeting: {
-            ...playbooks.meeting,
-            [segment]: { ...entry, ...patch }
-          }
+          [scene]: { ...playbooks[scene], [segment]: { ...entry, ...patch } }
         }
       }
     });
   };
 
   return (
-    <div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Text label={segment === "new" ? "どんな提案をしていくか" : "成約後の進め方・提案方針"} value={entry.proposalDirection} onChange={(proposalDirection) => updateEntry({ proposalDirection })} />
-        <Text label="打ち合わせ時の進め方" value={entry.process} onChange={(process) => updateEntry({ process })} />
-        <Text label="確認する質問" value={toLines(entry.keyQuestions)} onChange={(value) => updateEntry({ keyQuestions: fromLines(value) })} />
-        <Text label="トーク例" value={entry.talkScript} onChange={(talkScript) => updateEntry({ talkScript })} />
-        <Text label="必要資料" value={toLines(entry.materials)} onChange={(value) => updateEntry({ materials: fromLines(value) })} />
-        <Text label="注意点" value={toLines(entry.cautions)} onChange={(value) => updateEntry({ cautions: fromLines(value) })} />
-      </div>
+    <div className="space-y-8">
+      {(["teleapo", "meeting"] as const).map((scene) => { const entry = playbooks[scene][segment]; return <section className="border border-[#F0E7E9] p-4" key={scene}><h3 className="mb-4 text-lg font-black text-[#2B2B2B]">{scene === "teleapo" ? "テレアポ" : "商談"}</h3><div className="grid gap-4 lg:grid-cols-2"><Text label={segment === "new" ? "どんな提案をしていくか" : "継続・追加提案の方針"} value={entry.proposalDirection} onChange={(proposalDirection) => updateEntry(scene, { proposalDirection })} /><Text label="進め方" value={entry.process} onChange={(process) => updateEntry(scene, { process })} /><Text label="確認する質問" value={toLines(entry.keyQuestions)} onChange={(value) => updateEntry(scene, { keyQuestions: fromLines(value) })} /><Text label="トーク例" value={entry.talkScript} onChange={(talkScript) => updateEntry(scene, { talkScript })} /><Text label="必要資料" value={toLines(entry.materials)} onChange={(value) => updateEntry(scene, { materials: fromLines(value) })} /><Text label="注意点" value={toLines(entry.cautions)} onChange={(value) => updateEntry(scene, { cautions: fromLines(value) })} /></div></section>; })}
     </div>
   );
 }

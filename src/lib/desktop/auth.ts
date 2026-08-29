@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { DesktopApiError } from "@/lib/desktop/api";
 import type { DesktopAuditAction, DesktopDevice, DesktopDevicePublic, DesktopPermissionKey, DesktopPermissions } from "@/types/desktop";
 
@@ -81,6 +81,31 @@ export async function authenticateDesktopRequest(request: Request, permission?: 
   await entry.ref.update({ lastUsedAt: FieldValue.serverTimestamp(), lastSeenAt: FieldValue.serverTimestamp() });
 
   return { db, device, userId: device.userId };
+}
+
+export async function requireDesktopUserFromRequest(request: Request, permission?: DesktopPermissionKey) {
+  const auth = await authenticateDesktopRequest(request, permission);
+  const account = await getAdminAuth().getUser(auth.userId);
+  return {
+    uid: auth.userId,
+    name: account.displayName ?? undefined,
+    email: account.email ?? undefined,
+    deviceId: auth.device.id,
+  };
+}
+
+export async function requireDesktopCompanyAccess(request: Request, companyId: string) {
+  const auth = await authenticateDesktopRequest(request, "readCompanies");
+  const [company, account] = await Promise.all([
+    auth.db.collection("companies").doc(companyId).get(),
+    getAdminAuth().getUser(auth.userId),
+  ]);
+  if (!company.exists) throw new DesktopApiError("NOT_FOUND", "会社が見つかりません。", 404);
+  return {
+    db: auth.db,
+    company,
+    user: { uid: auth.userId, name: account.displayName ?? undefined, email: account.email ?? undefined },
+  };
 }
 
 export async function writeDesktopAuditLog(input: {

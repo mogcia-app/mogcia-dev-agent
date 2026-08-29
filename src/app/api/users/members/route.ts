@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { requireUserFromRequest } from "@/lib/server/auth";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 
 export async function GET(request: Request) {
   try {
     await requireUserFromRequest(request);
-    const users = await getAdminAuth().listUsers(1000);
+    const [users, profiles] = await Promise.all([getAdminAuth().listUsers(1000), getAdminDb().collection("users").get()]);
+    const memberIds = new Set(profiles.docs.filter((entry) => entry.data().disabled !== true).map((entry) => entry.id));
     return NextResponse.json({
       members: users.users
-        .filter((user) => !user.disabled)
+        .filter((user) => !user.disabled && memberIds.has(user.uid))
         .map((user) => ({
           uid: user.uid,
           name: getUserDisplayNameById(user.uid, user.displayName || user.email || null),

@@ -12,7 +12,7 @@ type AgentUser = { uid: string; name?: string };
 type ExecuteInput = { user: AgentUser; rawMessage: string; projectId?: string | null; source?: AgentSource };
 type ExecutionContext = { user: AgentUser; runId: string; requestId: string; rawMessage: string; projectId?: string | null; steps: AgentRunStep[]; toolLogs: AgentToolLog[]; logs: string[]; toolResults: AgentAnswerToolResult[] };
 type AgentExecutionResult = {
-  status: "completed" | "requires_approval";
+  status: "queued" | "completed" | "requires_approval";
   answer: string;
   cards: AgentResultCard[];
   pendingAction: AgentPendingAction | null;
@@ -73,10 +73,12 @@ export async function executeAgentRequest(input: ExecuteInput) {
       pendingSelection: result.pendingSelection ?? null,
       toolLogs: context.toolLogs,
       logs: context.logs,
-      progress: result.status === "requires_approval" ? 72 : 100,
-      currentStep: result.status === "requires_approval" ? "execute" : "complete",
+      progress: result.status === "queued" ? 35 : result.status === "requires_approval" ? 72 : 100,
+      currentStep: result.status === "queued" ? "codex" : result.status === "requires_approval" ? "execute" : "complete",
       completedAt: result.status === "completed" ? FieldValue.serverTimestamp() : null,
-      steps: result.status === "completed"
+      steps: result.status === "queued"
+        ? markStep(markStep(context.steps, "execute", "success", "Development Jobをqueuedで作成しました。"), "codex", "waiting", "開発Macを待っています。")
+        : result.status === "completed"
         ? markStep(markStep(context.steps, "execute", "success", "回答を作成しました。"), "complete", "success", "完了しました。")
         : markStep(context.steps, "execute", "success", "実行前の確認を作成しました。")
     });
@@ -150,10 +152,12 @@ export async function selectAgentCandidate(input: { user: AgentUser; runId: stri
     taskId: result.taskId ?? null,
     productId: result.productId ?? null,
     projectId: result.projectId ?? null,
-    progress: result.status === "requires_approval" ? 72 : 100,
-    currentStep: result.status === "requires_approval" ? "execute" : "complete",
+    progress: result.status === "queued" ? 35 : result.status === "requires_approval" ? 72 : 100,
+    currentStep: result.status === "queued" ? "codex" : result.status === "requires_approval" ? "execute" : "complete",
     completedAt: result.status === "completed" ? FieldValue.serverTimestamp() : null,
-    steps: result.status === "completed"
+    steps: result.status === "queued"
+      ? markStep(markStep(context.steps, "execute", "success", "Development Jobをqueuedで作成しました。"), "codex", "waiting", "開発Macを待っています。")
+      : result.status === "completed"
       ? markStep(markStep(context.steps, "execute", "success", "選択候補で回答を作成しました。"), "complete", "success", "完了しました。")
       : markStep(context.steps, "execute", "success", "選択候補で確認内容を作成しました。")
   });
@@ -261,6 +265,7 @@ async function handleDevelopmentRequest(context: ExecutionContext, entities: Rec
   });
   const job = await createDevelopmentJob({
     userId: context.user.uid,
+    requestedByName: context.user.name,
     runId: context.runId,
     requestId: context.requestId,
     projectId: project.id,
@@ -278,7 +283,7 @@ async function handleDevelopmentRequest(context: ExecutionContext, entities: Rec
     executedAt: nowForToolLog()
   });
   return {
-    status: "completed",
+    status: "queued",
     answer: "開発依頼として受け付け、Development Jobを作成しました。開発Macを待っています。WorkerがOnlineになるとJobを取得します。",
     cards: [{
       id: job.jobId,
@@ -609,7 +614,11 @@ function leadCard(lead: DocumentData, id: string): AgentResultCard {
     subtitle: [lead.productName, lead.status, lead.prospectRank].filter(Boolean).join(" / "),
     href: `/leads?leadId=${id}`,
     meta: [
-      { label: "担当", value: String(lead.assignedUserName ?? "未設定") },
+      { label: "先方担当者", value: String(lead.contactName ?? "未設定") },
+      { label: "連絡先", value: [lead.phone, lead.email].filter(Boolean).join(" / ") || "未設定" },
+      { label: "利用・提案サービス", value: String(lead.productName ?? "未設定") },
+      { label: "営業ステータス", value: String(lead.status ?? "未設定") },
+      { label: "自社担当", value: String(lead.assignedUserName ?? "未設定") },
       { label: "最終活動", value: formatDate(lead.lastActivityAt) },
       { label: "次アクション", value: [lead.nextActionTitle, formatDate(lead.nextActionAt)].filter(Boolean).join(" / ") || "未設定" }
     ]

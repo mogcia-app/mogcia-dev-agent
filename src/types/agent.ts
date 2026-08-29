@@ -19,10 +19,12 @@ export type AgentIntent =
   | "general";
 export type AgentTargetType = "lead" | "company" | "task" | "product" | "analysis" | "project" | "calendar" | "activity" | "none";
 export type AgentRequestStatus = "queued" | "running" | "requires_approval" | "completed" | "error" | "cancelled";
-export type AgentRunStatus = "queued" | "running" | "requires_approval" | "completed" | "error" | "cancelled";
+export type AgentRunStatus = "queued" | "running" | "worker_lost" | "requires_approval" | "completed" | "error" | "cancelled";
 export type AgentStepType = "plan" | "execute" | "codex" | "review" | "build" | "preview" | "complete";
 export type AgentStepStatus = "waiting" | "running" | "success" | "error";
 export type AgentNotificationType = "info" | "success" | "warning" | "error" | "approval";
+export type AgentNotificationSource = "business" | "development" | "system" | "e2e";
+export type AgentNotificationHandlingStatus = "unread" | "read" | "done" | "snoozed";
 
 export interface AgentRequest {
   id: string;
@@ -158,7 +160,7 @@ export interface DevelopmentWorker {
   updatedAt: Timestamp;
 }
 
-export type DevelopmentJobStatus = "queued" | "assigned" | "running" | "reviewing" | "completed" | "failed" | "cancelled";
+export type DevelopmentJobStatus = "queued" | "assigned" | "running" | "worker_lost" | "reviewing" | "completed" | "failed" | "cancelled";
 
 export interface DevelopmentJobResult {
   summary?: string;
@@ -210,6 +212,8 @@ export interface AgentNotification {
   title: string;
   message: string;
   type: AgentNotificationType;
+  source: AgentNotificationSource;
+  handlingStatus: AgentNotificationHandlingStatus;
   runId?: string | null;
   projectId?: string | null;
   targetUrl?: string | null;

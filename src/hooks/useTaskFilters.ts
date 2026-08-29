@@ -23,7 +23,7 @@ export function useTaskFilters(tasks: Task[], currentUserId: string) {
   const searchParams = useSearchParams();
 
   const view = pickParam(searchParams.get("view"), taskViews, "mine");
-  const status = pickParam(searchParams.get("status"), taskStatuses, "all");
+  const status = pickParam(searchParams.get("status"), taskStatuses, "today");
   const due = pickParam(searchParams.get("due"), dueFilters, "all");
   const sort = pickParam(searchParams.get("sort"), sortOptions, "dueAsc");
   const priority = pickParam(searchParams.get("priority"), priorities, "all");
@@ -33,7 +33,7 @@ export function useTaskFilters(tasks: Task[], currentUserId: string) {
 
   const setFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value === "all" || (value === "mine" && key === "view") || (value === "dueAsc" && key === "sort")) {
+    if (value === "all" || (value === "today" && key === "status") || (value === "mine" && key === "view") || (value === "dueAsc" && key === "sort")) {
       params.delete(key);
     } else {
       params.set(key, value);

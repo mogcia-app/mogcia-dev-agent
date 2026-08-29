@@ -24,6 +24,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google-cloud/secret-manager": "^7.0.0",
     "firebase": "^12.16.0",
     "firebase-admin": "13.6.0",
     "lucide-react": "^1.27.0",

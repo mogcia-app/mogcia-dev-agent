@@ -148,7 +148,7 @@ export function SalesAnalysisListPageClient() {
   }
 
   if (selectedDeal) {
-    return <DealAnalysisWorkspace activeTab={activeTab} deal={selectedDeal} onTabChange={setActiveTab} />;
+    return <DealAnalysisWorkspace deal={selectedDeal} user={user} />;
   }
 
   return (
@@ -199,63 +199,143 @@ export function SalesAnalysisListPageClient() {
   );
 }
 
-function DealAnalysisWorkspace({ activeTab, deal, onTabChange }: { activeTab: AnalysisTab; deal: DealGroup; onTabChange: (tab: AnalysisTab) => void }) {
+function DealAnalysisWorkspace({ deal, user }: { deal: DealGroup; user: User | null }) {
   const latest = deal.latestAdviceRecord ?? deal.latestRecord;
+  const advice = latest.aiAdvice;
+  const preparation = advice?.meetingPreparation;
   const scoreDelta = deal.currentScore !== null && deal.previousScore !== null ? deal.currentScore - deal.previousScore : null;
-  const tabs: Array<[AnalysisTab, string]> = [["before", "商談前"], ["after", "商談後"], ["compare", "比較・振り返り"], ["transcript", "文字起こし"], ["history", "履歴"]];
+  const [isRegenerating, setRegenerating] = useState(false);
+  const [notice, setNotice] = useState("");
+  const missing = uniqueStrings([
+    ...(advice?.missingInformation ?? []),
+    ...(preparation?.prospectScore.missingInformation ?? [])
+  ]);
+  const customerProblems = uniqueStrings([
+    ...(advice?.customerIssues ?? []),
+    ...(preparation?.issues.explicit.map((item) => item.title) ?? []),
+    ...(preparation?.issues.essential.map((item) => item.title) ?? [])
+  ]);
+  const positiveSignals = uniqueStrings([
+    ...(advice?.positiveCustomerSignals ?? []),
+    ...(preparation?.prospectScore.positiveSignals.map((item) => item.text) ?? [])
+  ]);
+  const concerns = uniqueStrings([
+    ...(advice?.concerns ?? []),
+    ...(advice?.hesitationSignals ?? []),
+    ...(preparation?.prospectScore.negativeSignals.map((item) => item.text) ?? [])
+  ]);
+  const risks = uniqueStrings([
+    ...(advice?.lostRisks ?? []),
+    ...(preparation?.riskPoints.map((item) => `${item.title}：${item.reason}`) ?? [])
+  ]);
+  const proposals = uniqueStrings([
+    ...(preparation?.proposalStrategy.proposalPriority.map((item) => item.title) ?? []),
+    ...(preparation?.proposalStrategy.winningApproach ?? []),
+    ...(advice?.closingRequirements ?? [])
+  ]);
+  const questions = uniqueStrings([
+    ...(advice?.nextMeetingQuestions ?? []),
+    ...(advice?.meetingQuestions ?? []),
+    ...(preparation?.questions.required.map((item) => item.question) ?? []),
+    ...(preparation?.questions.decision.map((item) => item.question) ?? [])
+  ]);
+  const nextAction = advice?.nextActions?.[0] || preparation?.nextActions?.[0]?.title || advice?.followUpReason || "次回アクションを確認してください";
+  const currentState = advice?.summary || advice?.rankReason || preparation?.prospectScore.reason || "分析結果を再生成すると、案件の現在地が表示されます。";
+  const transcriptCount = latest.conversationLogs.length || (latest.transcriptText?.trim() ? 1 : 0);
+
+  const regenerate = async () => {
+    if (!user) return;
+    setRegenerating(true);
+    setNotice("");
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/teleapo/${latest.id}/advice`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("AI再分析に失敗しました。");
+      setNotice("最新の分析へ更新しました。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "AI再分析に失敗しました。");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
+    <div className="mx-auto max-w-6xl space-y-5">
+      <section className="border-b border-[#E9E2E4] bg-white pb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[#EC6F8B]">案件分析</p>
+            <Link className="text-sm font-bold text-[#8A8186] hover:text-[#EC6F8B]" href="/sales/analysis">← 商談分析</Link>
             <h1 className="mt-1 truncate text-2xl font-black text-[#2B2B2B]">{deal.companyName}</h1>
             <p className="mt-1 text-sm font-bold text-[#8A8186]">{deal.productName || "商材未設定"} / {deal.contactName || "担当者未設定"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" href={`/sales/upload?companyId=${deal.companyId ?? ""}&productId=${deal.productId ?? ""}` as Route}>
-              <Plus className="h-4 w-4" />
-              音声・商談を追加
-            </Link>
-            <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-bold text-[#6F676B]" type="button"><Sparkles className="h-4 w-4" />AI再分析</button>
-            <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-bold text-[#6F676B]" type="button"><FileText className="h-4 w-4" />PDF出力</button>
-            <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-bold text-[#6F676B]" type="button"><Share2 className="h-4 w-4" />共有</button>
-            <button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0DEE2] bg-white text-[#6F676B]" type="button" aria-label="その他"><MoreVertical className="h-4 w-4" /></button>
+            {deal.companyId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-bold text-[#6F676B] hover:text-[#EC6F8B]" href={`/sales/companies?companyId=${deal.companyId}` as Route}>Company</Link> : null}
+            {deal.productId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-bold text-[#6F676B] hover:text-[#EC6F8B]" href={`/products?productId=${deal.productId}` as Route}>Product</Link> : null}
+            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-bold text-[#6F676B] disabled:opacity-50" disabled={isRegenerating} onClick={() => void regenerate()} type="button"><Sparkles className="h-4 w-4" />{isRegenerating ? "再分析中" : "AI再分析"}</button>
+            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-bold text-[#6F676B]" onClick={() => window.print()} type="button"><FileText className="h-4 w-4" />PDF</button>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-4">
-          <DealFact icon={<BarChart3 className="h-4 w-4" />} label="現在の見込み" value={`${deal.currentRank}${deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}`} />
-          <DealFact icon={<GitCompareArrows className="h-4 w-4" />} label="前回からの変化" value={scoreDelta === null ? "未確認" : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`} />
-          <DealFact icon={<Clock3 className="h-4 w-4" />} label="最終接触日" value={formatDate(deal.latestRecord.recordedAt.toDate())} />
-          <DealFact icon={<Mic2 className="h-4 w-4" />} label="音声・商談件数" value={`${deal.records.length}件`} />
-        </div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SmallDealInfo label="業種" value={deal.industry} />
-            <SmallDealInfo label="担当者役職" value={deal.contactRole} />
-            <SmallDealInfo label="商談フェーズ" value={phaseLabel(latest)} />
-            <SmallDealInfo label="担当営業" value={deal.ownerName} />
-          </div>
-          {latest.audioDownloadUrl ? <audio className="w-full" controls src={latest.audioDownloadUrl} /> : <p className="rounded-none bg-[#FFFBFC] px-4 py-3 text-sm font-bold text-[#8A8186]">最新音声は未登録です。</p>}
-        </div>
+        {notice ? <p className="mt-4 text-sm font-bold text-[#EC6F8B]">{notice}</p> : null}
+        <dl className="mt-6 grid gap-x-8 gap-y-3 border-y border-[#EFE8EA] py-4 sm:grid-cols-3 lg:grid-cols-6">
+          <StrategyFact label="見込み" value={`${deal.currentRank}${deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}`} />
+          <StrategyFact label="前回比" value={scoreDelta === null ? "—" : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`} />
+          <StrategyFact label="フェーズ" value={phaseLabel(latest)} />
+          <StrategyFact label="最終接触" value={formatDate(deal.latestRecord.recordedAt.toDate())} />
+          <StrategyFact label="商談" value={`${deal.records.length}件`} />
+          <StrategyFact label="担当営業" value={deal.ownerName} />
+        </dl>
       </section>
 
-      <div className="flex overflow-x-auto rounded-none border border-[#F0DEE2] bg-white p-1 shadow-sm">
-        {tabs.map(([tab, label]) => (
-          <button className={`h-10 shrink-0 rounded-none px-4 text-sm font-bold ${activeTab === tab ? "bg-[#EC6F8B] text-white" : "text-[#6F676B] hover:bg-[#FFFBFC]"}`} key={tab} onClick={() => onTabChange(tab)} type="button">
-            {label}
-          </button>
-        ))}
-      </div>
+      <StrategySection eyebrow="最重要" title="AIの判断" accent>
+        <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <div><StrategyLabel>現在</StrategyLabel><p className="text-base font-bold leading-8 text-[#302A2D]">{currentState}</p></div>
+          <div><StrategyLabel>次にやること</StrategyLabel><p className="text-lg font-black text-[#EC6F8B]">{nextAction}</p><p className="mt-2 text-sm font-semibold text-[#776D72]">{formatUrgency(advice?.nextActionUrgency) || advice?.followupTiming || "時期を確認"}</p></div>
+        </div>
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          <StrategyList title="確認すること" items={missing.slice(0, 6)} />
+          <StrategyList title="刺さっている内容" items={positiveSignals.length ? positiveSignals.slice(0, 6) : proposals.slice(0, 6)} />
+          <StrategyList title="失注リスク" items={risks.slice(0, 5)} />
+        </div>
+      </StrategySection>
 
-      {activeTab === "before" ? <BeforeMeetingTab deal={deal} /> : null}
-      {activeTab === "after" ? <AfterMeetingTab deal={deal} /> : null}
-      {activeTab === "compare" ? <CompareTab deal={deal} /> : null}
-      {activeTab === "transcript" ? <TranscriptTab deal={deal} /> : null}
-      {activeTab === "history" ? <HistoryTab deal={deal} /> : null}
+      <StrategySection title="顧客理解">
+        <div className="grid gap-7 md:grid-cols-2">
+          <StrategyList title="課題" items={customerProblems} />
+          <StrategyList title="ニーズ・関心" items={positiveSignals} />
+          <StrategyList title="現在の運用・状況" items={uniqueStrings([latest.meetingMemo ?? "", latest.memo ?? "", ...(advice?.closeReasons ?? [])])} />
+          <div><StrategyLabel>決裁構造</StrategyLabel><p className="text-sm font-semibold leading-7 text-[#5F565A]">{findDecisionContext(advice, preparation) || "まだ確認できていないことに含めています。"}</p></div>
+        </div>
+      </StrategySection>
+
+      <StrategySection title="次回営業">
+        <div className="grid gap-7 md:grid-cols-2">
+          <div><StrategyLabel>推奨アクション</StrategyLabel><p className="text-base font-black text-[#302A2D]">{nextAction}</p><p className="mt-2 text-sm font-semibold leading-7 text-[#776D72]">{advice?.followUpReason || advice?.followupTimingReason || "次回接触で未確認事項を解消し、次の合意を作ります。"}</p></div>
+          <StrategyList title="聞くこと" items={questions.slice(0, 8)} />
+          <StrategyList title="次回提案" items={proposals.slice(0, 8)} />
+          <div className="flex flex-wrap content-start gap-2"><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-bold text-[#6F676B]" href="/tasks">タスク作成を依頼</Link><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-bold text-[#6F676B]" href="/calendar">予定追加を依頼</Link></div>
+        </div>
+        {(advice?.followupCallScript || preparation) ? <details className="mt-6 border-t border-[#EFE8EA] pt-4"><summary className="cursor-pointer text-sm font-black text-[#554C50]">トーク案を開く</summary><div className="mt-4 space-y-3 text-sm font-semibold leading-7 text-[#5F565A]"><p>{advice?.followupCallScript || preparation?.openingTalk}</p>{preparation ? <ScriptPreview analysis={preparation} /> : null}</div></details> : null}
+      </StrategySection>
+
+      {(concerns.length || missing.length || risks.length) ? <StrategySection title="リスク・まだ確認できていないこと"><div className="grid gap-7 md:grid-cols-3"><StrategyList title="懸念" items={concerns} /><StrategyList title="未確認" items={missing} /><StrategyList title="失注リスク" items={risks} /></div></StrategySection> : null}
+
+      {deal.records.length > 1 ? <StrategySection title="前回からの変化"><ComparisonTable base={deal.firstRecord} target={deal.latestRecord} detailed /><p className="mt-5 text-sm font-semibold leading-7 text-[#5F565A]">{buildComparisonSummary(deal.firstRecord, deal.latestRecord)}</p></StrategySection> : null}
+
+      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-lg font-black text-[#302A2D]">文字起こし</summary><div className="mt-5 space-y-5">{latest.audioDownloadUrl ? <audio className="w-full" controls src={latest.audioDownloadUrl} /> : null}<p className="text-sm font-semibold text-[#776D72]">{formatDate(latest.recordedAt.toDate())} ・ {transcriptCount ? `${transcriptCount}ブロック` : "文字起こしなし"}</p><TranscriptTab deal={deal} /></div></details>
+      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-lg font-black text-[#302A2D]">履歴</summary><div className="mt-5"><HistoryTab deal={deal} /></div></details>
     </div>
   );
 }
+
+function StrategySection({ accent = false, children, eyebrow, title }: { accent?: boolean; children: React.ReactNode; eyebrow?: string; title: string }) {
+  return <section className={`border border-[#E9E2E4] p-6 ${accent ? "bg-[#FFF8FA]" : "bg-white"}`}>{eyebrow ? <p className="text-xs font-black uppercase tracking-[0.18em] text-[#EC6F8B]">{eyebrow}</p> : null}<h2 className="mt-1 text-xl font-black text-[#302A2D]">{title}</h2><div className="mt-6">{children}</div></section>;
+}
+
+function StrategyLabel({ children }: { children: React.ReactNode }) { return <h3 className="mb-2 text-xs font-black uppercase tracking-[0.12em] text-[#968B90]">{children}</h3>; }
+function StrategyFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-xs font-bold text-[#968B90]">{label}</dt><dd className="mt-1 text-sm font-black text-[#302A2D]">{value || "—"}</dd></div>; }
+function StrategyList({ items, title }: { items: string[]; title: string }) { const visible = uniqueStrings(items); return <div><StrategyLabel>{title}</StrategyLabel>{visible.length ? <ul className="space-y-2">{visible.map((item) => <li className="flex gap-2 text-sm font-semibold leading-6 text-[#5F565A]" key={item}><span className="text-[#EC6F8B]">•</span><span>{item}</span></li>)}</ul> : <p className="text-sm font-semibold text-[#A0969A]">該当情報なし</p>}</div>; }
+function uniqueStrings(items: Array<string | null | undefined>): string[] { return Array.from(new Set(items.map((item) => item?.trim()).filter((item): item is string => Boolean(item) && item !== "未確認"))); }
+function findDecisionContext(advice: TeleapoRecord["aiAdvice"], preparation: MeetingPreparationAnalysis | undefined): string { return uniqueStrings([...(advice?.closingRequirements ?? []), ...(preparation?.questions.decision.map((item) => item.purpose) ?? [])]).at(0) ?? ""; }
 
 function DealOverviewTab({ deal }: { deal: DealGroup }) {
   const latestAnalysis = deal.teleapoAdviceRecord?.aiAdvice?.meetingPreparation ?? deal.latestAdviceRecord?.aiAdvice?.meetingPreparation;

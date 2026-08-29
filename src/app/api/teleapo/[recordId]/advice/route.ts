@@ -543,16 +543,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                 "schedulingCallは日程調整電話でそのまま読める文章にすること。候補日時はavailableScheduleSlotsからのみ選び、候補がない場合は「カレンダー確認後に提示」と書くこと。",
                 "preparationでは必須資料、あると良い資料、見せない資料、事前調査、確認ページ、準備する数字、デモ、社内確認、商談ゴール、当日決めるべきことを整理すること。",
                 "questionsは必ず聞く質問、深掘り、数字、決裁、クロージングに分け、目的・想定回答・回答別の切り返しを付けること。",
-                "meetingScriptは30分商談を想定し、冒頭、ヒアリング、課題整理、提案、デモ、料金、クロージングの時間配分と台本、質問、資料、分岐、注意点を入れること。",
-                "objectionsは料金、効果、運用負担、LINE/OTA/既存運用など案件に合う反論を選び、悪い返答と推奨返答を出すこと。",
+                "meetingScriptは合計30分に厳密に収めること。各minutesは重複しない連続した時間帯（例: 0〜5分、5〜12分、12〜20分、20〜25分、25〜30分）とし、全セクションの終了時刻を30分にすること。不要なセクションは0分または他セクションへ統合すること。",
+                "objectionsは文字起こし・会社情報から実際に確認できた懸念、または根拠のある推測だけを出すこと。一般的な反論を件数合わせで生成しないこと。",
                 "nextActionsはタスク名、担当者、期限、優先度、ステータス、関連資料、完了条件、AI作成可否、手動対応を具体的に入れること。",
-                "proposalPriority、requiredMaterials、questions.required、questions.deepDive、objections、nextActionsは空配列にしないこと。根拠が薄い場合でも「未確認」を確認するための質問・資料・反論候補として最低3件ずつ作ること。"
+                "文字起こしから customerProblems（顧客課題）、customerNeeds（ニーズ）、currentOperations（現在の運用）、positiveSignals（前向きな反応）、concerns（懸念）、decisionMaker/decisionProcess（決裁構造）、budget（予算）、timing（導入時期）、competitors/currentTools（競合・現在ツール）、salesOpportunities（提案機会）、risks、missingInformation、nextBestAction、recommendedProposal を抽出し、既存schemaのissues、prospectScore、contactAnalysis、proposalStrategy、questions、riskPoints、nextActionsへ意味ごとにmappingすること。",
+                "Fact（発言や登録データで確認できた事実）、Inference（会話からの推測）、Recommendation（推奨行動）を混同しないこと。FactはsourceQuoteへ短い根拠を入れ、Inferenceは断定せず可能性として書き、RecommendationはnextActionsまたはproposalStrategyに入れること。",
+                "同じ内容を複数フィールドへ言い換えて繰り返さないこと。未確認事項はprospectScore.missingInformationへ集約し、他の補助項目を「未確認」で埋め尽くさないこと。",
+                "proposalPriority、questions.required、questions.decision、nextActionsは案件固有の内容を優先すること。根拠がないobjectionsや資料候補は空配列でよく、件数合わせをしないこと。"
               ].join("\n"),
               instruction:
                 record?.salesDomain === "meeting"
                   ? [
                       `トークスクリプト・電話文面で営業担当が名乗る場合は、必ず名字「${salesRepFamilyName}」を使ってください。`,
                       "商談後分析として、prospectRankをA/B+/B/B-/Cで厳密に判定してください。",
+                      "最初に案件の現在地、刺さっている内容、ネック、未確認事項、次にいつ何をするかを判断し、それぞれの根拠が文字起こし上の事実か推測かを区別してください。",
                       "summaryは商談内容を2〜3文で要約してください。文字起こし本文、挨拶の全文、会話の長い引用、逐語録の貼り付けは禁止です。要約には「誰と何を話し、何が分かり、次に何をするか」だけを書いてください。",
                       "record.diagnosisSheetがある場合は、人間が商談終了後に入力した評価として重視してください。ただし、会話ログと矛盾する場合は矛盾点をrankReasonやmissingInformationに含めてください。",
                       "営業が次に動けるよう、良かった点、ダメだった点・弱かった点、顧客が前向きだった発言、迷っていた発言、決まりそうな条件、足りない情報、成約のために必要なもの、失注リスクを具体的に出してください。",
@@ -560,6 +564,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                       "ダメだった点は、決裁者、予算、導入時期、競合、懸念点を聞けていないなどを評価してください。",
                       "決まりそうな条件は、見積、契約書、事例、費用対効果、決裁者同席、導入スケジュール、具体的な運用イメージなどから判断してください。",
                       "フォローアップするべきか、理由、タイミング、方法(phone/email/chat/meeting/none)、電話トーク、メール文面、次回商談で確認すること、次に送る資料を必ず実務的に書いてください。",
+                      "customerIssuesには顧客の事業・運用上の課題だけを入れ、negativesには営業担当の改善点だけを入れて、顧客状況と営業評価を混ぜないでください。",
+                      "positiveCustomerSignalsとhesitationSignalsは顧客の反応、positivesとnegativesは営業担当への振り返りとして明確に分けてください。",
                       "followUpReasonには「なぜ今フォローする必要があるか」を、顧客の発言・未確認事項・次回アクションの有無に紐づけて書いてください。",
                       "followupTimingReasonには「なぜその日・そのタイミングなのか」を、商談後の鮮度、顧客の検討状況、送る資料、次に決めたいことと結びつけて書いてください。",
                       "followupCallScriptは単なる挨拶ではなく、目的、確認したいこと、送付/提示する資料、次の合意事項まで含めた実務トークにしてください。",

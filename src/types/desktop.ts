@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase-admin/firestore";
 
 export type DesktopPermissionKey = "readTasks" | "createTasks" | "readCompanies" | "createActivityLogs" | "useAiParser";
 export type DesktopDeviceStatus = "active" | "revoked";
-export type DesktopAuditAction = "auth_verify" | "company_search" | "task_read" | "task_create" | "activity_create" | "memo_parse" | "memo_commit";
+export type DesktopAuditAction = "auth_verify" | "company_search" | "task_read" | "calendar_read" | "task_create" | "activity_create" | "memo_parse" | "memo_commit";
 export type DesktopMemoSource = "cli" | "menubar" | "floating_window";
 
 export interface DesktopPermissions {

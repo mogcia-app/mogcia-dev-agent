@@ -148,7 +148,12 @@ export async function createAgentNotification(input: {
   runId?: string | null;
   projectId?: string | null;
   targetUrl?: string | null;
+  source?: "business" | "development" | "system" | "e2e";
 }) {
+  const source = input.source ?? "system";
+  if (source === "e2e" || process.env.MOGCIA_E2E === "true" || process.env.E2E_TEST === "true") {
+    return { id: null, skipped: true };
+  }
   const ref = await getAdminDb().collection(agentNotificationsCollection).add({
     userId: input.userId,
     title: input.title,
@@ -157,6 +162,8 @@ export async function createAgentNotification(input: {
     runId: input.runId ?? null,
     projectId: input.projectId ?? null,
     targetUrl: input.targetUrl ?? null,
+    source,
+    handlingStatus: "unread",
     read: false,
     createdAt: FieldValue.serverTimestamp()
   });

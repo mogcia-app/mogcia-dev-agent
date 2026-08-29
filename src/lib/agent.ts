@@ -33,7 +33,9 @@ import type {
   AgentStepType,
   CreateAgentRequestInput,
   CreateDevelopmentProjectInput,
+  DevelopmentJob,
   DevelopmentProject,
+  DevelopmentWorker,
   AgentIntent,
   AgentTargetType,
   ProjectMemory
@@ -43,6 +45,8 @@ export const agentRequestsCollection = "agentRequests";
 export const agentRunsCollection = "agentRuns";
 export const agentNotificationsCollection = "agentNotifications";
 export const developmentProjectsCollection = "developmentProjects";
+export const developmentJobsCollection = "developmentJobs";
+export const developmentWorkersCollection = "developmentWorkers";
 
 const defaultRunSteps: AgentRunStep[] = [
   { type: "plan", status: "waiting", message: "依頼内容を整理します。" },
@@ -93,7 +97,7 @@ function isStepStatus(value: unknown): value is AgentStepStatus {
 }
 
 function isRunStatus(value: unknown): value is AgentRunStatus {
-  return value === "queued" || value === "running" || value === "requires_approval" || value === "completed" || value === "error" || value === "cancelled";
+  return value === "queued" || value === "running" || value === "worker_lost" || value === "requires_approval" || value === "completed" || value === "error" || value === "cancelled";
 }
 
 function normalizeIntent(value: unknown): AgentIntent | null {
@@ -274,6 +278,45 @@ function normalizeProject(id: string, data: DocumentData): DevelopmentProject {
   };
 }
 
+function normalizeDevelopmentJob(id: string, data: DocumentData): DevelopmentJob {
+  return {
+    id,
+    runId: String(data.runId ?? ""),
+    requestId: String(data.requestId ?? ""),
+    projectId: String(data.projectId ?? ""),
+    userId: String(data.userId ?? ""),
+    title: String(data.title ?? "Development Job"),
+    instruction: String(data.instruction ?? ""),
+    status: data.status === "assigned" || data.status === "running" || data.status === "worker_lost" || data.status === "reviewing" || data.status === "completed" || data.status === "failed" || data.status === "cancelled" ? data.status : "queued",
+    requiredCapabilities: Array.isArray(data.requiredCapabilities) ? data.requiredCapabilities.filter((item): item is string => typeof item === "string") : [],
+    assignedWorkerId: optionalString(data.assignedWorkerId),
+    branchName: optionalString(data.branchName),
+    startedAt: nullableTimestamp(data.startedAt),
+    completedAt: nullableTimestamp(data.completedAt),
+    result: data.result && typeof data.result === "object" ? data.result as DevelopmentJob["result"] : null,
+    errorMessage: optionalString(data.errorMessage),
+    createdAt: timestamp(data.createdAt),
+    updatedAt: timestamp(data.updatedAt)
+  };
+}
+
+function normalizeDevelopmentWorker(id: string, data: DocumentData): DevelopmentWorker {
+  return {
+    id,
+    name: String(data.name ?? "MOGCIA Worker"),
+    deviceId: optionalString(data.deviceId),
+    userId: String(data.userId ?? ""),
+    status: data.status === "online" || data.status === "busy" || data.status === "disabled" ? data.status : "offline",
+    hostname: optionalString(data.hostname),
+    os: optionalString(data.os),
+    architecture: optionalString(data.architecture),
+    capabilities: Array.isArray(data.capabilities) ? data.capabilities.filter((item): item is string => typeof item === "string") : [],
+    lastSeenAt: timestamp(data.lastSeenAt),
+    createdAt: timestamp(data.createdAt),
+    updatedAt: timestamp(data.updatedAt)
+  };
+}
+
 function normalizeProjectMemory(projectId: string, data: DocumentData | undefined): ProjectMemory {
   return {
     projectId,
@@ -294,6 +337,8 @@ function normalizeNotification(id: string, data: DocumentData): AgentNotificatio
     title: String(data.title ?? ""),
     message: String(data.message ?? ""),
     type: data.type === "success" || data.type === "warning" || data.type === "error" || data.type === "approval" ? data.type : "info",
+    source: data.source === "business" || data.source === "development" || data.source === "e2e" ? data.source : "system",
+    handlingStatus: data.handlingStatus === "done" || data.handlingStatus === "snoozed" || data.handlingStatus === "read" ? data.handlingStatus : data.read ? "read" : "unread",
     runId: optionalString(data.runId),
     projectId: optionalString(data.projectId),
     targetUrl: optionalString(data.targetUrl),
@@ -338,6 +383,26 @@ export function subscribeDevelopmentProjects(onNext: (projects: DevelopmentProje
   return onSnapshot(
     query(collection(db, developmentProjectsCollection), orderBy("updatedAt", "desc")),
     (snapshot) => onNext(snapshot.docs.map((entry) => normalizeProject(entry.id, entry.data()))),
+    onError
+  );
+}
+
+export function subscribeDevelopmentJobs(userId: string, onNext: (jobs: DevelopmentJob[]) => void, onError: (error: FirestoreError) => void, count = 80): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db || !userId) return () => undefined;
+  return onSnapshot(
+    query(collection(db, developmentJobsCollection), where("userId", "==", userId), orderBy("createdAt", "desc"), limit(count)),
+    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeDevelopmentJob(entry.id, entry.data()))),
+    onError
+  );
+}
+
+export function subscribeDevelopmentWorkers(userId: string, onNext: (workers: DevelopmentWorker[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db || !userId) return () => undefined;
+  return onSnapshot(
+    query(collection(db, developmentWorkersCollection), where("userId", "==", userId), orderBy("lastSeenAt", "desc")),
+    (snapshot) => onNext(snapshot.docs.map((entry) => normalizeDevelopmentWorker(entry.id, entry.data()))),
     onError
   );
 }

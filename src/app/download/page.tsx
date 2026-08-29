@@ -14,15 +14,15 @@ export default function DownloadPage() {
           <Image alt="MOGCIA" className="h-28 w-28 rounded-[28px] object-cover shadow-lg" height={160} priority src="/m-dev-agent.png" width={160} />
           <p className="mt-7 text-sm font-semibold tracking-[0.18em] text-[#C06E80]">MOGCIA FOR MAC</p>
           <h1 className="mt-2 text-3xl font-semibold text-[#1F1F22] sm:text-4xl">MOGCIA Desktop</h1>
-          <p className="mt-4 max-w-xl leading-7 text-neutral-600">通知、今日の予定、タスク、Agentとの会話をMacのメニューバーから利用できます。</p>
+          <p className="mt-4 max-w-xl leading-7 text-neutral-600">通知、予定、AI提案、会社検索、MOGCIAとの会話をMacのメニューバーから利用できます。</p>
           <DownloadButton />
-          <p className="mt-3 text-sm text-neutral-500">最新版 0.7.1 ・ macOS 14以降</p>
+          <p className="mt-3 text-sm text-neutral-500">最新版 0.7.17 ・ macOS 14以降</p>
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           <Step number="1" title="ダウンロード" text="上のボタンからインストーラーを保存します。" />
           <Step number="2" title="インストール" text="MOGCIA-latest.pkgを開き、画面の案内に従います。既存版は上書きされます。" />
-          <Step number="3" title="ログイン" text="メニューバーのロボットから設定を開いてログインします。" />
+          <Step number="3" title="初回設定" text="ターミナルで mogcia setup を実行し、社員アカウントでログインして連携します。" />
         </div>
 
         <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">

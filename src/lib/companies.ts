@@ -40,7 +40,6 @@ function normalizeCompany(id: string, data: DocumentData): Company {
     companionNames: Array.isArray(data.companionNames) ? data.companionNames : [],
     productIds: Array.isArray(data.productIds) ? data.productIds : [],
     productNames: Array.isArray(data.productNames) ? data.productNames : [],
-    productAccountAccess: data.productAccountAccess ?? {},
     productSalesContext: data.productSalesContext ?? {},
     decisionInfo: data.decisionInfo ?? {},
     contacts: Array.isArray(data.contacts) ? data.contacts : [],
@@ -245,8 +244,7 @@ export async function toggleCompanyFavorite(company: Company, userId: string): P
 export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; direction?: ActivityDirection; actorUserIds?: string[]; actorNames?: string[]; contactIds?: string[]; contactNames?: string[]; contactNote?: string; dealId?: string | null; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
-  const ref = await addDoc(collection(db, companiesCollection, companyId, "activityLogs"), { companyId, userId: user.id, userName: user.name, createdBy: user.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), source: "manual", ...input });
-  await addDoc(collection(db, "activities"), {
+  const ref = await addDoc(collection(db, "activities"), {
     leadId: null,
     companyId,
     dealId: input.dealId ?? null,
@@ -258,7 +256,7 @@ export async function addCompanyLog(companyId: string, user: { id: string; name:
     audioId: null,
     transcriptId: null,
     analysisId: null,
-    legacyCompanyActivityLogId: ref.id,
+    legacyCompanyActivityLogId: null,
     nextActionAt: input.nextAction?.dueAt ?? null,
     nextActionTitle: input.nextAction?.title ?? null,
     occurredAt: input.occurredAt,

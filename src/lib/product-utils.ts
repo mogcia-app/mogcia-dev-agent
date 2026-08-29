@@ -2,16 +2,17 @@ import { Timestamp } from "firebase/firestore";
 import type { Product, ProductSalesPlaybookEntry, ProductSalesPlaybooks, ProductStatus, ProductTab, ProductType } from "@/types/product";
 
 export const productTabs: Array<{ value: ProductTab; label: string }> = [
-  { value: "basic", label: "基本情報" },
+  { value: "basic", label: "概要" },
   { value: "target", label: "ターゲット" },
+  { value: "new", label: "新規提案" },
+  { value: "existing", label: "継続・追加提案" },
+  { value: "implementation", label: "反論・切り返し" },
+  { value: "sales", label: "営業設定" },
   { value: "pricing", label: "料金・契約" },
   { value: "features", label: "機能" },
-  { value: "implementation", label: "反論想定" },
-  { value: "sales", label: "営業設定" },
-  { value: "new", label: "新規" },
-  { value: "existing", label: "既存" },
-  { value: "resources", label: "サイト・資料" },
-  { value: "notes", label: "メモ" }
+  { value: "insights", label: "商談インサイト" },
+  { value: "resources", label: "資料" },
+  { value: "notes", label: "設定・メモ" }
 ];
 
 export const productStatusLabels: Record<ProductStatus, string> = {

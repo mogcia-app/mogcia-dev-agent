@@ -18,16 +18,16 @@ import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductAccountAccess, CompanyProductAccountCredential, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
+import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { Activity } from "@/types/lead";
 import type { TaskDraft } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
 
 type SortKey = "lastContact" | "updated" | "name" | "owner";
-type TabKey = "overview" | "timeline" | "deals" | "meetings" | "tasks" | "files" | "notes";
+type TabKey = "overview" | "timeline" | "services" | "meetings" | "tasks" | "files" | "access" | "notes";
 
-const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動ログ"], ["deals", "案件・商談"], ["meetings", "打ち合わせ"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
+const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["services", "サービス"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["access", "アクセス情報"], ["notes", "メモ"]];
 const sortOptions: Array<[SortKey, string]> = [["lastContact", "最終接触日が新しい順"], ["updated", "更新日が新しい順"], ["name", "会社名順"], ["owner", "担当者順"]];
 
 const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
@@ -37,7 +37,8 @@ export function CompaniesPageClient() {
   const pathname = usePathname();
   const params = useSearchParams();
   const selectedId = params.get("id");
-  const selectedTab = (params.get("tab") as TabKey | null) ?? "overview";
+  const requestedTab = params.get("tab");
+  const selectedTab: TabKey = requestedTab === "deals" ? "meetings" : tabs.some(([value]) => value === requestedTab) ? requestedTab as TabKey : "overview";
   const q = params.get("q") ?? "";
   const [query, setQuery] = useState(q);
   const [sort, setSort] = useState<SortKey>("lastContact");
@@ -112,7 +113,7 @@ export function CompaniesPageClient() {
     const needle = q.trim().toLowerCase();
     return store.companies
       .filter((company) => company.status !== "archived")
-      .filter((company) => !needle || [company.name, company.nameKana, company.primaryContactName, company.contacts?.map((contact) => [contact.name, contact.role, contact.email, contact.phone, formatContactMethods(contact.contactMethods)].join(" ")).join(" "), company.industry, company.address, company.phone, company.email, company.tags.join(" "), company.internalOwnerName, company.companionNames?.join(" ")].join(" ").toLowerCase().includes(needle))
+      .filter((company) => !needle || [company.name, company.nameKana, company.primaryContactName, company.contacts?.map((contact) => [contact.name, contact.role, contact.email, contact.phone, formatContactMethods(contact.contactMethods)].join(" ")).join(" "), company.industry, company.address, company.phone, company.email, company.tags.join(" "), company.internalOwnerName, company.companionNames?.join(" "), company.productNames?.join(" "), companyStatusLabel(company.status)].join(" ").toLowerCase().includes(needle))
       .sort((a, b) => {
         if (sort === "name") return a.name.localeCompare(b.name, "ja");
         if (sort === "owner") return (a.internalOwnerName ?? "").localeCompare(b.internalOwnerName ?? "", "ja");
@@ -133,7 +134,7 @@ export function CompaniesPageClient() {
       {!selectedCompany ? (
         <PageHeader
           title="会社一覧"
-          description="取引先企業を管理・把握できます"
+          description="契約後の顧客状況、活動、サービスをまとめて確認します"
           actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい会社を追加</button>}
         />
       ) : null}
@@ -143,7 +144,7 @@ export function CompaniesPageClient() {
         {!selectedCompany ? (
         <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#777]">
-            <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・業種で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・サービス・状態で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             <Search className="h-4 w-4" />
           </label>
           <div className="mt-4 flex items-center justify-between gap-3">
@@ -152,7 +153,10 @@ export function CompaniesPageClient() {
               <SingleSelect options={sortOptions.map(([value, label]) => ({ value, label }))} value={sort} onChange={(value) => setSort(value as SortKey)} />
             </div>
           </div>
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 overflow-x-auto">
+            <div className="grid min-w-[920px] grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr_110px] gap-4 border-b border-[#F0E7E9] px-3 py-3 text-xs font-bold text-[#8A8186]">
+              <span>会社</span><span>先方担当者</span><span>利用サービス</span><span>自社担当</span><span>最終接触</span><span>次回</span>
+            </div>
             {store.loading ? <CompanySkeleton /> : null}
             {!store.loading && filtered.length === 0 ? <EmptyCompanies hasQuery={Boolean(q)} onCreate={() => setCreateOpen(true)} /> : null}
             {filtered.map((company) => <CompanyListItem active={false} company={company} favorite={company.favoriteUserIds.includes(store.user?.uid ?? "")} key={company.id} onFavorite={() => void store.toggleFavorite(company)} onSelect={() => setRoute({ id: company.id, tab: "overview" })} />)}
@@ -165,12 +169,13 @@ export function CompaniesPageClient() {
               <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
                 <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
                 <div className="p-5">
-                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} products={products} tasks={store.tasks} /> : null}
+                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} commonActivities={store.commonActivities} logs={store.logs} products={products} records={analysisRecords} tasks={store.tasks} onActivity={() => setRoute({ id: selectedCompany.id, tab: "timeline" })} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
-                  {selectedTab === "deals" ? <DealsTab company={selectedCompany} records={analysisRecords} /> : null}
-                  {selectedTab === "meetings" ? <MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /> : null}
+                  {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
+                  {selectedTab === "meetings" ? <div className="space-y-10"><DealsTab company={selectedCompany} records={analysisRecords} /><ChartSection title="打ち合わせ履歴"><MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /></ChartSection></div> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
+                  {selectedTab === "access" ? <AccessTab company={selectedCompany} user={store.user} /> : null}
                   {selectedTab === "notes" ? <NotesTab currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
                 </div>
               </div>
@@ -189,38 +194,49 @@ export function CompaniesPageClient() {
 
 function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
   const primaryContact = getPrimaryContactLabel(company);
-
-  return <button className={`grid w-full grid-cols-[1fr_32px] gap-3 rounded-none border p-3 text-left ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button"><span className="min-w-0"><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-sm font-semibold text-[#777]">{company.industry || "業種未設定"}</span>{primaryContact ? <span className="mt-2 block truncate text-xs font-semibold text-[#777]">先方: {primaryContact}</span> : null}</span><span role="button" tabIndex={0} className="grid h-8 w-8 place-items-center text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onFavorite(); }} onKeyDown={(event) => { if (event.key === "Enter") onFavorite(); }}><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></span></button>;
+  return <button className={`grid min-w-[920px] w-full grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr_110px] items-center gap-4 border-b border-[#F0E7E9] px-3 py-4 text-left transition ${active ? "bg-[#FFF0F3]" : "bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
+    <span className="flex min-w-0 items-center gap-2"><Bookmark className={`h-4 w-4 shrink-0 text-[#EC6F8B] ${favorite ? "fill-current" : ""}`} onClick={(event) => { event.stopPropagation(); onFavorite(); }} /><span><span className="block truncate font-bold text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{company.industry || "業種未設定"}</span></span></span>
+    <span className="truncate text-sm font-semibold text-[#655D62]">{primaryContact || "未設定"}</span>
+    <span className="truncate text-sm font-semibold text-[#655D62]">{company.productNames?.join(" / ") || "未設定"}</span>
+    <span className="truncate text-sm font-semibold text-[#655D62]">{company.internalOwnerName || "未設定"}</span>
+    <span className="text-sm font-semibold text-[#655D62]">{company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span>
+    <span className={`truncate text-sm font-bold ${company.nextActionTitle ? "text-[#655D62]" : "text-[#D94F6E]"}`}>{company.nextActionTitle || "未設定 ⚠"}</span>
+  </button>;
 }
 
 function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite, onEdit, onLog, onDelete }: { company: Company; favorite: boolean; canDelete: boolean; onBack: () => void; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void }) {
   const [menu, setMenu] = useState(false);
-  return <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><button className="mb-2 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">一覧へ戻る</button><div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div>{company.industry ? <p className="mt-2 text-sm font-semibold text-[#777]">{company.industry}</p> : null}</div><div className="relative flex flex-wrap gap-2"><button className="h-10 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button>{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">ログを追加</button><button className="grid h-10 w-10 place-items-center rounded-none border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-none border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-none text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-none text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
+  return <section className="border-b border-[#F0E7E9] bg-white px-1 pb-5"><button className="mb-3 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">← 会社一覧</button><div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><div className="flex items-center gap-2"><h2 className="text-3xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div><p className="mt-2 text-sm font-semibold text-[#777]">{[company.industry, company.prefecture, company.city].filter(Boolean).join(" / ") || "基本情報未設定"}</p><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-[#8A8186]"><span>最終接触 {company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span><span>担当 {company.internalOwnerName || "未設定"}</span><span>状態 {companyStatusLabel(company.status)}</span></div></div><div className="relative flex flex-wrap gap-2">{company.email ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">活動を追加</button><button className="h-10 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button><button className="grid h-10 w-10 place-items-center border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
-function OverviewTab({ company, products, tasks }: { company: Company; products: Product[]; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }> }) {
-  const nextTask = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER))[0];
+function OverviewTab({ company, products, tasks, commonActivities, logs, records, onActivity }: { company: Company; products: Product[]; tasks: Array<{ id?: string; status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }>; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void }) {
+  const openTasks = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER));
+  const nextTask = openTasks[0];
   const hasCommoProduct = companyHasCommoProduct(company, products);
-  const rows: Array<[string, string]> = [
-    ["会社名", company.name],
-    ["業種", company.industry || "未設定"],
-    ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"],
-    ["所在地", company.address || "未設定"],
-    ["Webサイト", company.website || "未設定"],
-    ["関連商材", company.productNames?.join(" / ") || "未設定"],
-    ["営業担当者", company.internalOwnerName || "未設定"],
-    ["同行者", company.companionNames?.join(" / ") || "未設定"],
-    ["先方担当者", formatContacts(company)],
-    ["決裁・予算", formatDecisionInfo(company.decisionInfo)],
-  ];
-  if (hasCommoProduct) {
-    rows.push(["commo. 営業情報", formatCommoContext(company.productSalesContext?.commo)]);
-  }
-  rows.push(
-    ["最終接触日", company.lastContactAt?.toDate().toLocaleString("ja-JP") ?? "未接触"],
-    ["次回アクション", nextTask ? `${nextTask.title} / ${nextTask.dueDate?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"} / ${nextTask.assigneeName ?? "未設定"}` : company.nextActionTitle || "未設定"]
-  );
-  return <InfoGrid rows={rows} />;
+  const primaryContact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
+  const commonLegacyIds = new Set(commonActivities.map((item) => item.legacyCompanyActivityLogId).filter(Boolean));
+  const recent = [
+    ...commonActivities.map((item) => ({ id: `a-${item.id}`, date: item.occurredAt.toDate(), type: commonActivityTypeLabels[item.type], title: item.title, content: item.content })),
+    ...logs.filter((item) => !commonLegacyIds.has(item.id)).map((item) => ({ id: `l-${item.id}`, date: item.occurredAt.toDate(), type: activityTypeLabels[item.type], title: item.title, content: item.content })),
+    ...records.filter((item) => item.companyId === company.id || (!item.companyId && item.customerName === company.name)).map((item) => ({ id: `r-${item.id}`, date: item.recordedAt.toDate(), type: item.salesDomain === "teleapo" ? "テレアポ" : "商談", title: item.meetingTitle || item.productName || "音声分析", content: item.aiAdvice?.summary || "" }))
+  ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
+  return <div className="mx-auto max-w-5xl space-y-10">
+    <ChartSection title="現在の状況"><InfoGrid rows={[["状態", companyStatusLabel(company.status)], ["自社担当", company.internalOwnerName || "未設定"], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleString("ja-JP") : "未接触"], ["次回アクション", nextTask?.title || company.nextActionTitle || "未設定"], ["次回予定", nextTask?.dueDate?.toDate().toLocaleString("ja-JP") || company.nextActionAt?.toDate().toLocaleString("ja-JP") || "未設定"]]} /></ChartSection>
+    <ChartSection title="次にやること">
+      {openTasks.length ? <div className="divide-y divide-[#F0E7E9]">{openTasks.slice(0, 5).map((task, index) => <div className="grid gap-1 py-3 sm:grid-cols-[24px_1fr_auto]" key={task.id ?? `${task.title}-${index}`}><span className="text-[#EC6F8B]">□</span><span className="font-bold text-[#2B2B2B]">{task.title}</span><span className="text-xs font-bold text-[#8A8186]">{task.dueDate ? `${task.dueDate.toDate().toLocaleDateString("ja-JP")}まで` : "期限未設定"}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">未完了タスクはありません。</p>}
+      {!company.nextActionAt && !nextTask ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">⚠ 次回アクションが未設定です</p> : null}
+    </ChartSection>
+    <ChartSection action={<button className="text-sm font-bold text-[#EC6F8B]" onClick={onActivity} type="button">すべて見る →</button>} title="最近の活動">
+      {recent.length ? <div className="divide-y divide-[#F0E7E9]">{recent.map((item) => <div className="grid gap-2 py-4 md:grid-cols-[130px_100px_1fr]" key={item.id}><time className="text-xs font-bold text-[#8A8186]">{item.date.toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time><span className="text-xs font-bold text-[#EC6F8B]">{item.type}</span><span><strong className="block text-sm text-[#2B2B2B]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-semibold text-[#6F676B]">{item.content}</span> : null}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">活動履歴はまだありません。</p>}
+    </ChartSection>
+    <ChartSection title="先方担当者"><InfoGrid rows={[["氏名", primaryContact ? formatContactName(primaryContact) : company.primaryContactName || "未設定"], ["電話", primaryContact?.phone || company.phone || "未設定"], ["メール", primaryContact?.email || company.email || "未設定"]]} /></ChartSection>
+    <ChartSection title="利用中サービス"><p className="text-sm font-bold text-[#2B2B2B]">{company.productNames?.join(" / ") || "未設定"}</p></ChartSection>
+    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ["決裁・予算", formatDecisionInfo(company.decisionInfo)], ...(hasCommoProduct ? [["commo.営業情報", formatCommoContext(company.productSalesContext?.commo)] as [string, string]] : [])]} /></ChartSection>
+  </div>;
+}
+
+function ChartSection({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section><div className="mb-4 flex items-center justify-between border-b border-[#E8DDE0] pb-3"><h3 className="text-base font-black text-[#2B2B2B]">{title}</h3>{action}</div>{children}</section>;
 }
 
 type UnifiedCompanyTimelineItem =
@@ -357,6 +373,35 @@ function MeetingsTab({ meetings, onCreate }: { meetings: CompanyMeeting[]; onCre
 
 function TasksTab({ tasks }: { tasks: Parameters<typeof TaskCard>[0]["task"][] }) {
   return <div className="space-y-3">{tasks.length === 0 ? <p className="text-sm font-bold text-[#8A8A8A]">会社に紐づくタスクはありません。</p> : tasks.map((task) => <TaskCard canEdit={false} currentUserId="" key={task.id} onOpen={() => undefined} onToggle={() => undefined} task={task} />)}</div>;
+}
+
+type AuthTokenUser = { getIdToken: () => Promise<string> } | null;
+type CompanyServiceValue = { id: string; productId: string | null; serviceName: string; status: string; startedAt: string | null; endedAt: string | null; price: number | null; billingCycle: string; ownerUserId: string | null; ownerUserName: string | null; adminUrl: string | null; productionUrl: string | null; repositoryUrl: string | null; hosting: string | null; domain: string | null; maintenanceStatus: string | null; renewedAt: string | null; memo: string };
+type CredentialValue = { id: string; serviceType: string; label: string; url: string | null; username: string; updatedAt?: string };
+
+function ServicesTab({ company, products, user }: { company: Company; products: Product[]; user: AuthTokenUser }) {
+  const empty = { serviceName: "", productId: "", status: "active", startedAt: "", endedAt: "", price: "", billingCycle: "monthly", ownerUserId: company.internalOwnerId ?? "", ownerUserName: company.internalOwnerName ?? "", adminUrl: "", productionUrl: "", repositoryUrl: "", hosting: "", domain: "", maintenanceStatus: "", renewedAt: "", memo: "" };
+  const [services, setServices] = useState<CompanyServiceValue[]>([]); const [form, setForm] = useState(empty); const [editingId, setEditingId] = useState<string | null>(null); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  const load = useCallback(async () => { if (!user) return; try { const data = await companyApi<{ services: CompanyServiceValue[] }>(user, `/api/companies/${company.id}/services`); setServices(data.services); setError(null); } catch (next) { setError(errorMessage(next)); } }, [company.id, user]);
+  useEffect(() => { if (!user) return; void companyApi<{ services: CompanyServiceValue[] }>(user, `/api/companies/${company.id}/services`).then((data) => { setServices(data.services); setError(null); }).catch((next) => setError(errorMessage(next))); }, [company.id, user]);
+  const save = async () => { if (!form.serviceName.trim() || !user) return; setSaving(true); try { await companyApi(user, `/api/companies/${company.id}/services${editingId ? `/${editingId}` : ""}`, editingId ? "PATCH" : "POST", { ...form, price: form.price ? Number(form.price) : null }); setForm(empty); setEditingId(null); await load(); } catch (next) { setError(errorMessage(next)); } finally { setSaving(false); } };
+  const edit = (service: CompanyServiceValue) => { setEditingId(service.id); setForm({ serviceName: service.serviceName, productId: service.productId ?? "", status: service.status, startedAt: dateInput(service.startedAt), endedAt: dateInput(service.endedAt), price: service.price?.toString() ?? "", billingCycle: service.billingCycle, ownerUserId: service.ownerUserId ?? "", ownerUserName: service.ownerUserName ?? "", adminUrl: service.adminUrl ?? "", productionUrl: service.productionUrl ?? "", repositoryUrl: service.repositoryUrl ?? "", hosting: service.hosting ?? "", domain: service.domain ?? "", maintenanceStatus: service.maintenanceStatus ?? "", renewedAt: dateInput(service.renewedAt), memo: service.memo ?? "" }); };
+  const remove = async (id: string) => { if (!user || !window.confirm("このサービスを削除しますか？")) return; try { await companyApi(user, `/api/companies/${company.id}/services/${id}`, "DELETE"); await load(); } catch (next) { setError(errorMessage(next)); } };
+  return <div className="mx-auto max-w-5xl space-y-10"><StatusBanner message={error} type="error" /><ChartSection title="利用中サービス">{services.length ? <div className="divide-y divide-[#F0E7E9]">{services.map((service) => <div className="py-5" key={service.id}><div className="flex items-start justify-between gap-4"><div><p className="font-black text-[#2B2B2B]">{service.serviceName}</p><p className="mt-1 text-sm font-semibold text-[#8A8186]">{serviceStatusLabel(service.status)}</p></div><div className="flex gap-2"><button className="text-sm font-bold text-[#EC6F8B]" onClick={() => edit(service)} type="button">編集</button><button className="text-sm font-bold text-[#D94F6E]" onClick={() => void remove(service.id)} type="button">削除</button></div></div><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><InfoPair label="契約開始" value={formatOptionalDate(service.startedAt)} /><InfoPair label="料金" value={service.price === null ? "未設定" : `¥${service.price.toLocaleString()} / ${billingLabel(service.billingCycle)}`} /><InfoPair label="担当" value={service.ownerUserName || "未設定"} /><InfoPair label="更新日" value={formatOptionalDate(service.renewedAt)} /></div><div className="mt-3 flex flex-wrap gap-4 text-sm font-bold">{service.productionUrl ? <a className="text-[#EC6F8B]" href={service.productionUrl} rel="noreferrer" target="_blank">本番URL</a> : null}{service.adminUrl ? <a className="text-[#EC6F8B]" href={service.adminUrl} rel="noreferrer" target="_blank">管理画面</a> : null}{service.repositoryUrl ? <a className="text-[#EC6F8B]" href={service.repositoryUrl} rel="noreferrer" target="_blank">Repository</a> : null}</div></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">Company固有の利用サービスはまだありません。</p>}</ChartSection><ChartSection title={editingId ? "サービスを編集" : "サービスを追加"}><div className="grid gap-4 sm:grid-cols-2"><Input label="サービス名" required value={form.serviceName} onChange={(serviceName) => setForm({ ...form, serviceName })} /><Select label="Product" value={form.productId} options={[["", "未選択"], ...products.map((item) => [item.id, item.name] as [string, string])]} onChange={(productId) => { const product = products.find((item) => item.id === productId); setForm({ ...form, productId, serviceName: form.serviceName || product?.name || "" }); }} /><Select label="状態" value={form.status} options={[["active", "利用中"], ["paused", "一時停止"], ["ended", "終了"]]} onChange={(status) => setForm({ ...form, status })} /><Input label="料金" type="number" value={form.price} onChange={(price) => setForm({ ...form, price })} /><Input label="契約開始" type="date" value={form.startedAt} onChange={(startedAt) => setForm({ ...form, startedAt })} /><Input label="更新日" type="date" value={form.renewedAt} onChange={(renewedAt) => setForm({ ...form, renewedAt })} /><Input label="本番URL" value={form.productionUrl} onChange={(productionUrl) => setForm({ ...form, productionUrl })} /><Input label="管理画面URL" value={form.adminUrl} onChange={(adminUrl) => setForm({ ...form, adminUrl })} /><Input label="Repository" value={form.repositoryUrl} onChange={(repositoryUrl) => setForm({ ...form, repositoryUrl })} /><Input label="Hosting" value={form.hosting} onChange={(hosting) => setForm({ ...form, hosting })} /><Input label="Domain" value={form.domain} onChange={(domain) => setForm({ ...form, domain })} /><Input label="保守状況" value={form.maintenanceStatus} onChange={(maintenanceStatus) => setForm({ ...form, maintenanceStatus })} /></div><div className="mt-5 flex gap-3"><button className="h-10 bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !form.serviceName.trim()} onClick={() => void save()} type="button">{saving ? "保存中…" : "保存"}</button>{editingId ? <button className="h-10 border border-[#F0E7E9] px-5 text-sm font-bold" onClick={() => { setEditingId(null); setForm(empty); }} type="button">キャンセル</button> : null}</div></ChartSection></div>;
+}
+
+function AccessTab({ company, user }: { company: Company; user: AuthTokenUser }) {
+  const empty = { serviceType: "other", label: "", url: "", username: "", secret: "" }; const [items, setItems] = useState<CredentialValue[]>([]); const [form, setForm] = useState(empty); const [editingId, setEditingId] = useState<string | null>(null); const [revealed, setRevealed] = useState<Record<string, string>>({}); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  const load = useCallback(async () => { if (!user) return; try { const data = await companyApi<{ credentials: CredentialValue[] }>(user, `/api/companies/${company.id}/credentials`); setItems(data.credentials); setError(null); } catch (next) { setError(errorMessage(next)); } }, [company.id, user]); useEffect(() => { if (!user) return; void companyApi<{ credentials: CredentialValue[] }>(user, `/api/companies/${company.id}/credentials`).then((data) => { setItems(data.credentials); setError(null); }).catch((next) => setError(errorMessage(next))); }, [company.id, user]);
+  const save = async () => { if (!user || !form.label.trim() || (!editingId && !form.secret)) return; setSaving(true); try { await companyApi(user, `/api/companies/${company.id}/credentials${editingId ? `/${editingId}` : ""}`, editingId ? "PATCH" : "POST", form); setForm(empty); setEditingId(null); await load(); } catch (next) { setError(errorMessage(next)); } finally { setSaving(false); } };
+  const access = async (item: CredentialValue, action: "reveal" | "copy") => { if (!user) return; try { const data = await companyApi<{ secret: string }>(user, `/api/companies/${company.id}/credentials/${item.id}/secret?action=${action}`); if (action === "copy") { await navigator.clipboard.writeText(data.secret); } else { setRevealed((current) => ({ ...current, [item.id]: data.secret })); window.setTimeout(() => setRevealed((current) => { const next = { ...current }; delete next[item.id]; return next; }), 30_000); } } catch (next) { setError(errorMessage(next)); } };
+  const remove = async (id: string) => { if (!user || !window.confirm("このアクセス情報を削除しますか？")) return; try { await companyApi(user, `/api/companies/${company.id}/credentials/${id}`, "DELETE"); await load(); } catch (next) { setError(errorMessage(next)); } };
+  const migrate = async () => { if (!user || !window.confirm("Firestoreに残る旧パスワードをSecret Managerへ移し、元のpasswordフィールドを削除します。実行しますか？")) return; setSaving(true); try { const data = await companyApi<{ migrated: number }>(user, `/api/companies/${company.id}/credentials/migrate-legacy`, "POST", {}); setError(data.migrated ? null : "移行対象の旧パスワードはありませんでした。"); await load(); } catch (next) { setError(errorMessage(next)); } finally { setSaving(false); } };
+  return <div className="mx-auto max-w-5xl space-y-10"><StatusBanner message={error} type="error" /><ChartSection action={<button className="text-xs font-bold text-[#8A8186]" disabled={saving} onClick={() => void migrate()} type="button">旧保存情報を安全に移行</button>} title="アクセス情報">{items.length ? <div className="divide-y divide-[#F0E7E9]">{items.map((item) => <div className="py-5" key={item.id}><div className="flex justify-between gap-4"><div><p className="font-black text-[#2B2B2B]">{item.label}</p><p className="mt-1 text-xs font-bold text-[#8A8186]">{item.serviceType}</p></div><div className="flex gap-2"><button className="text-sm font-bold text-[#EC6F8B]" onClick={() => { setEditingId(item.id); setForm({ serviceType: item.serviceType, label: item.label, url: item.url ?? "", username: item.username, secret: "" }); }} type="button">編集</button><button className="text-sm font-bold text-[#D94F6E]" onClick={() => void remove(item.id)} type="button">削除</button></div></div><div className="mt-4 grid gap-3 text-sm md:grid-cols-[130px_1fr]"><span className="font-bold text-[#8A8186]">ユーザー名</span><span className="font-semibold">{item.username || "未設定"}</span><span className="font-bold text-[#8A8186]">パスワード</span><span className="font-mono font-semibold">{revealed[item.id] ?? "••••••••••••"}</span></div><div className="mt-4 flex gap-3"><button className="border border-[#F0E7E9] px-3 py-2 text-xs font-bold" onClick={() => void access(item, "reveal")} type="button">表示（30秒）</button><button className="border border-[#F0E7E9] px-3 py-2 text-xs font-bold" onClick={() => void access(item, "copy")} type="button">コピー</button>{item.url ? <a className="px-3 py-2 text-xs font-bold text-[#EC6F8B]" href={item.url} rel="noreferrer" target="_blank">開く</a> : null}</div></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">登録されたアクセス情報はありません。</p>}</ChartSection><ChartSection title={editingId ? "アクセス情報を編集" : "アクセス情報を追加"}><p className="mb-4 text-xs font-semibold leading-6 text-[#8A8186]">秘密本文はSecret Managerへ保存され、Firestore、監査ログ、AI contextには保存されません。管理者・Ownerだけが操作できます。</p><div className="grid gap-4 sm:grid-cols-2"><Select label="種別" value={form.serviceType} options={[["wordpress", "WordPress"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["line", "LINE"], ["server", "サーバー"], ["domain", "ドメイン"], ["google", "Google"], ["other", "その他"]]} onChange={(serviceType) => setForm({ ...form, serviceType })} /><Input label="名称" required value={form.label} onChange={(label) => setForm({ ...form, label })} /><Input label="URL" value={form.url} onChange={(url) => setForm({ ...form, url })} /><Input label="ユーザー名" value={form.username} onChange={(username) => setForm({ ...form, username })} /><Input label={editingId ? "新しいパスワード（変更時のみ）" : "パスワード / Secret"} required={!editingId} type="password" value={form.secret} onChange={(secret) => setForm({ ...form, secret })} /></div><div className="mt-5 flex gap-3"><button className="h-10 bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !form.label.trim() || (!editingId && !form.secret)} onClick={() => void save()} type="button">{saving ? "保存中…" : "安全に保存"}</button>{editingId ? <button className="h-10 border border-[#F0E7E9] px-5 text-sm font-bold" onClick={() => { setEditingId(null); setForm(empty); }} type="button">キャンセル</button> : null}</div></ChartSection></div>;
+}
+
+function InfoPair({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs font-bold text-[#8A8186]">{label}</p><p className="mt-1 text-sm font-bold text-[#2B2B2B]">{value}</p></div>;
 }
 
 function DealsTab({ company, records }: { company: Company; records: TeleapoRecord[] }) {
@@ -510,7 +555,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     companionNames: company?.companionNames ?? [],
     productIds: company?.productIds ?? [],
     productNames: company?.productNames ?? [],
-    productAccountAccess: normalizeProductAccountAccess(company?.productAccountAccess),
     productSalesContext: normalizeProductSalesContext(company?.productSalesContext),
     decisionInfo: normalizeDecisionInfo(company?.decisionInfo),
     contacts: company?.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", role: "", email: company?.email ?? "", phone: company?.phone ?? "" })],
@@ -520,7 +564,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
   const [saving, setSaving] = useState(false);
   const selectedCompanions = members.filter((member) => form.companionUserIds.includes(member.uid));
   const selectedProducts = products.filter((product) => form.productIds.includes(product.id));
-  const hasSnsProduct = selectedProducts.some(isSnsOperationProduct);
   const hasCommoProduct = selectedProducts.some(isCommoProduct);
   const updateContact = (contactId: string, patch: Partial<{ name: string; role: string; email: string; phone: string; contactMethods: ContactMethod[] }>) => {
     setForm({ ...form, contacts: form.contacts.map((contact) => (contact.id === contactId ? { ...contact, ...patch } : contact)) });
@@ -537,15 +580,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
   };
   const addContact = () => setForm({ ...form, contacts: [...form.contacts, { id: crypto.randomUUID(), name: "", role: "", email: "", phone: "", contactMethods: [] }] });
   const removeContact = (contactId: string) => setForm({ ...form, contacts: form.contacts.filter((contact) => contact.id !== contactId) });
-  const updateProductAccount = (section: "instagram" | "tiktok" | "officialLine", key: keyof CompanyProductAccountCredential, value: string) => {
-    setForm((current) => {
-      const currentAccess = normalizeProductAccountAccess(current.productAccountAccess);
-      if (section === "officialLine") {
-        return { ...current, productAccountAccess: { ...currentAccess, commo: { officialLine: { ...currentAccess.commo?.officialLine, [key]: value } } } };
-      }
-      return { ...current, productAccountAccess: { ...currentAccess, sns: { ...currentAccess.sns, [section]: { ...currentAccess.sns?.[section], [key]: value } } } };
-    });
-  };
   const save = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
@@ -569,8 +603,7 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
       internalOwnerId: form.internalOwnerId || currentUser.id,
       internalOwnerName: form.internalOwnerName || currentUser.name,
       companionNames: selectedCompanions.map((member) => member.name),
-      productNames: selectedProducts.map((product) => product.name),
-      productAccountAccess: compactProductAccountAccess(form.productAccountAccess, { sns: hasSnsProduct, commo: hasCommoProduct })
+      productNames: selectedProducts.map((product) => product.name)
     });
     setSaving(false);
   };
@@ -591,35 +624,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
           values={form.productIds}
           onChange={(productIds) => setForm((current) => ({ ...current, productIds }))}
         />
-        {(hasSnsProduct || hasCommoProduct) ? (
-          <div className="grid gap-3 sm:col-span-2">
-            {hasSnsProduct ? (
-              <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
-                <p className="text-sm font-bold text-[#655D62]">SNS運用アカウント</p>
-                <AccountAccessRow
-                  accountLabel="Instagram アカウント名"
-                  credential={form.productAccountAccess.sns?.instagram}
-                  onChange={(key, value) => updateProductAccount("instagram", key, value)}
-                />
-                <AccountAccessRow
-                  accountLabel="TikTok アカウント名"
-                  credential={form.productAccountAccess.sns?.tiktok}
-                  onChange={(key, value) => updateProductAccount("tiktok", key, value)}
-                />
-              </div>
-            ) : null}
-            {hasCommoProduct ? (
-              <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3">
-                <p className="text-sm font-bold text-[#655D62]">commo. 連携アカウント</p>
-                <AccountAccessRow
-                  accountLabel="公式LINE アカウント名"
-                  credential={form.productAccountAccess.commo?.officialLine}
-                  onChange={(key, value) => updateProductAccount("officialLine", key, value)}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         {hasCommoProduct ? (
           <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 sm:col-span-2">
             <p className="text-sm font-bold text-[#655D62]">commo. 営業分析用情報</p>
@@ -890,17 +894,33 @@ function getPrimaryContactLabel(company: Company): string {
   return company.primaryContactName ?? "";
 }
 
-function normalizeProductAccountAccess(access?: CompanyProductAccountAccess): CompanyProductAccountAccess {
-  return {
-    sns: {
-      instagram: access?.sns?.instagram ?? {},
-      tiktok: access?.sns?.tiktok ?? {}
-    },
-    commo: {
-      officialLine: access?.commo?.officialLine ?? {}
-    }
-  };
+function companyStatusLabel(status: Company["status"]): string {
+  return ({ lead: "営業前", prospect: "提案中", customer: "運用中", inactive: "停止中", archived: "アーカイブ" } as const)[status] ?? status;
 }
+
+function relativeDate(date: Date): string {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const target = new Date(date); target.setHours(0, 0, 0, 0);
+  const days = Math.round((start.getTime() - target.getTime()) / 86_400_000);
+  if (days === 0) return "今日";
+  if (days === 1) return "昨日";
+  if (days > 1 && days < 7) return `${days}日前`;
+  return date.toLocaleDateString("ja-JP");
+}
+
+async function companyApi<T = { id: string }>(user: Exclude<AuthTokenUser, null>, path: string, method = "GET", body?: unknown): Promise<T> {
+  const token = await user.getIdToken();
+  const response = await fetch(path, { method, headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+  const payload = await response.json() as { success: boolean; data?: T; error?: { message?: string } };
+  if (!response.ok || !payload.success || !payload.data) throw new Error(payload.error?.message || "処理に失敗しました。");
+  return payload.data;
+}
+
+function errorMessage(error: unknown): string { return error instanceof Error ? error.message : "処理に失敗しました。"; }
+function dateInput(value?: string | null): string { return value ? value.slice(0, 10) : ""; }
+function formatOptionalDate(value?: string | null): string { return value ? new Date(value).toLocaleDateString("ja-JP") : "未設定"; }
+function serviceStatusLabel(status: string): string { return status === "active" ? "利用中" : status === "paused" ? "一時停止" : "終了"; }
+function billingLabel(value: string): string { return value === "monthly" ? "月" : value === "yearly" ? "年" : value === "one_time" ? "一括" : "その他"; }
 
 function normalizeProductSalesContext(context?: CompanyProductSalesContext): CompanyProductSalesContext {
   return {
@@ -933,27 +953,6 @@ function normalizeDecisionInfo(info?: CompanyDecisionInfo): CompanyDecisionInfo 
     competitors: info?.competitors ?? [],
     approvalConditions: info?.approvalConditions ?? []
   };
-}
-
-function compactProductAccountAccess(access: CompanyProductAccountAccess, enabled: { sns: boolean; commo: boolean }): CompanyProductAccountAccess {
-  const normalized = normalizeProductAccountAccess(access);
-  return {
-    ...(enabled.sns ? { sns: { instagram: cleanCredential(normalized.sns?.instagram), tiktok: cleanCredential(normalized.sns?.tiktok) } } : {}),
-    ...(enabled.commo ? { commo: { officialLine: cleanCredential(normalized.commo?.officialLine) } } : {})
-  };
-}
-
-function cleanCredential(credential?: CompanyProductAccountCredential): CompanyProductAccountCredential {
-  const next = {
-    accountName: credential?.accountName?.trim() ?? "",
-    email: credential?.email?.trim() ?? "",
-    password: credential?.password?.trim() ?? ""
-  };
-  return next.accountName || next.email || next.password ? next : {};
-}
-
-function isSnsOperationProduct(product: Product): boolean {
-  return product.name.includes("SNS運用代行");
 }
 
 function isCommoProduct(product: Product): boolean {
@@ -1000,16 +999,6 @@ function formatActivityParties(log: CompanyActivityLog): string {
 
 function Input({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
   return <label className="grid gap-2 text-sm font-bold text-[#655D62]"><span className="inline-flex items-center gap-2">{label}{required ? <span className="h-1.5 w-1.5 rounded-none bg-[#EC6F8B]" /> : null}</span><input className="task-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
-}
-
-function AccountAccessRow({ accountLabel, credential, onChange }: { accountLabel: string; credential?: CompanyProductAccountCredential; onChange: (key: keyof CompanyProductAccountCredential, value: string) => void }) {
-  return (
-    <div className="grid gap-2 md:grid-cols-3">
-      <input className="task-input" placeholder={accountLabel} value={credential?.accountName ?? ""} onChange={(event) => onChange("accountName", event.target.value)} />
-      <input className="task-input" placeholder="メールアドレス" value={credential?.email ?? ""} onChange={(event) => onChange("email", event.target.value)} />
-      <input className="task-input" placeholder="パスワード" value={credential?.password ?? ""} onChange={(event) => onChange("password", event.target.value)} />
-    </div>
-  );
 }
 
 function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {

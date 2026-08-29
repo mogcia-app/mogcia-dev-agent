@@ -26,6 +26,11 @@ export async function GET(request: Request) {
     const nextEvent = events
       .filter((event) => belongsToUser(event, user.uid) && timestampMillis(event.startAt) >= now)
       .sort((a, b) => timestampMillis(a.startAt) - timestampMillis(b.startAt))[0];
+    const upcomingEvents = events
+      .filter((event) => belongsToUser(event, user.uid) && timestampMillis(event.startAt) >= now)
+      .sort((a, b) => timestampMillis(a.startAt) - timestampMillis(b.startAt))
+      .slice(0, 12)
+      .map((event) => ({ id: event.id, title: String(event.title ?? event.companyName ?? "予定"), productName: stringOrNull(event.productName), startAt: new Date(timestampMillis(event.startAt)).toISOString() }));
     const runs: Array<Record<string, unknown> & { id: string }> = runsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
     const role = user.uid === adminUid ? "admin" : String(userDoc.data()?.role ?? "sales");
     return NextResponse.json({ success: true, data: {
@@ -47,6 +52,7 @@ export async function GET(request: Request) {
         productName: stringOrNull(nextEvent.productName),
         startAt: new Date(timestampMillis(nextEvent.startAt)).toISOString()
       } : null,
+      upcomingEvents,
       development: {
         running: runs.filter((run) => ["queued", "running"].includes(String(run.status))).length,
         awaitingApproval: runs.filter((run) => run.status === "requires_approval").length
