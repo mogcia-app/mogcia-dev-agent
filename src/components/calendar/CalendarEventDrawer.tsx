@@ -32,9 +32,6 @@ export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, 
           {item.companyName ? <Info label="会社" value={item.companyName} /> : null}
           {item.projectName ? <Info label="案件" value={item.projectName} /> : null}
           {item.location ? <Info label="場所" value={item.location} /> : null}
-          {item.createdBy ? <Info label="作成者" value={getUserDisplayNameById(item.createdBy, item.createdByName)} /> : null}
-          {item.createdAt ? <Info label="作成日" value={item.createdAt.toLocaleDateString("ja-JP")} /> : null}
-          {item.updatedAt ? <Info label="更新日" value={item.updatedAt.toLocaleDateString("ja-JP")} /> : null}
         </div>
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">
