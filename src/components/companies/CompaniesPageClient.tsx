@@ -18,7 +18,7 @@ import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
+import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { Activity } from "@/types/lead";
 import type { TaskDraft } from "@/types/task";
@@ -169,7 +169,7 @@ export function CompaniesPageClient() {
               <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
                 <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
                 <div className="p-5">
-                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} commonActivities={store.commonActivities} logs={store.logs} products={products} records={analysisRecords} tasks={store.tasks} onActivity={() => setRoute({ id: selectedCompany.id, tab: "timeline" })} /> : null}
+                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => setRoute({ id: selectedCompany.id, tab: "timeline" })} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "meetings" ? <div className="space-y-10"><DealsTab company={selectedCompany} records={analysisRecords} /><ChartSection title="打ち合わせ履歴"><MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /></ChartSection></div> : null}
@@ -209,10 +209,9 @@ function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite,
   return <section className="border-b border-[#F0E7E9] bg-white px-1 pb-5"><button className="mb-3 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">← 会社一覧</button><div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><div className="flex items-center gap-2"><h2 className="text-3xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div><p className="mt-2 text-sm font-semibold text-[#777]">{[company.industry, company.prefecture, company.city].filter(Boolean).join(" / ") || "基本情報未設定"}</p><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-[#8A8186]"><span>最終接触 {company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span><span>担当 {company.internalOwnerName || "未設定"}</span><span>状態 {companyStatusLabel(company.status)}</span></div></div><div className="relative flex flex-wrap gap-2">{company.email ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">活動を追加</button><button className="h-10 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button><button className="grid h-10 w-10 place-items-center border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
-function OverviewTab({ company, products, tasks, commonActivities, logs, records, onActivity }: { company: Company; products: Product[]; tasks: Array<{ id?: string; status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }>; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void }) {
+function OverviewTab({ company, tasks, commonActivities, logs, records, onActivity }: { company: Company; tasks: Array<{ id?: string; status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }>; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void }) {
   const openTasks = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER));
   const nextTask = openTasks[0];
-  const hasCommoProduct = companyHasCommoProduct(company, products);
   const primaryContact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
   const commonLegacyIds = new Set(commonActivities.map((item) => item.legacyCompanyActivityLogId).filter(Boolean));
   const recent = [
@@ -231,7 +230,7 @@ function OverviewTab({ company, products, tasks, commonActivities, logs, records
     </ChartSection>
     <ChartSection title="先方担当者"><InfoGrid rows={[["氏名", primaryContact ? formatContactName(primaryContact) : company.primaryContactName || "未設定"], ["電話", primaryContact?.phone || company.phone || "未設定"], ["メール", primaryContact?.email || company.email || "未設定"]]} /></ChartSection>
     <ChartSection title="利用中サービス"><p className="text-sm font-bold text-[#2B2B2B]">{company.productNames?.join(" / ") || "未設定"}</p></ChartSection>
-    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ...(hasCommoProduct ? [["commo.営業情報", formatCommoContext(company.productSalesContext?.commo)] as [string, string]] : [])]} /></ChartSection>
+    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"]]} /></ChartSection>
   </div>;
 }
 
@@ -554,7 +553,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     companionNames: company?.companionNames ?? [],
     productIds: company?.productIds ?? [],
     productNames: company?.productNames ?? [],
-    productSalesContext: normalizeProductSalesContext(company?.productSalesContext),
     contacts: company?.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", role: "", email: company?.email ?? "", phone: company?.phone ?? "" })],
     tags: company?.tags.join(", ") ?? "",
     notes: company?.notes ?? ""
@@ -562,7 +560,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
   const [saving, setSaving] = useState(false);
   const selectedCompanions = members.filter((member) => form.companionUserIds.includes(member.uid));
   const selectedProducts = products.filter((product) => form.productIds.includes(product.id));
-  const hasCommoProduct = selectedProducts.some(isCommoProduct);
   const updateContact = (contactId: string, patch: Partial<{ name: string; role: string; email: string; phone: string; contactMethods: ContactMethod[] }>) => {
     setForm({ ...form, contacts: form.contacts.map((contact) => (contact.id === contactId ? { ...contact, ...patch } : contact)) });
   };
@@ -622,21 +619,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
           values={form.productIds}
           onChange={(productIds) => setForm((current) => ({ ...current, productIds }))}
         />
-        {hasCommoProduct ? (
-          <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 sm:col-span-2">
-            <p className="text-sm font-bold text-[#655D62]">commo. 営業分析用情報</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input label="施設規模" value={form.productSalesContext.commo?.facilityScale ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { facilityScale: value }) }))} />
-              <Input label="LINE活用状況" value={form.productSalesContext.commo?.currentLineUsage ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { currentLineUsage: value }) }))} />
-              <Input label="OTA依存度" value={form.productSalesContext.commo?.otaDependency ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { otaDependency: value }) }))} />
-              <Input label="既存CRM" value={form.productSalesContext.commo?.existingCrm ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { existingCrm: value }) }))} />
-              <Input label="予約管理方法" value={form.productSalesContext.commo?.reservationManagement ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { reservationManagement: value }) }))} />
-              <Input label="運用担当者" value={form.productSalesContext.commo?.operationOwner ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { operationOwner: value }) }))} />
-              <Input label="リピーター状況" value={form.productSalesContext.commo?.repeatCustomerStatus ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { repeatCustomerStatus: value }) }))} />
-              <Input label="休眠顧客状況" value={form.productSalesContext.commo?.dormantCustomerStatus ?? ""} onChange={(value) => setForm((current) => ({ ...current, productSalesContext: updateCommoContext(current.productSalesContext, { dormantCustomerStatus: value }) }))} />
-            </div>
-          </div>
-        ) : null}
         <Field label="社内担当者">
           <div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
         </Field>
@@ -842,21 +824,6 @@ function formatContacts(company: Company): string {
   return rows.length ? rows.join("\n") : "未設定";
 }
 
-function formatCommoContext(context?: CompanyProductSalesContext["commo"]): string {
-  if (!context) return "未設定";
-  const rows = [
-    context.facilityScale ? `施設規模: ${context.facilityScale}` : "",
-    context.currentLineUsage ? `LINE活用: ${context.currentLineUsage}` : "",
-    context.otaDependency ? `OTA依存度: ${context.otaDependency}` : "",
-    context.existingCrm ? `既存CRM: ${context.existingCrm}` : "",
-    context.reservationManagement ? `予約管理: ${context.reservationManagement}` : "",
-    context.operationOwner ? `運用担当: ${context.operationOwner}` : "",
-    context.repeatCustomerStatus ? `リピーター: ${context.repeatCustomerStatus}` : "",
-    context.dormantCustomerStatus ? `休眠顧客: ${context.dormantCustomerStatus}` : ""
-  ].filter(Boolean);
-  return rows.length ? rows.join("\n") : "未設定";
-}
-
 function getPrimaryContactLabel(company: Company): string {
   const contact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
   if (contact) return formatContactName(contact);
@@ -890,35 +857,6 @@ function dateInput(value?: string | null): string { return value ? value.slice(0
 function formatOptionalDate(value?: string | null): string { return value ? new Date(value).toLocaleDateString("ja-JP") : "未設定"; }
 function serviceStatusLabel(status: string): string { return status === "active" ? "利用中" : status === "paused" ? "一時停止" : "終了"; }
 function billingLabel(value: string): string { return value === "monthly" ? "月" : value === "yearly" ? "年" : value === "one_time" ? "一括" : "その他"; }
-
-function normalizeProductSalesContext(context?: CompanyProductSalesContext): CompanyProductSalesContext {
-  return {
-    commo: {
-      facilityScale: context?.commo?.facilityScale ?? "",
-      currentLineUsage: context?.commo?.currentLineUsage ?? "",
-      otaDependency: context?.commo?.otaDependency ?? "",
-      existingCrm: context?.commo?.existingCrm ?? "",
-      reservationManagement: context?.commo?.reservationManagement ?? "",
-      repeatCustomerStatus: context?.commo?.repeatCustomerStatus ?? "",
-      dormantCustomerStatus: context?.commo?.dormantCustomerStatus ?? "",
-      operationOwner: context?.commo?.operationOwner ?? ""
-    }
-  };
-}
-
-function updateCommoContext(context: CompanyProductSalesContext, patch: NonNullable<CompanyProductSalesContext["commo"]>): CompanyProductSalesContext {
-  const normalized = normalizeProductSalesContext(context);
-  return { ...normalized, commo: { ...normalized.commo, ...patch } };
-}
-
-function isCommoProduct(product: Product): boolean {
-  return product.name.toLowerCase().includes("commo");
-}
-
-function companyHasCommoProduct(company: Company, products: Product[]): boolean {
-  const selectedProducts = products.filter((product) => company.productIds?.includes(product.id));
-  return selectedProducts.some(isCommoProduct) || Boolean(company.productNames?.some((name) => name.toLowerCase().includes("commo")));
-}
 
 function formatContactName(contact: { name?: string; role?: string; email?: string; phone?: string }): string {
   const name = contact.name || contact.email || contact.phone || "名前未設定";
