@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Bookmark, CalendarDays, Check, CheckCircle2, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, Bookmark, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Sparkles, Target, Trash2, UserRound } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -28,6 +28,8 @@ type SortKey = "lastContact" | "updated" | "name" | "owner";
 type TabKey = "overview" | "timeline" | "services" | "meetings" | "tasks" | "files" | "access" | "notes";
 
 const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["services", "サービス"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["access", "アクセス情報"], ["notes", "メモ"]];
+const primaryDetailTabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"]];
+const otherDetailTabs: Array<[TabKey, string]> = [["services", "サービス"], ["access", "アクセス情報"], ["notes", "メモ"]];
 const sortOptions: Array<[SortKey, string]> = [["lastContact", "最終接触日が新しい順"], ["updated", "更新日が新しい順"], ["name", "会社名順"], ["owner", "担当者順"]];
 
 const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
@@ -164,12 +166,12 @@ export function CompaniesPageClient() {
         </section>
         ) : (
         <section className="min-w-0">
-            <div className="space-y-4">
+            <div className="space-y-5">
               <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onBack={showCompanyList} onDelete={() => { void store.deleteCompany(selectedCompany.id); showCompanyList(); }} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} />
-              <div className="rounded-none border border-[#F0E7E9] bg-white shadow-sm">
-                <div className="flex overflow-x-auto border-b border-[#F0E7E9]">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedCompany.id, tab: value })} type="button">{label}</button>)}</div>
-                <div className="p-5">
-                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => setRoute({ id: selectedCompany.id, tab: "timeline" })} /> : null}
+              <CompanySummaryCards company={selectedCompany} tasks={store.tasks} />
+              <CompanyDetailTabs selectedTab={selectedTab} onSelect={(tab) => setRoute({ id: selectedCompany.id, tab })} />
+              <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"}>
+                  {selectedTab === "overview" ? <OverviewTab company={selectedCompany} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => setRoute({ id: selectedCompany.id, tab: "timeline" })} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onMemo={() => setMemoOpen(true)} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "meetings" ? <div className="space-y-10"><DealsTab company={selectedCompany} records={analysisRecords} /><ChartSection title="打ち合わせ履歴"><MeetingsTab meetings={store.meetings} onCreate={() => setMeetingOpen(true)} /></ChartSection></div> : null}
@@ -177,7 +179,6 @@ export function CompaniesPageClient() {
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
                   {selectedTab === "access" ? <AccessTab company={selectedCompany} user={store.user} /> : null}
                   {selectedTab === "notes" ? <NotesTab currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
-                </div>
               </div>
             </div>
         </section>
@@ -206,11 +207,28 @@ function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { 
 
 function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite, onEdit, onLog, onDelete }: { company: Company; favorite: boolean; canDelete: boolean; onBack: () => void; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void }) {
   const [menu, setMenu] = useState(false);
-  return <section className="border-b border-[#F0E7E9] bg-white px-1 pb-5"><button className="mb-3 text-sm font-bold text-[#EC6F8B]" onClick={onBack} type="button">← 会社一覧</button><div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><div className="flex items-center gap-2"><h2 className="text-3xl font-bold text-[#2B2B2B]">{company.name}</h2><button className="text-[#EC6F8B]" onClick={onFavorite} type="button"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div><p className="mt-2 text-sm font-semibold text-[#777]">{[company.industry, company.prefecture, company.city].filter(Boolean).join(" / ") || "基本情報未設定"}</p><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-[#8A8186]"><span>最終接触 {company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span><span>担当 {company.internalOwnerName || "未設定"}</span><span>状態 {companyStatusLabel(company.status)}</span></div></div><div className="relative flex flex-wrap gap-2">{company.email ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="h-10 bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button">活動を追加</button><button className="h-10 border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="mr-2 inline h-4 w-4" />編集</button><button className="grid h-10 w-10 place-items-center border border-[#F0E7E9]" onClick={() => setMenu((current) => !current)} type="button"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 border border-[#F0E7E9] bg-white p-2 shadow-lg"><button className="h-9 text-left text-sm font-bold text-[#6F676B]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 text-left text-sm font-bold text-[#6F676B]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 text-left text-sm font-bold text-[#D94F6E]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
+  return <section className="bg-white/80 pb-2"><button className="mb-5 text-sm font-semibold text-[#EC6F8B]" onClick={onBack} type="button">← 会社一覧に戻る</button><div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div className="min-w-0"><div className="flex min-w-0 items-center gap-3"><h2 className="break-words text-3xl font-bold tracking-normal text-[#111827]">{company.name}</h2><button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#EC6F8B] hover:bg-[#FFF0F3]" onClick={onFavorite} type="button" aria-label="お気に入り"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button></div><div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-semibold text-[#4B5563]"><StatusBadge status={company.status} /><span>業種：{company.industry || "未設定"}</span><span>担当：{company.internalOwnerName || "未設定"}</span><span>最終接触：{company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span></div></div><div className="relative flex flex-wrap gap-2">{company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}{company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}<button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button><button className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button><button className="grid h-10 w-10 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151]" onClick={() => setMenu((current) => !current)} type="button" aria-label="その他"><MoreHorizontal className="h-5 w-5" /></button>{menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-lg"><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#D94F6E] hover:bg-[#FFF0F3]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}</div></div></section>;
 }
 
-function OverviewTab({ company, tasks, commonActivities, logs, records, onActivity }: { company: Company; tasks: Array<{ id?: string; status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }>; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void }) {
-  const openTasks = tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER));
+function CompanySummaryCards({ company, tasks }: { company: Company; tasks: Array<{ status: string; dueDate?: { toDate: () => Date } | null; title: string }> }) {
+  const openTasks = sortedOpenTasks(tasks);
+  const nextTask = openTasks[0];
+  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><SummaryCard icon={<Target className="h-5 w-5" />} label="ステータス" value={companyStatusLabel(company.status)} tone="yellow" /><SummaryCard icon={<UserRound className="h-5 w-5" />} label="最終接触" value={company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"} /><SummaryCard icon={<CalendarDays className="h-5 w-5" />} label="次回予定" value={nextTask?.dueDate?.toDate().toLocaleDateString("ja-JP") || company.nextActionAt?.toDate().toLocaleDateString("ja-JP") || "未設定"} tone="pink" /><SummaryCard icon={<CheckCircle2 className="h-5 w-5" />} label="未完了タスク" value={`${openTasks.length}件`} tone="green" /></div>;
+}
+
+function SummaryCard({ icon, label, value, tone = "gray" }: { icon: React.ReactNode; label: string; value: string; tone?: "gray" | "yellow" | "pink" | "green" }) {
+  const toneClass = tone === "yellow" ? "bg-[#FFF8E6] text-[#B7791F]" : tone === "pink" ? "bg-[#FFF0F3] text-[#EC6F8B]" : tone === "green" ? "bg-[#ECFDF3] text-[#16A34A]" : "bg-[#F3F4F6] text-[#6B7280]";
+  return <section className="flex min-h-24 items-center gap-4 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${toneClass}`}>{icon}</span><div className="min-w-0"><p className="text-xs font-semibold text-[#6B7280]">{label}</p><p className="mt-1 truncate text-lg font-bold text-[#111827]">{value}</p></div></section>;
+}
+
+function CompanyDetailTabs({ selectedTab, onSelect }: { selectedTab: TabKey; onSelect: (tab: TabKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const selectedOther = otherDetailTabs.some(([value]) => value === selectedTab);
+  return <nav className="relative flex flex-wrap items-center gap-x-7 gap-y-1 border-b border-[#E5E7EB]" aria-label="会社詳細タブ">{primaryDetailTabs.map(([value, label]) => <button className={`h-12 shrink-0 border-b-2 text-sm font-bold transition ${selectedTab === value ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#111827] hover:text-[#EC6F8B]"}`} key={value} onClick={() => onSelect(value)} type="button">{label}</button>)}<div className="relative shrink-0"><button className={`h-12 border-b-2 text-sm font-bold transition ${selectedOther ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#111827] hover:text-[#EC6F8B]"}`} onClick={() => setOpen((current) => !current)} type="button">その他 ▾</button>{open ? <div className="absolute left-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-lg">{otherDetailTabs.map(([value, label]) => <button className={`h-9 rounded-md px-2 text-left text-sm font-semibold ${selectedTab === value ? "bg-[#FFF0F3] text-[#EC6F8B]" : "text-[#374151] hover:bg-[#F9FAFB]"}`} key={value} onClick={() => { setOpen(false); onSelect(value); }} type="button">{label}</button>)}</div> : null}</div></nav>;
+}
+
+function OverviewTab({ company, tasks, commonActivities, logs, records, onActivity, onEdit, onLog, onMemo }: { company: Company; tasks: Array<{ id?: string; status: string; dueDate?: { toDate: () => Date } | null; title: string; assigneeName?: string }>; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void; onEdit: () => void; onLog: () => void; onMemo: () => void }) {
+  const openTasks = sortedOpenTasks(tasks);
   const nextTask = openTasks[0];
   const primaryContact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
   const commonLegacyIds = new Set(commonActivities.map((item) => item.legacyCompanyActivityLogId).filter(Boolean));
@@ -219,23 +237,36 @@ function OverviewTab({ company, tasks, commonActivities, logs, records, onActivi
     ...logs.filter((item) => !commonLegacyIds.has(item.id)).map((item) => ({ id: `l-${item.id}`, date: item.occurredAt.toDate(), type: activityTypeLabels[item.type], title: item.title, content: item.content })),
     ...records.filter((item) => item.companyId === company.id || (!item.companyId && item.customerName === company.name)).map((item) => ({ id: `r-${item.id}`, date: item.recordedAt.toDate(), type: item.salesDomain === "teleapo" ? "テレアポ" : "商談", title: item.meetingTitle || item.productName || "音声分析", content: item.aiAdvice?.summary || "" }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
-  return <div className="mx-auto max-w-5xl space-y-10">
-    <ChartSection title="現在の状況"><InfoGrid rows={[["状態", companyStatusLabel(company.status)], ["自社担当", company.internalOwnerName || "未設定"], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleDateString("ja-JP") : "未接触"], ["次回アクション", nextTask?.title || company.nextActionTitle || "未設定"], ["次回予定", nextTask?.dueDate?.toDate().toLocaleDateString("ja-JP") || company.nextActionAt?.toDate().toLocaleDateString("ja-JP") || "未設定"]]} /></ChartSection>
-    <ChartSection title="次にやること">
-      {openTasks.length ? <div className="divide-y divide-[#F0E7E9]">{openTasks.slice(0, 5).map((task, index) => <div className="grid gap-1 py-3 sm:grid-cols-[24px_1fr_auto]" key={task.id ?? `${task.title}-${index}`}><span className="text-[#EC6F8B]">□</span><span className="font-bold text-[#2B2B2B]">{task.title}</span><span className="text-xs font-bold text-[#8A8186]">{task.dueDate ? `${task.dueDate.toDate().toLocaleDateString("ja-JP")}まで` : "期限未設定"}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">未完了タスクはありません。</p>}
-      {!company.nextActionAt && !nextTask ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">⚠ 次回アクションが未設定です</p> : null}
-    </ChartSection>
-    <ChartSection action={<button className="text-sm font-bold text-[#EC6F8B]" onClick={onActivity} type="button">すべて見る →</button>} title="最近の活動">
-      {recent.length ? <div className="divide-y divide-[#F0E7E9]">{recent.map((item) => <div className="grid gap-2 py-4 md:grid-cols-[130px_100px_1fr]" key={item.id}><time className="text-xs font-bold text-[#8A8186]">{item.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</time><span className="text-xs font-bold text-[#EC6F8B]">{item.type}</span><span><strong className="block text-sm text-[#2B2B2B]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-semibold text-[#6F676B]">{item.content}</span> : null}</span></div>)}</div> : <p className="text-sm font-semibold text-[#8A8186]">活動履歴はまだありません。</p>}
-    </ChartSection>
-    <ChartSection title="先方担当者"><InfoGrid rows={[["氏名", primaryContact ? formatContactName(primaryContact) : company.primaryContactName || "未設定"], ["電話", primaryContact?.phone || company.phone || "未設定"], ["メール", primaryContact?.email || company.email || "未設定"]]} /></ChartSection>
-    <ChartSection title="利用中サービス"><p className="text-sm font-bold text-[#2B2B2B]">{company.productNames?.join(" / ") || "未設定"}</p></ChartSection>
-    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"]]} /></ChartSection>
+  const nextActionDate = nextTask?.dueDate?.toDate() ?? company.nextActionAt?.toDate() ?? null;
+  return <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="space-y-5">
+      <DetailCard action={<button className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>} title="会社情報">
+        <InfoGrid compact rows={[["自社担当", company.internalOwnerName || "未設定"], ["状態", companyStatusLabel(company.status)], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleDateString("ja-JP") : "未接触"], ["次回アクション", nextTask?.title || company.nextActionTitle || "未設定"], ["次回予定", nextActionDate ? nextActionDate.toLocaleDateString("ja-JP") : "未設定"], ["作成日", company.createdAt.toDate().toLocaleDateString("ja-JP")], ["最終更新日", company.updatedAt.toDate().toLocaleDateString("ja-JP")]]} />
+        <div className="mt-5 border-t border-[#E5E7EB] pt-5"><div className="mb-3 flex items-center justify-between gap-3"><h4 className="text-base font-bold text-[#111827]">会社メモ</h4><button className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#374151]" onClick={onMemo} type="button"><Plus className="h-4 w-4" />メモを追加</button></div>{company.notes ? <p className="whitespace-pre-wrap rounded-lg bg-[#F9FAFB] p-4 text-sm font-medium leading-6 text-[#374151]">{company.notes}</p> : <p className="rounded-lg bg-[#F9FAFB] p-4 text-sm font-medium text-[#6B7280]">メモはまだありません。</p>}</div>
+      </DetailCard>
+      <DetailCard action={<button className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-semibold text-[#374151]" onClick={onActivity} type="button">すべての活動を見る</button>} title="最近の活動">
+        {recent.length ? <div className="space-y-4">{recent.map((item) => <div className="grid gap-3 border-b border-[#F3F4F6] pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[80px_92px_minmax(0,1fr)]" key={item.id}><time className="text-xs font-semibold text-[#6B7280]">{item.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</time><span className="inline-flex h-7 w-fit items-center rounded-full bg-[#FFF0F3] px-3 text-xs font-bold text-[#EC6F8B]">{item.type}</span><span className="min-w-0"><strong className="block text-sm font-bold text-[#111827]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-medium leading-6 text-[#6B7280]">{item.content}</span> : null}</span></div>)}</div> : <div className="grid min-h-48 place-items-center text-center"><div><Clock3 className="mx-auto h-9 w-9 text-[#C7CBD1]" /><p className="mt-3 text-sm font-bold text-[#111827]">活動履歴はまだありません</p><p className="mt-1 text-sm font-medium text-[#6B7280]">最初の活動を登録して、顧客との関係を記録しましょう。</p><button className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button></div></div>}
+      </DetailCard>
+    </div>
+    <aside className="space-y-4">
+      <SideCard icon={<Target className="h-5 w-5" />} title="次にやること">{nextTask || company.nextActionTitle ? <div className="space-y-3"><InfoPair label="次回アクション" value={nextTask?.title || company.nextActionTitle || "未設定"} /><InfoPair label="期限" value={nextActionDate ? nextActionDate.toLocaleDateString("ja-JP") : "未設定"} /><InfoPair label="担当" value={nextTask?.assigneeName || company.internalOwnerName || "未設定"} /></div> : <div className="rounded-lg bg-[#FFF0F3] p-4"><p className="flex items-center gap-2 text-sm font-bold text-[#9F1239]"><AlertTriangle className="h-4 w-4" />次回アクションが設定されていません</p><p className="mt-2 text-sm font-medium text-[#6B4B55]">優先的に次回アクションを設定しましょう。</p><button className="mt-4 h-10 w-full rounded-lg border border-[#F7CAD2] bg-white text-sm font-bold text-[#EC6F8B]" onClick={onLog} type="button">＋ 次回アクションを設定</button></div>}</SideCard>
+      <SideCard icon={<CalendarDays className="h-5 w-5" />} title="次回予定"><p className="text-sm font-medium text-[#4B5563]">{nextActionDate ? `${nextActionDate.toLocaleDateString("ja-JP")} / ${nextTask?.title || company.nextActionTitle || "予定"}` : "予定が設定されていません"}</p><Link className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#F7CAD2] bg-white text-sm font-bold text-[#EC6F8B]" href={"/calendar" as Route}>＋ 予定を追加</Link></SideCard>
+      <SideCard icon={<UserRound className="h-5 w-5" />} title="担当者"><p className="text-sm font-bold text-[#111827]">{company.internalOwnerName || "未設定"}</p>{company.companionNames?.length ? <p className="mt-2 text-xs font-semibold text-[#6B7280]">同行者: {company.companionNames.join(" / ")}</p> : null}</SideCard>
+      <SideCard icon={<Bookmark className="h-5 w-5" />} title="重要メモ">{company.notes ? <p className="line-clamp-5 whitespace-pre-wrap text-sm font-medium leading-6 text-[#4B5563]">{company.notes}</p> : <p className="text-sm font-medium text-[#6B7280]">重要メモはありません</p>}<button className="mt-4 h-10 w-full rounded-lg border border-[#F7CAD2] bg-white text-sm font-bold text-[#EC6F8B]" onClick={onMemo} type="button">＋ メモを追加</button></SideCard>
+    </aside>
   </div>;
 }
 
 function ChartSection({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return <section><div className="mb-4 flex items-center justify-between border-b border-[#E8DDE0] pb-3"><h3 className="text-base font-black text-[#2B2B2B]">{title}</h3>{action}</div>{children}</section>;
+  return <section><div className="mb-4 flex items-center justify-between border-b border-[#E5E7EB] pb-3"><h3 className="text-base font-bold text-[#111827]">{title}</h3>{action}</div>{children}</section>;
+}
+
+function DetailCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-lg font-bold text-[#111827]">{title}</h3>{action}</div>{children}</section>;
+}
+
+function SideCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><div className="mb-4 flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span><h3 className="text-base font-bold text-[#111827]">{title}</h3></div>{children}</section>;
 }
 
 type UnifiedCompanyTimelineItem =
@@ -812,8 +843,8 @@ function Actions({ saving, disabled, onClose, onSave }: { saving: boolean; disab
   return <div className="mt-6 flex justify-end gap-3"><button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">保存</button></div>;
 }
 
-function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
-  return <div className="grid gap-4">{rows.map(([label, value]) => <div className="grid gap-2 md:grid-cols-[150px_1fr]" key={label}><p className="text-sm font-bold text-[#777]">{label}</p><p className="whitespace-pre-wrap text-sm font-semibold leading-6 text-[#2B2B2B]">{value}</p></div>)}</div>;
+function InfoGrid({ rows, compact = false }: { rows: Array<[string, string]>; compact?: boolean }) {
+  return <div className={compact ? "grid gap-3" : "grid gap-4"}>{rows.map(([label, value]) => <div className={`grid gap-2 ${compact ? "md:grid-cols-[150px_1fr]" : "md:grid-cols-[150px_1fr]"}`} key={label}><p className="text-sm font-semibold text-[#6B7280]">{label}</p><p className="whitespace-pre-wrap text-sm font-medium leading-6 text-[#111827]">{value}</p></div>)}</div>;
 }
 
 function formatContacts(company: Company): string {
@@ -832,6 +863,24 @@ function getPrimaryContactLabel(company: Company): string {
 
 function companyStatusLabel(status: Company["status"]): string {
   return ({ lead: "営業前", prospect: "提案中", customer: "運用中", inactive: "停止中", archived: "アーカイブ" } as const)[status] ?? status;
+}
+
+function companyStatusClass(status: Company["status"]): string {
+  return ({
+    lead: "bg-[#FFF4CC] text-[#8A5A00]",
+    prospect: "bg-[#F5ECFF] text-[#6D3FB5]",
+    customer: "bg-[#EAFBF0] text-[#147A3C]",
+    inactive: "bg-[#F3F4F6] text-[#6B7280]",
+    archived: "bg-[#F3F4F6] text-[#6B7280]"
+  } as const)[status] ?? "bg-[#F3F4F6] text-[#6B7280]";
+}
+
+function StatusBadge({ status }: { status: Company["status"] }) {
+  return <span className={`inline-flex h-8 items-center rounded-full px-3 text-xs font-bold ${companyStatusClass(status)}`}>{companyStatusLabel(status)}</span>;
+}
+
+function sortedOpenTasks<T extends { status: string; dueDate?: { toDate: () => Date } | null }>(tasks: T[]): T[] {
+  return tasks.filter((task) => task.status !== "completed").sort((a, b) => (a.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER) - (b.dueDate?.toDate().getTime() ?? Number.MAX_SAFE_INTEGER));
 }
 
 function relativeDate(date: Date): string {
