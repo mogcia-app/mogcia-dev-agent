@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Timestamp } from "firebase/firestore";
-import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, UploadCloud, X } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Save, Search, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -233,23 +233,32 @@ export function LeadsPageClient() {
           </div>
         </section>
 
-      {selectedLead ? <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setRoute({ id: null }); }}><aside className="ml-auto h-full w-full max-w-3xl overflow-y-auto border-l border-[#EAE5E3] bg-white shadow-2xl">
-          <div className="sticky top-0 z-10 flex justify-end border-b border-[#EEEAE8] bg-white/95 p-3"><button className="grid h-9 w-9 place-items-center rounded-lg hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div>
-          <div className="space-y-4 p-5"><LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onBack={() => setRoute({ id: null })} onEdit={() => openEditLead(selectedLead)} />
-          <div className="rounded-xl border border-[#F0E7E9] bg-white shadow-sm">
-            <div className="flex overflow-x-auto border-b border-[#F0E7E9]">
-              {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
-            </div>
-            <div className="p-5">
-              {selectedTab === "overview" ? <OverviewTab companies={companies} lead={selectedLead} onLinkCompany={linkCompany} records={selectedRecords} /> : null}
-              {selectedTab === "activity" ? <ActivityTab activities={activities} records={selectedRecords} /> : null}
-              {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} /> : null}
-              {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
-              {selectedTab === "files" ? <EmptyState icon={UploadCloud} title="ファイルはまだありません" description="会社化後も参照できるファイル基盤として次フェーズで接続します。" /> : null}
-              {selectedTab === "notes" ? <NotesTab lead={selectedLead} currentUser={currentUser} onSave={(nextDraft) => updateLead(selectedLead.id, nextDraft, currentUser)} /> : null}
+      {selectedLead ? <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setRoute({ id: null }); }}>
+        <aside className="ml-auto h-full w-full max-w-5xl overflow-y-auto rounded-l-2xl border-l border-[#EAE5E3] bg-white shadow-2xl">
+          <div className="sticky top-0 z-20 flex justify-end bg-white/95 p-4 backdrop-blur">
+            <button className="grid h-10 w-10 place-items-center rounded-lg hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="space-y-5 px-8 pb-8">
+            <LeadHeader lead={selectedLead} onActivity={() => setActivityOpen(true)} onEdit={() => openEditLead(selectedLead)} />
+            <NextActionPanel lead={selectedLead} onActivity={() => setActivityOpen(true)} />
+            <LeadSummaryStrip lead={selectedLead} />
+            <LeadMemoCard lead={selectedLead} onEdit={() => openEditLead(selectedLead)} />
+            <div className="bg-white">
+              <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
+                {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
+              </div>
+              <div className="pt-5">
+                {selectedTab === "overview" ? <OverviewTab companies={companies} lead={selectedLead} onLinkCompany={linkCompany} records={selectedRecords} /> : null}
+                {selectedTab === "activity" ? <ActivityTab activities={activities} records={selectedRecords} /> : null}
+                {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} /> : null}
+                {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
+                {selectedTab === "files" ? <EmptyState icon={UploadCloud} title="ファイルはまだありません" description="会社化後も参照できるファイル基盤として次フェーズで接続します。" /> : null}
+                {selectedTab === "notes" ? <NotesTab lead={selectedLead} currentUser={currentUser} onSave={(nextDraft) => updateLead(selectedLead.id, nextDraft, currentUser)} /> : null}
+              </div>
             </div>
           </div>
-          </div></aside></div> : null}
+        </aside>
+      </div> : null}
 
       {createOpen ? <LeadModal draft={draft} mode="create" onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} products={products} saving={saving} /> : null}
       {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} products={products} saving={saving} /> : null}
@@ -272,57 +281,132 @@ function LeadRow({ lead, onSelect }: { lead: Lead; onSelect: () => void }) {
   );
 }
 
-function LeadHeader({ lead, onBack, onActivity, onEdit }: { lead: Lead; onBack: () => void; onActivity: () => void; onEdit: () => void }) {
+function LeadHeader({ lead, onActivity, onEdit }: { lead: Lead; onActivity: () => void; onEdit: () => void }) {
+  const compact = [
+    lead.contactName ? <span className="inline-flex items-center gap-1" key="contact"><Building2 className="h-4 w-4" />{lead.contactName}</span> : null,
+    lead.contactRole ? <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 text-xs font-bold text-[#EC6F8B]" key="role">{lead.contactRole}</span> : null,
+    lead.phone ? <span className="inline-flex items-center gap-1" key="phone"><Phone className="h-4 w-4" />{lead.phone}</span> : null,
+    lead.email ? <span className="inline-flex items-center gap-1" key="email"><Mail className="h-4 w-4" />{lead.email}</span> : null
+  ].filter(Boolean);
   return (
-    <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
+    <section className="border-b border-[#E5E7EB] pb-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-bold text-[#2B2B2B]">{lead.companyName}</h2>
-            <span className={`rounded-none px-2.5 py-1 text-xs font-black ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
+            <h2 className="break-words text-3xl font-black tracking-normal text-[#111827]">{lead.companyName}</h2>
+            <span className={`rounded-lg px-3 py-1 text-sm font-black ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
           </div>
-          <p className="mt-2 text-sm font-semibold text-[#777]">{[lead.contactName, lead.contactRole, lead.productName].filter(Boolean).join(" / ") || "詳細未設定"}</p>
+          {compact.length ? <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-semibold text-[#4B5563]">{compact}</div> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`mailto:${lead.email}`}><Mail className="h-4 w-4" />メール</a> : null}
-          {lead.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" href={`tel:${lead.phone}`}><Phone className="h-4 w-4" />電話</a> : null}
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0E7E9] px-4 text-sm font-bold text-[#6F676B]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-bold text-white" onClick={onActivity} type="button"><MessageSquarePlus className="h-4 w-4" />活動ログを追加</button>
+          {lead.phone ? <a className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#374151]" href={`tel:${lead.phone}`}><Phone className="h-4 w-4 text-[#EC6F8B]" />電話</a> : null}
+          <button className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#EC6F8B] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />活動を追加</button>
+          <button className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
+          <button className="grid h-11 w-11 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151]" type="button" aria-label="その他">…</button>
         </div>
       </div>
     </section>
   );
 }
 
-function OverviewTab({ lead, companies, records, onLinkCompany }: { lead: Lead; companies: Company[]; records: TeleapoRecord[]; onLinkCompany: (companyId: string) => void }) {
+function NextActionPanel({ lead, onActivity }: { lead: Lead; onActivity: () => void }) {
+  const needsFollow = lead.status === "appointment" || lead.status === "document_sent" || lead.status === "contacting";
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <InfoGrid rows={[
-        ["会社名", lead.companyName],
-        ["担当者", [lead.contactName, lead.contactRole].filter(Boolean).join(" / ") || "未設定"],
-        ["電話", lead.phone || "未設定"],
-        ["メール", lead.email || "未設定"],
-        ["業種", lead.industry || "未設定"],
-        ["商材", lead.productName || "未設定"],
-        ["営業担当", lead.assignedUserName || "未設定"],
-        ["メモ", lead.notes || "未設定"]
-      ]} />
+    <section className="flex flex-col gap-4 rounded-xl bg-[#FFF4F7] p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 gap-4">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFE2E9] text-[#EC6F8B]"><Target className="h-6 w-6" /></span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-black text-[#111827]">{needsFollow ? "次の対応を設定して、商談につなげましょう" : "次の対応を整理しましょう"}</h3>
+          <p className="mt-1 text-sm font-semibold leading-6 text-[#4B5563]">{lead.nextActionTitle ? `${lead.nextActionTitle} / ${formatMaybeDate(lead.nextActionAt?.toDate())}` : `${leadStatusLabels[lead.status]}後のフォローや商談の日程を登録できます。`}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-3">
+        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#F7AFC0] bg-white px-5 text-sm font-bold text-[#EC6F8B]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />次回予定を設定</button>
+        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#F7AFC0] bg-white px-5 text-sm font-bold text-[#EC6F8B]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />タスクを追加</button>
+      </div>
+    </section>
+  );
+}
+
+function LeadSummaryStrip({ lead }: { lead: Lead }) {
+  const items: Array<{ label: string; value?: string | null; Icon: LucideIcon }> = [
+    { label: "会社名", value: lead.companyName, Icon: Building2 },
+    { label: "担当者", value: lead.contactName, Icon: Building2 },
+    { label: "役職", value: lead.contactRole, Icon: Archive },
+    { label: "電話", value: lead.phone, Icon: Phone },
+    { label: "メール", value: lead.email, Icon: Mail },
+    { label: "ステータス", value: leadStatusLabels[lead.status], Icon: Target },
+    { label: "商材", value: lead.productName, Icon: LinkIcon }
+  ].filter((item) => Boolean(item.value));
+  return (
+    <section className="grid gap-4 rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:grid-cols-2 xl:grid-cols-4">
+      {items.map(({ label, value, Icon }) => (
+        <div className="min-w-0" key={label}>
+          <p className="flex items-center gap-2 text-sm font-bold text-[#6B7280]"><Icon className="h-4 w-4 text-[#EC6F8B]" />{label}</p>
+          <p className="mt-2 truncate text-base font-black text-[#111827]">{value}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function LeadMemoCard({ lead, onEdit }: { lead: Lead; onEdit: () => void }) {
+  if (!lead.notes?.trim()) return null;
+  return (
+    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-[#111827]"><CalendarDays className="h-5 w-5 text-[#EC6F8B]" />メモ</h3>
+        <button className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-bold text-[#374151] hover:bg-[#F9FAFB]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
+      </div>
+      <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-[#111827]">{lead.notes}</p>
+    </section>
+  );
+}
+
+function OverviewTab({ lead, companies, records, onLinkCompany }: { lead: Lead; companies: Company[]; records: TeleapoRecord[]; onLinkCompany: (companyId: string) => void }) {
+  const recent = records.slice(0, 2);
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-[#111827]">最近の活動</h3>
+          <button className="text-sm font-bold text-[#EC6F8B]" type="button">すべての活動を見る →</button>
+        </div>
+        {recent.length ? <div className="divide-y divide-[#E5E7EB]">{recent.map((record) => <CompactRecordItem key={record.id} record={record} />)}</div> : <EmptyState icon={MessageSquarePlus} title="活動ログはまだありません" description="電話、メール、メモなどを追加するとここに表示されます。" />}
+      </section>
       <aside className="space-y-4">
-        <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
-          <h3 className="font-bold text-[#2B2B2B]">会社一覧との関連</h3>
-          {lead.companyId ? <Link className="mt-3 inline-flex h-10 items-center gap-2 rounded-none bg-white px-4 text-sm font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]" href={`/sales/companies?id=${lead.companyId}&tab=overview` as Route}><Building2 className="h-4 w-4" />会社詳細を開く</Link> : (
-            <div className="mt-3">
-              <SearchSelect clearable emptyLabel="会社がありません。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder="既存Companyへ関連付け" value="" onChange={onLinkCompany} />
-            </div>
-          )}
-        </section>
-        <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
-          <h3 className="font-bold text-[#2B2B2B]">紐づく分析</h3>
-          <p className="mt-2 text-sm font-semibold text-[#777]">{records.length}件のテレアポ・商談データ</p>
-          <Link className="mt-3 inline-flex h-10 items-center gap-2 rounded-none bg-white px-4 text-sm font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]" href={`/sales/upload?leadId=${lead.id}` as Route}><UploadCloud className="h-4 w-4" />アップロードへ</Link>
-        </section>
+        <LeadStageCard status={lead.status} />
+        {lead.companyId ? <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><h3 className="font-bold text-[#111827]">関連する会社</h3><Link className="mt-4 inline-flex h-10 items-center gap-2 text-sm font-bold text-[#EC6F8B]" href={`/sales/companies?id=${lead.companyId}&tab=overview` as Route}>会社詳細を開く →</Link></section> : companies.length ? <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><h3 className="font-bold text-[#111827]">関連する会社</h3><p className="mt-2 text-sm font-medium leading-6 text-[#6B7280]">必要な場合だけ会社一覧へ紐づけできます。</p><div className="mt-4"><SearchSelect clearable emptyLabel="会社がありません。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder="会社を選択" value="" onChange={onLinkCompany} /></div></section> : null}
       </aside>
     </div>
+  );
+}
+
+function CompactRecordItem({ record }: { record: TeleapoRecord }) {
+  return (
+    <div className="flex items-start gap-4 py-4">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]"><Phone className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6B7280]">
+          <time>{record.recordedAt.toDate().toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</time>
+          <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 font-bold text-[#EC6F8B]">{record.salesDomain === "meeting" ? "商談" : "電話"}</span>
+        </div>
+        <p className="mt-2 text-sm font-bold leading-6 text-[#111827]">{record.aiAdvice?.summary || record.meetingTitle || record.productName || "営業活動を記録しました。"}</p>
+      </div>
+    </div>
+  );
+}
+
+function LeadStageCard({ status }: { status: LeadStatus }) {
+  const stages: LeadStatus[] = ["new", "appointment", "meeting", "considering", "won"];
+  const current = Math.max(0, stages.indexOf(status));
+  return (
+    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <h3 className="font-bold text-[#111827]">このリードの商談状況</h3>
+      <div className="mt-5 grid grid-cols-5 items-start gap-2">
+        {stages.map((stage, index) => <div className="grid gap-2 text-center" key={stage}><span className={`mx-auto h-4 w-4 rounded-full border-2 ${index <= current ? "border-[#EC6F8B] bg-[#EC6F8B]" : "border-[#D1D5DB] bg-white"}`} /><span className={`text-xs font-bold ${index <= current ? "text-[#EC6F8B]" : "text-[#9CA3AF]"}`}>{leadStatusLabels[stage]}</span></div>)}
+      </div>
+    </section>
   );
 }
 
