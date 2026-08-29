@@ -186,8 +186,14 @@ async function fetchTaskSuggestions(content: string, user: { getIdToken: () => P
     body: JSON.stringify({ companyName: "", title: "タスク分解", content, nextActions: content, productNames: [], contactNames: [] })
   });
   if (!response.ok) return localTaskSuggestions(content);
-  const data = (await response.json()) as { tasks?: SuggestedTask[] };
+  const data = await safeJson<{ tasks?: SuggestedTask[] }>(response);
   return data.tasks?.length ? data.tasks : localTaskSuggestions(content);
+}
+
+async function safeJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) throw new Error("サーバーからJSON以外の応答が返りました。");
+  return response.json() as Promise<T>;
 }
 
 function suggestionToDraft(task: SuggestedTask, sourceContent: string, currentMember: MemberOption): TaskDraft {

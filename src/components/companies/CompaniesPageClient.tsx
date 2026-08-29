@@ -60,7 +60,7 @@ export function CompaniesPageClient() {
       .then(async (token) => {
         const response = await fetch("/api/users/members", { headers: { Authorization: `Bearer ${token}` } });
         if (!response.ok) throw new Error("メンバーを取得できませんでした");
-        return response.json() as Promise<{ members: Array<{ uid: string; name: string; email: string }> }>;
+        return safeJson<{ members: Array<{ uid: string; name: string; email: string }> }>(response);
       })
       .then((data) => {
         if (!cancelled) setMembers(data.members.length ? data.members : DEFAULT_WORKSPACE_MEMBERS);
@@ -1124,11 +1124,17 @@ async function fetchTaskSuggestions(company: Company, input: { title: string; co
       body: JSON.stringify({ companyName: company.name, title: input.title, content: input.content ?? "", productNames: input.productNames ?? [], contactNames: input.contactNames ?? [] })
     });
     if (!response.ok) return fallback;
-    const data = (await response.json()) as { tasks?: Array<{ title: string; description: string; priority: "high" | "medium" | "low"; dueDate: string | null; reason: string }> };
+    const data = await safeJson<{ tasks?: Array<{ title: string; description: string; priority: "high" | "medium" | "low"; dueDate: string | null; reason: string }> }>(response);
     return data.tasks?.length ? data.tasks : fallback;
   } catch {
     return fallback;
   }
+}
+
+async function safeJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) throw new Error("サーバーからJSON以外の応答が返りました。");
+  return response.json() as Promise<T>;
 }
 
 function localTaskSuggestions(title: string, content: string): Array<{ title: string; description: string; priority: "high" | "medium" | "low"; dueDate: string | null; reason: string }> {

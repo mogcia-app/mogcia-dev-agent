@@ -168,7 +168,7 @@ export function AgentPageClient() {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ rawMessage: message, projectId: projectId || null })
       });
-      const json = await response.json() as { success?: boolean; data?: { runId?: string }; error?: { message?: string } };
+      const json = await safeJson<{ success?: boolean; data?: { runId?: string }; error?: { message?: string } }>(response);
       if (!response.ok || !json.success || !json.data?.runId) throw new Error(json.error?.message ?? "Agentを実行できませんでした。");
       setMessage("");
       setToast("Agent依頼を実行しました");
@@ -191,7 +191,7 @@ export function AgentPageClient() {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ decision })
       });
-      const json = await response.json() as { success?: boolean; error?: { message?: string } };
+      const json = await safeJson<{ success?: boolean; error?: { message?: string } }>(response);
       if (!response.ok || !json.success) throw new Error(json.error?.message ?? "Agent操作を処理できませんでした。");
       setToast(decision === "approve" ? "Agent操作を実行しました" : "Agent操作をキャンセルしました");
     } catch (nextError) {
@@ -212,7 +212,7 @@ export function AgentPageClient() {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ candidateId })
       });
-      const json = await response.json() as { success?: boolean; error?: { message?: string } };
+      const json = await safeJson<{ success?: boolean; error?: { message?: string } }>(response);
       if (!response.ok || !json.success) throw new Error(json.error?.message ?? "候補を選択できませんでした。");
       setToast("候補を選択しました");
     } catch (nextError) {
@@ -263,7 +263,7 @@ export function AgentPageClient() {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify(body)
       });
-      const json = await response.json() as { success?: boolean; error?: { message?: string } };
+      const json = await safeJson<{ success?: boolean; error?: { message?: string } }>(response);
       if (!response.ok || !json.success) throw new Error(json.error?.message ?? "通知を更新できませんでした。");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "通知を更新できませんでした。");
@@ -282,7 +282,7 @@ export function AgentPageClient() {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ notificationIds })
       });
-      const json = await response.json() as { success?: boolean; data?: { count?: number }; error?: { message?: string } };
+      const json = await safeJson<{ success?: boolean; data?: { count?: number }; error?: { message?: string } }>(response);
       if (!response.ok || !json.success) throw new Error(json.error?.message ?? "通知を削除できませんでした。");
       setToast(`${json.data?.count ?? 0}件の通知を削除しました`);
     } catch (nextError) {
@@ -764,6 +764,14 @@ function sourceLabel(source: string): string {
   if (source === "desktop") return "Desktop Agent";
   if (source === "cli") return "CLI";
   return "管理画面";
+}
+
+async function safeJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("サーバーで一時的なエラーが発生しています。Vercelのデプロイと環境変数を確認してください。");
+  }
+  return response.json() as Promise<T>;
 }
 
 function slugify(value: string): string {
