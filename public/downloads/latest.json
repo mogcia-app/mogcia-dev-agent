@@ -3,6 +3,6 @@
   "minimumMacOS": "14.0",
   "downloadURL": "https://mogcia-dev-agent.vercel.app/api/desktop/download",
   "downloadPageURL": "https://mogcia-dev-agent.vercel.app/download",
-  "sha256": "7583af877920e19475d94f818a0e3273f78af26de12d1d89213f951bc452b833",
+  "sha256": "7a46476ad8043bdb5873cc1357d359e5376c7bbcb02f4e265ba705ef3f89f442",
   "signed": false
 }
