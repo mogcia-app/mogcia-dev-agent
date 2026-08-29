@@ -11,15 +11,13 @@ import { LoadingSpinner, SkeletonList } from "@/components/ui/loading";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import {
   createDevelopmentProject,
-  getProjectMemory,
-  saveProjectMemory,
   subscribeAgentNotifications,
   subscribeAgentRequests,
   subscribeAgentRuns,
   subscribeDevelopmentProjects
 } from "@/lib/agent";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import type { AgentNotification, AgentRequest, AgentRun, AgentRunStatus, AgentRunStep, CreateDevelopmentProjectInput, DevelopmentProject, ProjectMemory } from "@/types/agent";
+import type { AgentNotification, AgentRequest, AgentRun, AgentRunStatus, AgentRunStep, CreateDevelopmentProjectInput, DevelopmentProject } from "@/types/agent";
 
 const statusLabels: Record<AgentRunStatus, string> = {
   queued: "受付済み",
@@ -54,15 +52,6 @@ const emptyProjectDraft: ProjectDraft = {
   isActive: true
 };
 
-const emptyMemory: Omit<ProjectMemory, "projectId" | "updatedAt"> = {
-  productOverview: "",
-  architecture: "",
-  designRules: "",
-  codingRules: "",
-  decisions: "",
-  notes: ""
-};
-
 export function AgentPageClient() {
   const [user, setUser] = useState<User | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
@@ -72,14 +61,11 @@ export function AgentPageClient() {
   const [message, setMessage] = useState("");
   const [projectId, setProjectId] = useState("");
   const [projectDraft, setProjectDraft] = useState<ProjectDraft>(emptyProjectDraft);
-  const [memoryProjectId, setMemoryProjectId] = useState("");
-  const [memoryDraft, setMemoryDraft] = useState(emptyMemory);
   const [loading, setLoading] = useState(true);
   const [savingRequest, setSavingRequest] = useState(false);
   const [approvingRunId, setApprovingRunId] = useState<string | null>(null);
   const [selectingCandidateId, setSelectingCandidateId] = useState<string | null>(null);
   const [savingProject, setSavingProject] = useState(false);
-  const [savingMemory, setSavingMemory] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const params = useSearchParams();
@@ -114,7 +100,6 @@ export function AgentPageClient() {
     const unsubscribeProjects = subscribeDevelopmentProjects((nextProjects) => {
       setProjects(nextProjects);
       if (!projectId && nextProjects[0]) setProjectId(nextProjects[0].id);
-      if (!memoryProjectId && nextProjects[0]) setMemoryProjectId(nextProjects[0].id);
     }, onError("developmentProjects"));
     const unsubscribeNotifications = subscribeAgentNotifications(user.uid, setNotifications, onError("agentNotifications"));
     return () => {
@@ -123,32 +108,7 @@ export function AgentPageClient() {
       unsubscribeProjects();
       unsubscribeNotifications();
     };
-  }, [memoryProjectId, projectId, user]);
-
-  useEffect(() => {
-    if (!memoryProjectId) {
-      window.setTimeout(() => setMemoryDraft(emptyMemory), 0);
-      return;
-    }
-    let cancelled = false;
-    void getProjectMemory(memoryProjectId)
-      .then((memory) => {
-        if (!cancelled) setMemoryDraft({
-          productOverview: memory.productOverview ?? "",
-          architecture: memory.architecture ?? "",
-          designRules: memory.designRules ?? "",
-          codingRules: memory.codingRules ?? "",
-          decisions: memory.decisions ?? "",
-          notes: memory.notes ?? ""
-        });
-      })
-      .catch((nextError) => {
-        if (!cancelled) setError(nextError instanceof Error ? nextError.message : "Project Memoryを読み込めませんでした。");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [memoryProjectId]);
+  }, [projectId, user]);
 
   const selectedRun = selectedRunId ? runs.find((run) => run.id === selectedRunId) ?? null : null;
   const selectedRequest = selectedRun ? requests.find((request) => request.id === selectedRun.requestId) ?? null : null;
@@ -230,26 +190,11 @@ export function AgentPageClient() {
       const id = await createDevelopmentProject(projectDraft);
       setProjectDraft(emptyProjectDraft);
       setProjectId(id);
-      setMemoryProjectId(id);
       setToast("開発プロジェクトを作成しました");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "開発プロジェクトを作成できませんでした。");
     } finally {
       setSavingProject(false);
-    }
-  };
-
-  const submitMemory = async () => {
-    if (!memoryProjectId) return;
-    setSavingMemory(true);
-    setError(null);
-    try {
-      await saveProjectMemory(memoryProjectId, memoryDraft);
-      setToast("Project Memoryを保存しました");
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Project Memoryを保存できませんでした。");
-    } finally {
-      setSavingMemory(false);
     }
   };
 
@@ -388,15 +333,9 @@ export function AgentPageClient() {
 
           <ProjectPanel
             draft={projectDraft}
-            memoryDraft={memoryDraft}
-            memoryProjectId={memoryProjectId}
             onDraftChange={setProjectDraft}
-            onMemoryChange={setMemoryDraft}
-            onMemoryProjectChange={setMemoryProjectId}
-            onSaveMemory={submitMemory}
             onSaveProject={submitProject}
             projects={projects}
-            savingMemory={savingMemory}
             savingProject={savingProject}
           />
         </aside>
@@ -643,37 +582,25 @@ function StepRow({ step }: { step: AgentRunStep }) {
 function ProjectPanel({
   projects,
   draft,
-  memoryProjectId,
-  memoryDraft,
   savingProject,
-  savingMemory,
   onDraftChange,
-  onMemoryProjectChange,
-  onMemoryChange,
-  onSaveProject,
-  onSaveMemory
+  onSaveProject
 }: {
   projects: DevelopmentProject[];
   draft: ProjectDraft;
-  memoryProjectId: string;
-  memoryDraft: Omit<ProjectMemory, "projectId" | "updatedAt">;
   savingProject: boolean;
-  savingMemory: boolean;
   onDraftChange: (draft: ProjectDraft) => void;
-  onMemoryProjectChange: (projectId: string) => void;
-  onMemoryChange: (memory: Omit<ProjectMemory, "projectId" | "updatedAt">) => void;
   onSaveProject: () => void;
-  onSaveMemory: () => void;
 }) {
   return (
     <section className="rounded-none border border-[#F0E7E9] bg-white p-5 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg font-bold text-[#2B2B2B]"><FolderKanban className="h-5 w-5 text-[#EC6F8B]" />開発プロジェクト</h2>
       <div className="mt-4 grid gap-2">
         {projects.slice(0, 5).map((project) => (
-          <button className={`rounded-none border p-3 text-left ${memoryProjectId === project.id ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-[#FFFBFC]"}`} key={project.id} onClick={() => onMemoryProjectChange(project.id)} type="button">
+          <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 text-left" key={project.id}>
             <span className="block text-sm font-black text-[#2B2B2B]">{project.name}</span>
             <span className="mt-1 block text-xs font-bold text-[#8A8186]">{project.slug} / {project.defaultBranch || "main"}</span>
-          </button>
+          </div>
         ))}
         {projects.length === 0 ? <EmptyInline text="開発プロジェクトはまだありません。" /> : null}
       </div>
@@ -691,22 +618,6 @@ function ProjectPanel({
           </button>
         </div>
       </div>
-
-      <div className="mt-5 border-t border-[#F0E7E9] pt-5">
-        <p className="text-sm font-black text-[#655D62]">Project Memory</p>
-        <div className="mt-3 grid gap-3">
-          <MemoryText label="プロダクト概要" value={memoryDraft.productOverview ?? ""} onChange={(productOverview) => onMemoryChange({ ...memoryDraft, productOverview })} />
-          <MemoryText label="Architecture" value={memoryDraft.architecture ?? ""} onChange={(architecture) => onMemoryChange({ ...memoryDraft, architecture })} />
-          <MemoryText label="Design Rules" value={memoryDraft.designRules ?? ""} onChange={(designRules) => onMemoryChange({ ...memoryDraft, designRules })} />
-          <MemoryText label="Coding Rules" value={memoryDraft.codingRules ?? ""} onChange={(codingRules) => onMemoryChange({ ...memoryDraft, codingRules })} />
-          <MemoryText label="Decisions" value={memoryDraft.decisions ?? ""} onChange={(decisions) => onMemoryChange({ ...memoryDraft, decisions })} />
-          <MemoryText label="Notes" value={memoryDraft.notes ?? ""} onChange={(notes) => onMemoryChange({ ...memoryDraft, notes })} />
-          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white text-sm font-bold text-[#EC6F8B] disabled:opacity-50" disabled={savingMemory || !memoryProjectId} onClick={() => void onSaveMemory()} type="button">
-            {savingMemory ? <LoadingSpinner label="保存中" /> : <Save className="h-4 w-4" />}
-            Memoryを保存
-          </button>
-        </div>
-      </div>
     </section>
   );
 }
@@ -716,15 +627,6 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
     <label className="grid gap-1 text-xs font-black text-[#8A8186]">
       {label}
       <input className="task-input" value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  );
-}
-
-function MemoryText({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="grid gap-1 text-xs font-black text-[#8A8186]">
-      {label}
-      <textarea className="task-input min-h-24 resize-y text-sm leading-6" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
