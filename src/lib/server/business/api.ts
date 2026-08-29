@@ -16,7 +16,7 @@ export type BusinessAuth = {
   deviceId: string | null;
 };
 
-type BusinessErrorCode = "UNAUTHORIZED" | "FORBIDDEN" | "VALIDATION_ERROR" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "AI_ERROR" | "SERVER_ERROR";
+type BusinessErrorCode = "UNAUTHORIZED" | "FORBIDDEN" | "VALIDATION_ERROR" | "NOT_FOUND" | "CONFLICT" | "DUPLICATE" | "RATE_LIMITED" | "AI_ERROR" | "SERVER_ERROR";
 
 export class BusinessApiError extends Error {
   constructor(

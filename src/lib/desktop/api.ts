@@ -5,6 +5,7 @@ export type DesktopErrorCode =
   | "FORBIDDEN"
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
+  | "DUPLICATE"
   | "RATE_LIMITED"
   | "AI_ERROR"
   | "SERVER_ERROR";

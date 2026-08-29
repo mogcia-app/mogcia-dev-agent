@@ -4,6 +4,7 @@ export type DesktopPermissionKey = "readTasks" | "createTasks" | "readCompanies"
 export type DesktopDeviceStatus = "active" | "revoked";
 export type DesktopAuditAction =
   | "auth_verify"
+  | "command"
   | "company_search"
   | "company_create"
   | "product_create"

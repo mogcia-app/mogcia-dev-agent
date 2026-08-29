@@ -1,6 +1,6 @@
 import { desktopFailure, desktopSuccess, requireString } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { executeAgentRequest } from "@/lib/server/agent/executor";
+import { handleDesktopCommand } from "@/lib/desktop/command";
 
 export async function POST(request: Request) {
   try {
@@ -8,15 +8,16 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     const rawMessage = requireString(body.rawMessage, "質問", 2000);
     const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "agent_chat", async () => {
-      const result = await executeAgentRequest({
-        user: { uid: auth.userId },
-        rawMessage,
-        projectId: typeof body.projectId === "string" ? body.projectId : null,
-        source: "desktop"
-      });
-      return result;
+      const result = await handleDesktopCommand(auth, { ...body, rawMessage });
+      return {
+        answer: result.message,
+        handled: result.handled,
+        kind: result.kind,
+        items: result.items,
+        draft: result.draft
+      };
     });
-    return desktopSuccess(data, 201);
+    return desktopSuccess(data);
   } catch (error) {
     return desktopFailure(error);
   }
