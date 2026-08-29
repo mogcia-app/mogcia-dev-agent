@@ -18,7 +18,7 @@ import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
-import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyDecisionInfo, CompanyMeeting, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
+import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, CompanyProductSalesContext, ContactMethod, DealFinalResult } from "@/types/company";
 import type { Product } from "@/types/product";
 import type { Activity } from "@/types/lead";
 import type { TaskDraft } from "@/types/task";
@@ -231,7 +231,7 @@ function OverviewTab({ company, products, tasks, commonActivities, logs, records
     </ChartSection>
     <ChartSection title="先方担当者"><InfoGrid rows={[["氏名", primaryContact ? formatContactName(primaryContact) : company.primaryContactName || "未設定"], ["電話", primaryContact?.phone || company.phone || "未設定"], ["メール", primaryContact?.email || company.email || "未設定"]]} /></ChartSection>
     <ChartSection title="利用中サービス"><p className="text-sm font-bold text-[#2B2B2B]">{company.productNames?.join(" / ") || "未設定"}</p></ChartSection>
-    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ["決裁・予算", formatDecisionInfo(company.decisionInfo)], ...(hasCommoProduct ? [["commo.営業情報", formatCommoContext(company.productSalesContext?.commo)] as [string, string]] : [])]} /></ChartSection>
+    <ChartSection title="企業情報"><InfoGrid rows={[["会社名", company.name], ["業種", company.industry || "未設定"], ["地域", [company.prefecture, company.city].filter(Boolean).join(" / ") || "未設定"], ["所在地", company.address || "未設定"], ["Webサイト", company.website || "未設定"], ...(hasCommoProduct ? [["commo.営業情報", formatCommoContext(company.productSalesContext?.commo)] as [string, string]] : [])]} /></ChartSection>
   </div>;
 }
 
@@ -555,7 +555,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
     productIds: company?.productIds ?? [],
     productNames: company?.productNames ?? [],
     productSalesContext: normalizeProductSalesContext(company?.productSalesContext),
-    decisionInfo: normalizeDecisionInfo(company?.decisionInfo),
     contacts: company?.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: crypto.randomUUID(), name: company?.primaryContactName ?? "", role: "", email: company?.email ?? "", phone: company?.phone ?? "" })],
     tags: company?.tags.join(", ") ?? "",
     notes: company?.notes ?? ""
@@ -638,21 +637,6 @@ function CompanyFormModal({ mode, company, currentUser, members, products, onClo
             </div>
           </div>
         ) : null}
-        <div className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 sm:col-span-2">
-          <p className="text-sm font-bold text-[#655D62]">決裁・予算情報</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input label="決裁者名" value={form.decisionInfo.decisionMakerName ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerName: value } }))} />
-            <Input label="決裁者役職" value={form.decisionInfo.decisionMakerRole ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerRole: value } }))} />
-            <Input label="予算感" value={form.decisionInfo.budgetRange ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, budgetRange: value } }))} />
-            <Input label="予算年度" value={form.decisionInfo.budgetYear ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, budgetYear: value } }))} />
-            <Input label="導入希望時期" value={form.decisionInfo.implementationTiming ?? ""} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, implementationTiming: value } }))} />
-            <Field label="決裁者と接触済み">
-              <button className={`h-11 rounded-none border px-3 text-left text-sm font-bold ${form.decisionInfo.decisionMakerContacted ? "border-[#EC6F8B] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-white text-[#6F676B]"}`} onClick={() => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, decisionMakerContacted: !current.decisionInfo.decisionMakerContacted } }))} type="button">{form.decisionInfo.decisionMakerContacted ? "接触済み" : "未接触 / 未確認"}</button>
-            </Field>
-            <Text label="競合（1行ずつ）" value={toLines(form.decisionInfo.competitors ?? [])} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, competitors: lines(value) } }))} />
-            <Text label="稟議条件（1行ずつ）" value={toLines(form.decisionInfo.approvalConditions ?? [])} onChange={(value) => setForm((current) => ({ ...current, decisionInfo: { ...current.decisionInfo, approvalConditions: lines(value) } }))} />
-          </div>
-        </div>
         <Field label="社内担当者">
           <div className="flex h-11 items-center rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-bold text-[#655D62]">{form.internalOwnerName || currentUser.name}</div>
         </Field>
@@ -858,20 +842,6 @@ function formatContacts(company: Company): string {
   return rows.length ? rows.join("\n") : "未設定";
 }
 
-function formatDecisionInfo(info?: CompanyDecisionInfo): string {
-  const normalized = normalizeDecisionInfo(info);
-  const rows = [
-    normalized.decisionMakerName || normalized.decisionMakerRole ? `決裁者: ${[normalized.decisionMakerName, normalized.decisionMakerRole].filter(Boolean).join(" / ")}` : "",
-    `接触: ${normalized.decisionMakerContacted ? "済み" : "未接触 / 未確認"}`,
-    normalized.budgetRange ? `予算感: ${normalized.budgetRange}` : "",
-    normalized.budgetYear ? `予算年度: ${normalized.budgetYear}` : "",
-    normalized.implementationTiming ? `導入希望時期: ${normalized.implementationTiming}` : "",
-    normalized.competitors?.length ? `競合: ${normalized.competitors.join(" / ")}` : "",
-    normalized.approvalConditions?.length ? `稟議条件: ${normalized.approvalConditions.join(" / ")}` : ""
-  ].filter(Boolean);
-  return rows.length ? rows.join("\n") : "未設定";
-}
-
 function formatCommoContext(context?: CompanyProductSalesContext["commo"]): string {
   if (!context) return "未設定";
   const rows = [
@@ -939,19 +909,6 @@ function normalizeProductSalesContext(context?: CompanyProductSalesContext): Com
 function updateCommoContext(context: CompanyProductSalesContext, patch: NonNullable<CompanyProductSalesContext["commo"]>): CompanyProductSalesContext {
   const normalized = normalizeProductSalesContext(context);
   return { ...normalized, commo: { ...normalized.commo, ...patch } };
-}
-
-function normalizeDecisionInfo(info?: CompanyDecisionInfo): CompanyDecisionInfo {
-  return {
-    decisionMakerName: info?.decisionMakerName ?? "",
-    decisionMakerRole: info?.decisionMakerRole ?? "",
-    decisionMakerContacted: Boolean(info?.decisionMakerContacted),
-    budgetRange: info?.budgetRange ?? "",
-    budgetYear: info?.budgetYear ?? "",
-    implementationTiming: info?.implementationTiming ?? "",
-    competitors: info?.competitors ?? [],
-    approvalConditions: info?.approvalConditions ?? []
-  };
 }
 
 function isCommoProduct(product: Product): boolean {
