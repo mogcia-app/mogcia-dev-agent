@@ -6,7 +6,7 @@ import { MultiSelect, SearchSelect, SingleSelect } from "@/components/ui/select"
 import { createEmptyCalendarDraft } from "@/lib/calendar-utils";
 import type { CalendarEventDraft, CalendarEventType } from "@/types/calendar";
 import type { MemberOption } from "@/types/task";
-import type { CompanyOption, MeetingOption, ProjectOption } from "@/types/workspace-records";
+import type { CompanyOption, LeadOption, MeetingOption, ProductOption, ProjectOption } from "@/types/workspace-records";
 
 const eventTypeOptions: Array<[CalendarEventType, string]> = [
   ["appointment", "商談"],
@@ -20,7 +20,20 @@ const eventTypeOptions: Array<[CalendarEventType, string]> = [
   ["other", "その他"]
 ];
 
-export function CalendarEventFormModal({ currentMember, members, companies, projects, meetings, isAdmin, initialDraft, onClose, onSubmit }: { currentMember: MemberOption; members: MemberOption[]; companies: CompanyOption[]; projects: ProjectOption[]; meetings: MeetingOption[]; isAdmin: boolean; initialDraft?: CalendarEventDraft; onClose: () => void; onSubmit: (draft: CalendarEventDraft) => Promise<void> }) {
+type RelatedOption = {
+  value: string;
+  label: string;
+  description: string;
+  type: "lead" | "company";
+  id: string;
+  name: string;
+  contactName: string;
+  convertedCompanyId?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+};
+
+export function CalendarEventFormModal({ currentMember, members, companies, leads, products, projects, meetings, isAdmin, initialDraft, onClose, onSubmit }: { currentMember: MemberOption; members: MemberOption[]; companies: CompanyOption[]; leads: LeadOption[]; products: ProductOption[]; projects: ProjectOption[]; meetings: MeetingOption[]; isAdmin: boolean; initialDraft?: CalendarEventDraft; onClose: () => void; onSubmit: (draft: CalendarEventDraft) => Promise<void> }) {
   const [draft, setDraft] = useState(() => initialDraft ?? createEmptyCalendarDraft(currentMember));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -30,8 +43,33 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
     const selectableMembers = isAdmin ? members : [currentMember];
     return selectableMembers.length ? selectableMembers : [currentMember];
   }, [currentMember, isAdmin, members]);
+  const relatedOptions = useMemo<RelatedOption[]>(() => [
+    ...leads.map((lead) => ({
+      value: `lead:${lead.id}`,
+      label: lead.name,
+      description: ["営業リスト", lead.contactName ? `担当: ${lead.contactName}` : "", lead.phone || lead.email || "", lead.status ? leadStatusLabel(lead.status) : ""].filter(Boolean).join(" / "),
+      type: "lead" as const,
+      id: lead.id,
+      name: lead.name,
+      contactName: lead.contactName ?? "",
+      convertedCompanyId: lead.convertedCompanyId ?? null,
+      productId: lead.productId ?? null,
+      productName: lead.productName ?? null
+    })),
+    ...companies.map((company) => ({
+      value: `company:${company.id}`,
+      label: company.name,
+      description: ["会社一覧", company.contactName ? `担当: ${company.contactName}` : "", company.phone || company.email || "", company.status ? companyStatusLabel(company.status) : ""].filter(Boolean).join(" / "),
+      type: "company" as const,
+      id: company.id,
+      name: company.name,
+      contactName: company.contactName ?? ""
+    }))
+  ], [companies, leads]);
+  const selectedRelatedValue = draft.relatedType && draft.relatedId ? `${draft.relatedType}:${draft.relatedId}` : "";
   const filteredProjects = draft.companyId ? projects.filter((project) => project.companyId === draft.companyId) : projects;
   const filteredMeetings = draft.projectId ? meetings.filter((meeting) => meeting.projectId === draft.projectId) : meetings;
+  const selectedProduct = products.find((product) => product.id === draft.productId);
 
   const save = async () => {
     if (!draft.title.trim()) return;
@@ -74,6 +112,56 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
             }))}
           />
           <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="関連先">
+              <SearchSelect
+                clearable
+                disabled={relatedOptions.length === 0}
+                emptyLabel="該当する関連先が見つかりません"
+                options={relatedOptions}
+                placeholder={relatedOptions.length === 0 ? "営業リスト・会社が未登録です" : "会社名・担当者名で検索"}
+                value={selectedRelatedValue}
+                onChange={(value) => {
+                  const option = relatedOptions.find((entry) => entry.value === value);
+                  if (!option) {
+                    setDraft((current) => ({ ...current, relatedType: "", relatedId: "", relatedName: "", relatedContactName: "", companyId: "", companyName: "", projectId: "", projectName: "", meetingId: "" }));
+                    return;
+                  }
+                  const nextCompanyId = option.type === "company" ? option.id : option.convertedCompanyId ?? "";
+                  setDraft((current) => ({
+                    ...current,
+                    relatedType: option.type,
+                    relatedId: option.id,
+                    relatedName: option.name,
+                    relatedContactName: option.contactName,
+                    companyId: nextCompanyId,
+                    companyName: option.type === "company" ? option.name : "",
+                    productId: current.productId || option.productId || "",
+                    productName: current.productName || option.productName || "",
+                    projectId: "",
+                    projectName: "",
+                    meetingId: ""
+                  }));
+                }}
+              />
+              {draft.relatedName ? <div className="mt-2 flex flex-wrap items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 py-2 text-xs font-bold text-[#655D62]"><span>{draft.relatedName}{draft.relatedContactName ? ` / ${draft.relatedContactName}` : ""}</span><span className="rounded-none bg-white px-2 py-1 text-[#EC6F8B]">{draft.relatedType === "lead" ? "営業リスト" : "会社一覧"}</span><button className="text-[#D94F6E]" onClick={() => setDraft((current) => ({ ...current, relatedType: "", relatedId: "", relatedName: "", relatedContactName: "", companyId: "", companyName: "", projectId: "", projectName: "", meetingId: "" }))} type="button">解除</button></div> : null}
+            </Field>
+            <Field label="商材">
+              <SearchSelect
+                clearable
+                disabled={products.length === 0}
+                emptyLabel="商材が未登録です。"
+                options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))}
+                placeholder={products.length === 0 ? "未登録" : "商材を選択"}
+                value={draft.productId}
+                onChange={(productId) => {
+                  const product = products.find((entry) => entry.id === productId);
+                  setDraft((current) => ({ ...current, productId, productName: product?.name ?? "" }));
+                }}
+              />
+              {selectedProduct?.tagline ? <span className="mt-1 text-xs font-semibold text-[#9A8F94]">{selectedProduct.tagline}</span> : null}
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => { const startDate = event.target.value; setDraft((current) => ({ ...current, startDate, endDate: current.endDate && current.endDate >= startDate ? current.endDate : startDate })); }} /></Field>
             <Field label="開始時刻"><input className="task-input" disabled={draft.allDay} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field>
           </div>
@@ -87,7 +175,7 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
             <Field label="場所"><input className="task-input" value={draft.location} onChange={(event) => setValue("location", event.target.value)} placeholder="会議室 / オンライン" /></Field>
             <Field label="オンラインURL"><input className="task-input" value={draft.meetingUrl} onChange={(event) => setValue("meetingUrl", event.target.value)} /></Field>
             <Field label="外部参加者・補足"><input className="task-input" value={draft.attendeeNames} onChange={(event) => setValue("attendeeNames", event.target.value)} placeholder="社外の参加者名などをカンマ区切りで入力" /></Field>
-            <Field label="関連会社"><SearchSelect clearable disabled={companies.length === 0} emptyLabel="会社が未登録です。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder={companies.length === 0 ? "未登録" : "未選択"} value={draft.companyId} onChange={(value) => { const company = companies.find((entry) => entry.id === value); setDraft((current) => ({ ...current, companyId: value, companyName: company?.name ?? "", projectId: "", projectName: "", meetingId: "" })); }} /></Field>
+            <Field label="関連会社"><SearchSelect clearable disabled={companies.length === 0} emptyLabel="会社が未登録です。" options={companies.map((company) => ({ value: company.id, label: company.name }))} placeholder={companies.length === 0 ? "未登録" : "未選択"} value={draft.companyId} onChange={(value) => { const company = companies.find((entry) => entry.id === value); setDraft((current) => ({ ...current, companyId: value, companyName: company?.name ?? "", relatedType: value ? "company" : current.relatedType, relatedId: value || current.relatedId, relatedName: company?.name ?? current.relatedName, relatedContactName: company?.contactName ?? current.relatedContactName, projectId: "", projectName: "", meetingId: "" })); }} /></Field>
             <Field label="関連案件"><SearchSelect clearable disabled={filteredProjects.length === 0} emptyLabel="案件が未登録です。" options={filteredProjects.map((project) => ({ value: project.id, label: project.name, description: project.companyName ?? undefined }))} placeholder={filteredProjects.length === 0 ? "未登録" : "未選択"} value={draft.projectId} onChange={(value) => { const project = projects.find((entry) => entry.id === value); setDraft((current) => ({ ...current, projectId: value, projectName: project?.name ?? "", companyId: project?.companyId ?? current.companyId, companyName: project?.companyName ?? current.companyName, meetingId: "" })); }} /></Field>
             <Field label="関連会議"><SearchSelect clearable disabled={filteredMeetings.length === 0} emptyLabel="会議が未登録です。" options={filteredMeetings.map((meeting) => ({ value: meeting.id, label: meeting.name, description: meeting.companyName ?? undefined }))} placeholder={filteredMeetings.length === 0 ? "未登録" : "未選択"} value={draft.meetingId} onChange={(value) => { const meeting = meetings.find((entry) => entry.id === value); setDraft((current) => ({ ...current, meetingId: value, companyId: meeting?.companyId ?? current.companyId, companyName: meeting?.companyName ?? current.companyName, projectId: meeting?.projectId ?? current.projectId, projectName: meeting?.projectName ?? current.projectName })); }} /></Field>
           </div> : null}
@@ -103,4 +191,28 @@ export function CalendarEventFormModal({ currentMember, members, companies, proj
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="grid gap-2 text-sm font-bold text-[#655D62]">{label}{children}</label>;
+}
+
+function leadStatusLabel(status: string): string {
+  return ({
+    appointment: "アポ獲得",
+    document_sent: "資料請求",
+    meeting: "商談中",
+    considering: "検討中",
+    won: "成約",
+    lost: "失注",
+    hold: "保留",
+    contacting: "対応中",
+    new: "新規"
+  } as Record<string, string>)[status] ?? status;
+}
+
+function companyStatusLabel(status: string): string {
+  return ({
+    lead: "営業前",
+    prospect: "提案中",
+    customer: "契約中",
+    inactive: "停止中",
+    archived: "アーカイブ"
+  } as Record<string, string>)[status] ?? status;
 }

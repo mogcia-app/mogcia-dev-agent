@@ -57,8 +57,15 @@ export async function PATCH(request: Request) {
         allDay: body.allDay === undefined ? Boolean(previous.allDay) : Boolean(body.allDay),
         attendeeIds: body.attendeeIds === undefined ? Array.isArray(previous.attendeeIds) ? previous.attendeeIds : [] : arrayOfStrings(body.attendeeIds),
         attendeeNames: body.attendeeNames === undefined ? Array.isArray(previous.attendeeNames) ? previous.attendeeNames : [] : arrayOfStrings(body.attendeeNames),
-        companyId: nullableString(body.companyId) ?? previous.companyId ?? null,
-        companyName: nullableString(body.companyName) ?? previous.companyName ?? null,
+        relatedEntity: relatedEntityFromBody(body, previous),
+        relatedType: patchNullableString(body, previous, "relatedType", 40),
+        relatedId: patchNullableString(body, previous, "relatedId", 160),
+        relatedName: patchNullableString(body, previous, "relatedName", 200),
+        relatedContactName: patchNullableString(body, previous, "relatedContactName", 120),
+        companyId: patchNullableString(body, previous, "companyId", 160),
+        companyName: patchNullableString(body, previous, "companyName", 200),
+        productId: patchNullableString(body, previous, "productId", 160),
+        productName: patchNullableString(body, previous, "productName", 200),
         ...updateBusinessFields(auth)
       }, { merge: true });
       const next = await ref.get();
@@ -82,10 +89,34 @@ function calendarPayload(auth: BusinessAuth, body: Record<string, unknown>, titl
     assigneeName: nullableString(body.assigneeName, 160) ?? auth.userName,
     attendeeIds: arrayOfStrings(body.attendeeIds),
     attendeeNames: arrayOfStrings(body.attendeeNames),
+    relatedEntity: relatedEntityFromBody(body),
+    relatedType: nullableString(body.relatedType, 40),
+    relatedId: nullableString(body.relatedId, 160),
+    relatedName: nullableString(body.relatedName, 200),
+    relatedContactName: nullableString(body.relatedContactName, 120),
     companyId: nullableString(body.companyId, 160),
     companyName: nullableString(body.companyName, 200),
+    productId: nullableString(body.productId, 160),
+    productName: nullableString(body.productName, 200),
     source: "manual",
     visibility: "team",
     ...defaultBusinessFields(auth)
   };
+}
+
+function relatedEntityFromBody(body: Record<string, unknown>, previous: Record<string, unknown> = {}) {
+  const type = patchNullableString(body, previous, "relatedType", 40);
+  const id = patchNullableString(body, previous, "relatedId", 160);
+  const name = patchNullableString(body, previous, "relatedName", 200);
+  if ((type !== "lead" && type !== "company") || !id || !name) return null;
+  return {
+    type,
+    id,
+    name,
+    contactName: patchNullableString(body, previous, "relatedContactName", 120)
+  };
+}
+
+function patchNullableString(body: Record<string, unknown>, previous: Record<string, unknown>, key: string, maxLength: number) {
+  return body[key] === undefined ? nullableString(previous[key], maxLength) : nullableString(body[key], maxLength);
 }

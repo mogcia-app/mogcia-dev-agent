@@ -19,8 +19,20 @@ export interface CalendarItem {
   assigneeName?: string;
   attendeeIds?: string[];
   attendeeNames?: string[];
+  relatedEntity?: {
+    type: "lead" | "company";
+    id: string;
+    name: string;
+    contactName?: string | null;
+  } | null;
+  relatedType?: "lead" | "company" | null;
+  relatedId?: string | null;
+  relatedName?: string | null;
+  relatedContactName?: string | null;
   companyId?: string | null;
   companyName?: string | null;
+  productId?: string | null;
+  productName?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   location?: string | null;
@@ -45,8 +57,20 @@ export interface CalendarEvent {
   assigneeName?: string;
   attendeeIds?: string[];
   attendeeNames?: string[];
+  relatedEntity?: {
+    type: "lead" | "company";
+    id: string;
+    name: string;
+    contactName?: string | null;
+  } | null;
+  relatedType?: "lead" | "company" | null;
+  relatedId?: string | null;
+  relatedName?: string | null;
+  relatedContactName?: string | null;
   companyId?: string | null;
   companyName?: string | null;
+  productId?: string | null;
+  productName?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   meetingId?: string | null;
@@ -83,8 +107,14 @@ export interface CalendarEventDraft {
   attendeeIds: string[];
   attendeeMemberNames: string[];
   attendeeNames: string;
+  relatedType: "" | "lead" | "company";
+  relatedId: string;
+  relatedName: string;
+  relatedContactName: string;
   companyId: string;
   companyName: string;
+  productId: string;
+  productName: string;
   projectId: string;
   projectName: string;
   meetingId: string;

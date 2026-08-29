@@ -1,13 +1,18 @@
 "use client";
 
 import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { formatShortDate, getCategoryMeta } from "@/lib/calendar-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
+import type { Route } from "next";
+import type { LeadOption } from "@/types/workspace-records";
 
-export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, onEdit, onDelete }: { item: CalendarItem | null; event: CalendarEvent | null; canEdit: boolean; canDelete: boolean; onClose: () => void; onEdit: (event: CalendarEvent) => void; onDelete: (eventId: string) => Promise<void> }) {
+export function CalendarEventDrawer({ item, event, leads, canEdit, canDelete, onClose, onEdit, onDelete }: { item: CalendarItem | null; event: CalendarEvent | null; leads: LeadOption[]; canEdit: boolean; canDelete: boolean; onClose: () => void; onEdit: (event: CalendarEvent) => void; onDelete: (eventId: string) => Promise<void> }) {
   if (!item) return null;
   const meta = getCategoryMeta(item.category);
+  const relatedHref = relatedEntityHref(item, leads);
+  const productHref = item.productId ? `/products?productId=${item.productId}` as Route : null;
   const remove = async () => {
     if (!event || !window.confirm("この予定を削除しますか？")) return;
     await onDelete(event.id);
@@ -29,7 +34,8 @@ export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, 
           {item.description ? <Info label="説明" value={item.description} /> : null}
           <Info label="担当者" value={getUserDisplayNameById(item.assigneeId, item.assigneeName)} />
           {item.attendeeNames?.length ? <Info label="参加者" value={item.attendeeNames.join(", ")} /> : null}
-          {item.companyName ? <Info label="会社" value={item.companyName} /> : null}
+          {item.relatedName ? <InfoLink href={relatedHref} label="関連先" value={item.relatedName} /> : item.companyName ? <InfoLink href={item.companyId ? `/sales/companies?id=${item.companyId}&tab=overview` as Route : null} label="関連先" value={item.companyName} /> : null}
+          {item.productName ? <InfoLink href={productHref} label="商材" value={item.productName} /> : null}
           {item.projectName ? <Info label="案件" value={item.projectName} /> : null}
           {item.location ? <Info label="場所" value={item.location} /> : null}
         </div>
@@ -47,4 +53,18 @@ export function CalendarEventDrawer({ item, event, canEdit, canDelete, onClose, 
 
 function Info({ label, value }: { label: string; value: string }) {
   return <p><span className="mr-3 inline-block min-w-24 text-[#9A8F94]">{label}</span>{value}</p>;
+}
+
+function InfoLink({ label, value, href }: { label: string; value: string; href: Route | null }) {
+  return <p><span className="mr-3 inline-block min-w-24 text-[#9A8F94]">{label}</span>{href ? <Link className="text-[#EC6F8B] hover:underline" href={href}>{value} →</Link> : value}</p>;
+}
+
+function relatedEntityHref(item: CalendarItem, leads: LeadOption[]): Route | null {
+  if (item.relatedType === "company" && item.relatedId) return `/sales/companies?id=${item.relatedId}&tab=overview` as Route;
+  if (item.relatedType === "lead" && item.relatedId) {
+    const lead = leads.find((entry) => entry.id === item.relatedId);
+    if (lead?.convertedCompanyId) return `/sales/companies?id=${lead.convertedCompanyId}&tab=overview` as Route;
+    return `/leads?leadId=${item.relatedId}` as Route;
+  }
+  return null;
 }
