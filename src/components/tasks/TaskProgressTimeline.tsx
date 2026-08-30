@@ -23,7 +23,7 @@ export function TaskProgressTimeline({ task, currentUserId }: { task: Task | nul
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-[#EC6F8B]">進捗ログ</p>
-            <h3 className="mt-1 truncate text-lg font-semibold text-[#2D2A2C]">{task.title || "無題のタスク"}</h3>
+            <h3 className="mt-1 truncate text-base font-semibold text-[#2D2A2C]">{task.title || "無題のタスク"}</h3>
             {task.description ? <p className="mt-1 line-clamp-2 text-sm font-medium text-[#81787D]">{task.description}</p> : null}
           </div>
           <span className={`shrink-0 border px-3 py-1.5 text-xs font-semibold ${getDueBadgeTone(task)}`}>{getDueBadge(task)}</span>

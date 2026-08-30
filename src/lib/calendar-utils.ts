@@ -1,7 +1,7 @@
 "use client";
 
 import { Timestamp } from "firebase/firestore";
-import type { CalendarCategory, CalendarEventDraft, CalendarFilters, CalendarItem } from "@/types/calendar";
+import type { CalendarCategory, CalendarEventDraft, CalendarFilters, CalendarItem, CalendarMeetingMethod } from "@/types/calendar";
 import type { MemberOption } from "@/types/task";
 
 export const defaultCalendarFilters: CalendarFilters = {
@@ -59,6 +59,21 @@ export function formatTime(date: Date): string {
   return date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 }
 
+export function formatTimeRange(startAt: Date, endAt?: Date | null, allDay = false): string {
+  if (allDay) return "終日";
+  if (!endAt) return formatTime(startAt);
+  const minutes = Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
+  const duration = minutes > 0 ? `（${formatDuration(minutes)}）` : "";
+  return `${formatTime(startAt)} - ${formatTime(endAt)}${duration}`;
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}分`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}時間${rest}分` : `${hours}時間`;
+}
+
 export function buildCalendarGrid(month: Date): Date[] {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const start = new Date(first);
@@ -71,17 +86,25 @@ export function buildCalendarGrid(month: Date): Date[] {
 }
 
 export function getCategoryMeta(category: CalendarCategory) {
-  if (category === "ai_task") return { label: "AI作成タスク", dot: "bg-[#EC6F8B]", soft: "bg-[#FFF2F5]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
-  if (category === "manual_task") return { label: "手動タスク", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
-  if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#C77AA6]", soft: "bg-[#FFF3FA]", text: "text-[#A95F8C]", border: "border-[#F2D3E6]" };
-  if (category === "appointment") return { label: "商談", dot: "bg-[#F47E96]", soft: "bg-[#FFF0F3]", text: "text-[#E65A78]", border: "border-[#F7CDD5]" };
-  if (category === "sales") return { label: "営業", dot: "bg-[#8C61CF]", soft: "bg-[#F7F1FF]", text: "text-[#7A55B8]", border: "border-[#E3D6F7]" };
-  if (category === "phone") return { label: "電話", dot: "bg-[#4F78B4]", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
-  if (category === "visit") return { label: "訪問", dot: "bg-[#15A39B]", soft: "bg-[#ECFAF8]", text: "text-[#15827D]", border: "border-[#CBEDEA]" };
-  if (category === "internal") return { label: "社内MTG", dot: "bg-[#D98A3E]", soft: "bg-[#FFF4EA]", text: "text-[#C56F20]", border: "border-[#F2D8C0]" };
-  if (category === "deskwork") return { label: "作業時間", dot: "bg-[#6D7890]", soft: "bg-[#F3F5F8]", text: "text-[#5F687A]", border: "border-[#DDE2EA]" };
-  if (category === "personal") return { label: "個人予定", dot: "bg-[#F29B45]", soft: "bg-[#FFF6EA]", text: "text-[#D7791F]", border: "border-[#F5E1C6]" };
-  return { label: "その他", dot: "bg-[#9A9A9A]", soft: "bg-[#F5F5F5]", text: "text-[#6E6E6E]", border: "border-[#E5E5E5]" };
+  if (category === "ai_task") return { label: "AI作成タスク", dot: "bg-[#FF2D75]", dotColor: "#FF2D75", soft: "bg-[#FFF2F6]", text: "text-[#E91E63]", border: "border-[#FFC1D6]" };
+  if (category === "manual_task") return { label: "手動タスク", dot: "bg-[#4F78B4]", dotColor: "#4F78B4", soft: "bg-[#F1F7FF]", text: "text-[#4F78B4]", border: "border-[#D8E7FA]" };
+  if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#FF2D75]", dotColor: "#FF2D75", soft: "bg-[#FFF3F8]", text: "text-[#D81B60]", border: "border-[#FFC1D6]" };
+  if (category === "appointment" || category === "sales") return { label: "打ち合わせ", dot: "bg-[#FF0F6A]", dotColor: "#FF0F6A", soft: "bg-[#FFF0F5]", text: "text-[#E6005C]", border: "border-[#FFB3CF]" };
+  if (category === "customer_support") return { label: "顧客対応", dot: "bg-[#FF4F9A]", dotColor: "#FF4F9A", soft: "bg-[#FFF2F8]", text: "text-[#D81B72]", border: "border-[#FFC4DD]" };
+  if (category === "phone") return { label: "電話", dot: "bg-[#FF5FA8]", dotColor: "#FF5FA8", soft: "bg-[#FFF4FA]", text: "text-[#D62B7A]", border: "border-[#FFD0E5]" };
+  if (category === "visit") return { label: "訪問", dot: "bg-[#FF2D8A]", dotColor: "#FF2D8A", soft: "bg-[#FFF1F8]", text: "text-[#D91A72]", border: "border-[#FFC2DE]" };
+  if (category === "internal") return { label: "社内", dot: "bg-[#E73586]", dotColor: "#E73586", soft: "bg-[#FFF3F8]", text: "text-[#C82A75]", border: "border-[#F8C6DE]" };
+  if (category === "deskwork") return { label: "作業", dot: "bg-[#D91E7A]", dotColor: "#D91E7A", soft: "bg-[#FFF2F7]", text: "text-[#B91E68]", border: "border-[#F3C3DA]" };
+  if (category === "personal") return { label: "私用", dot: "bg-[#FF6FB0]", dotColor: "#FF6FB0", soft: "bg-[#FFF4FA]", text: "text-[#D94B91]", border: "border-[#FFD1E7]" };
+  return { label: "その他", dot: "bg-[#C02B75]", dotColor: "#C02B75", soft: "bg-[#FFF4F8]", text: "text-[#9F2C66]", border: "border-[#E9C4D6]" };
+}
+
+export function getMeetingMethodLabel(method?: CalendarMeetingMethod | null): string {
+  if (method === "online") return "オンライン";
+  if (method === "visit") return "訪問";
+  if (method === "phone") return "電話";
+  if (method === "in_person") return "対面";
+  return "その他";
 }
 
 export function itemsForDate(items: CalendarItem[], date: Date): CalendarItem[] {
@@ -102,7 +125,7 @@ export function filterCalendarItems(items: CalendarItem[], filters: CalendarFilt
     if (!filters.mine && isMine) return false;
     if (!filters.aiTasks && item.category === "ai_task") return false;
     if (!filters.manualTasks && item.category === "manual_task") return false;
-    if (!filters.meetings && (item.category === "meeting" || item.category === "appointment" || item.category === "sales")) return false;
+    if (!filters.meetings && item.sourceCollection === "calendarEvents") return false;
     return item.status !== "cancelled";
   });
 }
@@ -120,9 +143,11 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
   now.setMinutes(0, 0, 0);
   return {
     title: "",
-    eventType: "meeting",
+    eventType: "sales",
+    meetingMethod: "online",
     startDate: toDateKey(now),
     startTime: "10:00",
+    durationMinutes: 60,
     endDate: toDateKey(now),
     endTime: "11:00",
     allDay: false,
@@ -140,6 +165,8 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
     companyName: "",
     productId: "",
     productName: "",
+    productIds: [],
+    productNames: [],
     projectId: "",
     projectName: "",
     meetingId: "",
@@ -152,14 +179,17 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
 
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
   const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
-  const endAt = draft.allDay ? parseDateTime(draft.endDate || draft.startDate, "23:59") : parseEndDateTime(draft.startDate, draft.startTime, draft.endDate, draft.endTime);
+  const endAt = draft.allDay ? parseDateTime(draft.startDate, "23:59") : parseDurationEndDateTime(draft.startDate, draft.startTime, draft.durationMinutes, draft.endDate, draft.endTime);
   const attendeeIds = Array.from(new Set(draft.attendeeIds.filter((id) => id && id !== draft.assigneeId)));
   const selectedAttendeeNames = draft.attendeeMemberNames.filter(Boolean);
   const manualAttendeeNames = draft.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean);
+  const productIds = Array.from(new Set(draft.productIds.filter(Boolean)));
+  const productNames = Array.from(new Set(draft.productNames.map((name) => name.trim()).filter(Boolean)));
   return {
     title: draft.title.trim(),
     description: draft.description.trim(),
     eventType: draft.eventType,
+    meetingMethod: draft.meetingMethod,
     startAt,
     endAt,
     allDay: draft.allDay,
@@ -179,8 +209,10 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
     relatedContactName: draft.relatedContactName.trim() || null,
     companyId: draft.companyId || null,
     companyName: draft.companyName.trim() || null,
-    productId: draft.productId || null,
-    productName: draft.productName.trim() || null,
+    productId: (productIds[0] ?? draft.productId) || null,
+    productName: (productNames[0] ?? draft.productName.trim()) || null,
+    productIds,
+    productNames,
     projectId: draft.projectId || null,
     projectName: draft.projectName.trim() || null,
     meetingId: draft.meetingId || null,
@@ -200,11 +232,12 @@ export function parseDateTime(date: string, time: string): Timestamp {
   return Timestamp.fromDate(Number.isNaN(value.getTime()) ? new Date() : value);
 }
 
-function parseEndDateTime(startDate: string, startTime: string, endDate: string, endTime: string): Timestamp {
+function parseDurationEndDateTime(startDate: string, startTime: string, durationMinutes?: number, endDate?: string, endTime?: string): Timestamp {
   const start = new Date(`${startDate}T${startTime || "10:00"}`);
   const fallbackEnd = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
-  fallbackEnd.setHours(fallbackEnd.getHours() + 1);
-  const end = endDate && endTime ? new Date(`${endDate}T${endTime}`) : fallbackEnd;
+  const safeDuration = typeof durationMinutes === "number" && Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : null;
+  fallbackEnd.setMinutes(fallbackEnd.getMinutes() + (safeDuration ?? 60));
+  const end = safeDuration ? fallbackEnd : endDate && endTime ? new Date(`${endDate}T${endTime}`) : fallbackEnd;
   if (Number.isNaN(end.getTime())) return Timestamp.fromDate(fallbackEnd);
   if (!Number.isNaN(start.getTime()) && end.getTime() <= start.getTime()) return Timestamp.fromDate(fallbackEnd);
   return Timestamp.fromDate(end);

@@ -82,7 +82,7 @@ export function TaskFormFields({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="grid gap-2 text-sm font-bold text-[#655D62]">
+    <label className="grid gap-2 text-sm font-medium text-[#655D62]">
       {label}
       {children}
     </label>
@@ -107,11 +107,11 @@ function DuePicker({
   return (
     <section className="grid gap-3 border border-[#F0E7E9] bg-[#FFFBFC] p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-[#655D62]">
+        <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-[#655D62]">
           <CalendarDays className="h-4 w-4 text-[#EC6F8B]" />
           <span className="truncate">{selectedDateLabel}</span>
         </span>
-        <button className="inline-flex h-8 items-center gap-1 border border-[#F0DEE2] bg-white px-2 text-xs font-bold text-[#8A8186] disabled:opacity-40" disabled={readOnly || !draft.dueDate} onClick={clearDue} type="button">
+        <button className="inline-flex h-8 items-center gap-1 border border-[#F0DEE2] bg-white px-2 text-xs font-medium text-[#8A8186] disabled:opacity-40" disabled={readOnly || !draft.dueDate} onClick={clearDue} type="button">
           <X className="h-3.5 w-3.5" />
           なし
         </button>
@@ -122,7 +122,7 @@ function DuePicker({
           const value = getPresetDateValue(preset.offset);
           const active = draft.dueDate === value;
           return (
-            <button className={`h-10 border px-2 text-sm font-bold disabled:opacity-50 ${active ? "border-[#F7CAD2] bg-[#EC6F8B] text-white" : "border-[#F0E7E9] bg-white text-[#655D62] hover:bg-[#FFF0F3]"}`} disabled={readOnly} key={preset.label} onClick={() => setDueDate(value)} type="button">
+            <button className={`h-10 border px-2 text-sm font-medium disabled:opacity-50 ${active ? "border-[#F7CAD2] bg-[#EC6F8B] text-white" : "border-[#F0E7E9] bg-white text-[#655D62] hover:bg-[#FFF0F3]"}`} disabled={readOnly} key={preset.label} onClick={() => setDueDate(value)} type="button">
               {preset.label}
             </button>
           );
@@ -130,7 +130,7 @@ function DuePicker({
       </div>
 
       <div className="grid gap-2">
-        <span className="inline-flex items-center gap-2 text-xs font-black text-[#8A8186]">
+        <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#8A8186]">
           <Clock3 className="h-3.5 w-3.5" />
           時間
         </span>
@@ -138,7 +138,7 @@ function DuePicker({
           {timePresets.map((preset) => {
             const active = draft.dueTime === preset.value;
             return (
-              <button className={`h-9 border px-2 text-xs font-bold disabled:opacity-50 ${active ? "border-[#CFE0F6] bg-[#F1F7FF] text-[#4F78B4]" : "border-[#F0E7E9] bg-white text-[#655D62] hover:bg-[#F7F5F5]"}`} disabled={readOnly || !draft.dueDate} key={preset.value} onClick={() => setValue("dueTime", preset.value)} type="button">
+              <button className={`h-9 border px-2 text-xs font-medium disabled:opacity-50 ${active ? "border-[#CFE0F6] bg-[#F1F7FF] text-[#4F78B4]" : "border-[#F0E7E9] bg-white text-[#655D62] hover:bg-[#F7F5F5]"}`} disabled={readOnly || !draft.dueDate} key={preset.value} onClick={() => setValue("dueTime", preset.value)} type="button">
                 {preset.label}
               </button>
             );
@@ -147,7 +147,7 @@ function DuePicker({
       </div>
 
       <details className="group">
-        <summary className="cursor-pointer text-xs font-bold text-[#9A9296] marker:text-[#EC6F8B]">細かく指定</summary>
+        <summary className="cursor-pointer text-xs font-medium text-[#9A9296] marker:text-[#EC6F8B]">細かく指定</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Field label="日付">
             <input className="task-input" disabled={readOnly} type="date" value={draft.dueDate} onChange={(event) => setDueDate(event.target.value)} />

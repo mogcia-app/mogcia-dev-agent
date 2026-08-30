@@ -398,8 +398,8 @@ export function SalesUploadWorkspace() {
         description="音声アップロードと話者分離を保存すると、分析済み一覧に反映されます。"
         actions={
         <div className="flex rounded-none border border-[#F0DEE2] bg-white p-1">
-          <button className={`h-10 rounded-none px-4 text-sm font-bold ${mode === "teleapo_audio" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("teleapo_audio")} type="button">テレアポ</button>
-          <button className={`h-10 rounded-none px-4 text-sm font-bold ${mode === "meeting_transcript" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("meeting_transcript")} type="button">商談</button>
+          <button className={`h-10 rounded-none px-4 text-sm font-medium ${mode === "teleapo_audio" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("teleapo_audio")} type="button">テレアポ</button>
+          <button className={`h-10 rounded-none px-4 text-sm font-medium ${mode === "meeting_transcript" ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={() => setMode("meeting_transcript")} type="button">商談</button>
         </div>
         }
       />
@@ -410,9 +410,9 @@ export function SalesUploadWorkspace() {
               <button className="grid min-h-80 w-full place-items-center rounded-none border-2 border-dashed border-[#F0DEE2] bg-[#FFFBFC] p-6 text-center" onClick={() => fileInputRef.current?.click()} type="button">
                 <span>
                   <FileVideo className="mx-auto h-12 w-12 text-[#EC6F8B]" />
-                  <span className="mt-4 block text-xl font-bold text-[#2B2B2B]">mp4 / m4aを選択</span>
+                  <span className="mt-4 block text-base font-medium text-[#2B2B2B]">mp4 / m4aを選択</span>
                   <span className="mt-2 block text-sm font-semibold text-[#8A8186]">15分以内 / 必要に応じて音声変換します</span>
-                  {selectedFile ? <span className="mt-4 block rounded-none bg-[#FFF0F3] px-4 py-2 text-sm font-bold text-[#EC6F8B]">{selectedFile.name}</span> : null}
+                  {selectedFile ? <span className="mt-4 block rounded-none bg-[#FFF0F3] px-4 py-2 text-sm font-medium text-[#EC6F8B]">{selectedFile.name}</span> : null}
                 </span>
               </button>
               <input className="hidden" ref={fileInputRef} type="file" onChange={(event) => void onFileChange(event.target.files?.[0] ?? null)} />
@@ -423,7 +423,7 @@ export function SalesUploadWorkspace() {
             </div>
           ) : (
             <div>
-              <label className="text-sm font-bold text-[#655D62]">文字起こし貼り付け</label>
+              <label className="text-sm font-medium text-[#655D62]">文字起こし貼り付け</label>
               <textarea
                 className="task-input mt-2 h-[78vh] min-h-[900px] resize-y text-base leading-7"
                 style={{ minHeight: 900 }}
@@ -449,7 +449,7 @@ export function SalesUploadWorkspace() {
                 />
               </Field>
               {selectedCalendarEvent ? (
-                <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
+                <p className="mt-2 text-xs font-medium leading-5 text-[#8A8186]">
                   反映元: {selectedCalendarEvent.title || "無題の予定"} / {formatRecordDateTime(selectedCalendarEvent.startAt.toDate())}
                   {selectedCalendarEvent.location ? ` / ${selectedCalendarEvent.location}` : ""}
                 </p>
@@ -468,7 +468,7 @@ export function SalesUploadWorkspace() {
               />
             </Field>
             {selectedLead ? (
-              <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
+              <p className="mt-2 text-xs font-medium leading-5 text-[#8A8186]">
                 見込み客: {selectedLead.companyName} / ステータス: {leadStatusText(selectedLead.status)} / 次回予定: {selectedLead.nextActionAt ? formatRecordDateTime(selectedLead.nextActionAt.toDate()) : "未設定"}
               </p>
             ) : null}
@@ -485,7 +485,7 @@ export function SalesUploadWorkspace() {
               />
             </Field>
             {selectedCompany ? (
-              <p className="mt-2 text-xs font-bold leading-5 text-[#8A8186]">
+              <p className="mt-2 text-xs font-medium leading-5 text-[#8A8186]">
                 会社名: {selectedCompany.name} / 業種: {selectedCompany.industry || "未設定"} / 所在地: {selectedCompany.address || "未設定"} / 関連商材: {selectedCompany.productNames?.join(" / ") || "未設定"} / 同行者: {selectedCompany.companionNames?.join(" / ") || "なし"} / 先方担当者: {formatCompanyContact(getCompanyPrimaryContact(selectedCompany))} / 電話番号: {getCompanyPrimaryContact(selectedCompany)?.phone || selectedCompany.phone || "未登録"}
               </p>
             ) : null}
@@ -533,8 +533,8 @@ export function SalesUploadWorkspace() {
           {mode === "meeting_transcript" ? (
             <section className="mt-5 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-[#2B2B2B]">商談メモ</h3>
-                <p className="mt-1 text-xs font-bold text-[#8A8186]">商談フェーズと営業目線のメモだけ残します。細かいやり取りは会社の活動ログに追加できます。</p>
+                <h3 className="text-base font-medium text-[#2B2B2B]">商談メモ</h3>
+                <p className="mt-1 text-xs font-medium text-[#8A8186]">商談フェーズと営業目線のメモだけ残します。細かいやり取りは会社の活動ログに追加できます。</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="商談の種類">
@@ -568,7 +568,7 @@ export function SalesUploadWorkspace() {
             </section>
           ) : null}
           <div className="mt-4"><StatusBanner message={error} type="error" /></div>
-          <button className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={!canSubmit || isSubmitting} onClick={() => void submit()} type="button">
+          <button className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] text-sm font-medium text-white disabled:opacity-50" disabled={!canSubmit || isSubmitting} onClick={() => void submit()} type="button">
             {isSubmitting ? <LoadingSpinner label="保存中" /> : <UploadCloud className="h-4 w-4" />}
             {mode === "teleapo_audio" ? "アップロードして話者分離へ" : "保存して話者確認へ"}
           </button>
@@ -647,13 +647,13 @@ export function SpeakerWorkspace({
           showProcessingActions ? (
             <div className="flex flex-wrap gap-2">
               {!isTranscriptionCompleted ? (
-                <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-5 text-sm font-bold text-[#6F676B]" disabled={isProcessing} onClick={() => void onStartProcessing()} type="button">
+                <button className="inline-flex h-11 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-5 text-sm font-medium text-[#6F676B]" disabled={isProcessing} onClick={() => void onStartProcessing()} type="button">
                   {isProcessing ? <LoadingSpinner label="処理中" /> : <Mic2 className="h-4 w-4" />}
                   話者分離を開始
                 </button>
               ) : null}
               {isTranscriptionCompleted ? (
-                <button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!canCreateAnalysis || isGeneratingAdvice} onClick={() => void onGenerateAdvice()} type="button">
+                <button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={!canCreateAnalysis || isGeneratingAdvice} onClick={() => void onGenerateAdvice()} type="button">
                   {isGeneratingAdvice ? <LoadingSpinner label="作成中" /> : <Sparkles className="h-4 w-4" />}
                   分析結果を作成
                 </button>
@@ -704,7 +704,7 @@ function AdvicePanel({ isRegenerating, onRegenerate, record }: { isRegenerating:
   const rankReason = advice.rankReason || advice.scoreReason;
   return (
     <section className="mt-5 rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-      <h3 className="text-2xl font-bold text-[#2B2B2B]">テレアポ分析</h3>
+      <h3 className="text-base font-medium text-[#2B2B2B]">テレアポ分析</h3>
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Metric title="見込みランク" value={`${prospectRank} / ${advice.prospectScore}`} />
         <Metric title="温度感" value={formatTemperature(advice.temperature)} />
@@ -730,10 +730,10 @@ function MeetingFollowupPanel({ advice }: { advice: NonNullable<TeleapoRecord["a
     <section className="mt-5 rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-[#EC6F8B]">商談後フォロー分析</p>
-          <h3 className="mt-1 text-2xl font-bold text-[#2B2B2B]">振り返りと次の追客</h3>
+          <p className="text-sm font-medium text-[#EC6F8B]">商談後フォロー分析</p>
+          <h3 className="mt-1 text-base font-medium text-[#2B2B2B]">振り返りと次の追客</h3>
         </div>
-        <span className="rounded-none bg-[#FFF0F3] px-3 py-1.5 text-xs font-bold text-[#EC6F8B]">商談後AI</span>
+        <span className="rounded-none bg-[#FFF0F3] px-3 py-1.5 text-xs font-medium text-[#EC6F8B]">商談後AI</span>
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-4">
         <Metric title="見込みランク" value={prospectRank} />
@@ -798,25 +798,25 @@ function MeetingPreparationPanel({ analysis, isRegenerating, onRegenerate, recor
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-none border border-[#F0DEE2] bg-white px-5 py-3 shadow-sm">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-[#6F676B]">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#6F676B]">
           <span>商談準備AI</span>
           <ChevronRight className="h-4 w-4 text-[#C9BFC4]" />
           <span className="truncate text-[#2B2B2B]">{analysis.overview.companyName || record.customerName}（{analysis.overview.productName || record.productName}）</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-bold text-[#6F676B] disabled:opacity-50" disabled={isRegenerating} onClick={() => void onRegenerate()} type="button">
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-medium text-[#6F676B] disabled:opacity-50" disabled={isRegenerating} onClick={() => void onRegenerate()} type="button">
             {isRegenerating ? <LoadingSpinner label="再生成中" /> : <RotateCcw className="h-4 w-4" />}
             再生成
           </button>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-bold text-[#6F676B]" type="button">
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-medium text-[#6F676B]" type="button">
             <Download className="h-4 w-4" />
             PDF出力
           </button>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-bold text-[#6F676B]" type="button">
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-xs font-medium text-[#6F676B]" type="button">
             <Share2 className="h-4 w-4" />
             共有
           </button>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-xs font-bold text-white" type="button">
+          <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-xs font-medium text-white" type="button">
             <Sparkles className="h-4 w-4" />
             商談準備完了
           </button>
@@ -831,9 +831,9 @@ function MeetingPreparationPanel({ analysis, isRegenerating, onRegenerate, recor
           <div className="flex gap-4">
             <Image alt="" className="h-20 w-20 rounded-xl object-contain" height={80} src="/m-dev-2.png" width={80} priority />
             <div className="min-w-0">
-              <h3 className="truncate text-2xl font-bold text-[#2B2B2B]">{analysis.overview.companyName || record.customerName}</h3>
-              <p className="mt-1 text-sm font-bold text-[#8A8186]">{analysis.overview.productName || record.productName}</p>
-              <p className="mt-2 text-lg font-bold text-[#2B2B2B]">{analysis.overview.contactName || record.contactName} 様</p>
+              <h3 className="truncate text-base font-medium text-[#2B2B2B]">{analysis.overview.companyName || record.customerName}</h3>
+              <p className="mt-1 text-sm font-medium text-[#8A8186]">{analysis.overview.productName || record.productName}</p>
+              <p className="mt-2 text-base font-medium text-[#2B2B2B]">{analysis.overview.contactName || record.contactName} 様</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-5 gap-y-3 border-[#F0DEE2] text-sm font-semibold text-[#6F676B] xl:border-l xl:pl-5">
@@ -866,7 +866,7 @@ function MeetingPreparationPanel({ analysis, isRegenerating, onRegenerate, recor
           <div className="flex overflow-x-auto border-b border-[#F0DEE2]">
             {sections.map(([id, label]) => (
               <button
-                className={`shrink-0 border-b-2 px-6 py-4 text-sm font-bold transition ${activeDashboardTab === id ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#6F676B] hover:text-[#EC6F8B]"}`}
+                className={`shrink-0 border-b-2 px-6 py-4 text-sm font-medium transition ${activeDashboardTab === id ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#6F676B] hover:text-[#EC6F8B]"}`}
                 key={id}
                 onClick={() => setActiveDashboardTab(id)}
                 type="button"
@@ -923,7 +923,7 @@ function MeetingPreparationPanel({ analysis, isRegenerating, onRegenerate, recor
       </div>
 
       <details className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-        <summary className="cursor-pointer text-lg font-bold text-[#2B2B2B]">詳細分析を開く</summary>
+        <summary className="cursor-pointer text-base font-medium text-[#2B2B2B]">詳細分析を開く</summary>
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
           <PlaybookSection id="score" title="見込み診断" defaultOpen>
             <TextBlock title="ランク判定理由" items={[analysis.prospectScore.reason]} />
@@ -1057,18 +1057,18 @@ function AudioSummaryCard({ record }: { record: TeleapoRecord }) {
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-[#2B2B2B]">通話音声</p>
-        <span className="text-xs font-bold text-[#9A8F94]">{formatDuration(record.audioDurationSec)}</span>
+        <p className="text-sm font-medium text-[#2B2B2B]">通話音声</p>
+        <span className="text-xs font-medium text-[#9A8F94]">{formatDuration(record.audioDurationSec)}</span>
       </div>
       {record.audioDownloadUrl ? (
         <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} />
       ) : (
-        <div className="mt-3 flex items-center gap-3 rounded-none bg-white px-4 py-3 text-sm font-bold text-[#8A8186]">
+        <div className="mt-3 flex items-center gap-3 rounded-none bg-white px-4 py-3 text-sm font-medium text-[#8A8186]">
           <Play className="h-4 w-4" />
           音声ファイル未登録
         </div>
       )}
-      <a className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-none border border-[#F0DEE2] bg-white text-sm font-bold text-[#6F676B]" href="#conversation-log">
+      <a className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-none border border-[#F0DEE2] bg-white text-sm font-medium text-[#6F676B]" href="#conversation-log">
         文字起こしを開く
       </a>
     </div>
@@ -1079,7 +1079,7 @@ function CompanySummaryCard({ analysis }: { analysis: MeetingPreparationAnalysis
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-[#2B2B2B]">会社情報</p>
+        <p className="text-sm font-medium text-[#2B2B2B]">会社情報</p>
         <CopyButton text={analysis.overview.companyLink} label="HPをコピー" />
       </div>
       <div className="mt-3 space-y-2 text-sm font-semibold text-[#6F676B]">
@@ -1095,13 +1095,13 @@ function ScoreSummaryCard({ analysis }: { analysis: MeetingPreparationAnalysis }
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <h4 className="text-lg font-bold text-[#2B2B2B]">見込み診断</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI分析</span>
+        <h4 className="text-base font-medium text-[#2B2B2B]">見込み診断</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI分析</span>
       </div>
       <div className="mt-5 flex items-end justify-between gap-4">
-        <p className="text-6xl font-black leading-none text-[#EC6F8B]">{analysis.prospectScore.rank}</p>
-        <div className="text-right text-sm font-bold text-[#6F676B]">
-          <p>推定受注確度 <span className="text-2xl text-[#2B2B2B]">{analysis.prospectScore.estimatedCloseProbability}%</span></p>
+        <p className="text-6xl font-semibold leading-none text-[#EC6F8B]">{analysis.prospectScore.rank}</p>
+        <div className="text-right text-sm font-medium text-[#6F676B]">
+          <p>推定受注確度 <span className="text-base text-[#2B2B2B]">{analysis.prospectScore.estimatedCloseProbability}%</span></p>
           <p className="mt-2">温度感: <span className="text-[#EC6F8B]">{analysis.prospectScore.temperatureLabel || formatTemperature(analysis.prospectScore.temperature)}</span></p>
           <p className="mt-1">推奨フォロー: {formatUrgency(analysis.prospectScore.followUpTiming)}</p>
         </div>
@@ -1118,12 +1118,12 @@ function ContactSummaryCard({ analysis }: { analysis: MeetingPreparationAnalysis
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <h4 className="text-lg font-bold text-[#2B2B2B]">担当者分析</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI分析</span>
+        <h4 className="text-base font-medium text-[#2B2B2B]">担当者分析</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI分析</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {analysis.contactAnalysis.type.slice(0, 4).map((item) => (
-          <span className="rounded-none bg-[#F1F7FB] px-3 py-1 text-xs font-bold text-[#526B7A]" key={item}>{item}</span>
+          <span className="rounded-none bg-[#F1F7FB] px-3 py-1 text-xs font-medium text-[#526B7A]" key={item}>{item}</span>
         ))}
       </div>
       <div className="mt-4 grid gap-2 rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]">
@@ -1144,13 +1144,13 @@ function IssueSummaryCard({ analysis }: { analysis: MeetingPreparationAnalysis }
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <h4 className="text-lg font-bold text-[#2B2B2B]">課題分析</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI分析</span>
+        <h4 className="text-base font-medium text-[#2B2B2B]">課題分析</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI分析</span>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
         {columns.map(([title, items]) => (
           <div className="rounded-none bg-[#FFFBFC] p-3" key={title}>
-            <p className="text-xs font-bold text-[#9A8F94]">{title}</p>
+            <p className="text-xs font-medium text-[#9A8F94]">{title}</p>
             <ul className="mt-2 space-y-1 text-xs font-semibold leading-5 text-[#5F585C]">
               {items.slice(0, 3).map((item) => <li key={item.title}>・{item.title}</li>)}
               {items.length === 0 ? <li>未確認</li> : null}
@@ -1166,14 +1166,14 @@ function ProposalSummaryCard({ analysis }: { analysis: MeetingPreparationAnalysi
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <h4 className="text-lg font-bold text-[#2B2B2B]">提案方針</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI分析</span>
+        <h4 className="text-base font-medium text-[#2B2B2B]">提案方針</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI分析</span>
       </div>
       <p className="mt-3 rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#5F585C]">{analysis.proposalStrategy.mainTheme || "未確認"}</p>
       <div className="mt-3 space-y-2">
         {analysis.proposalStrategy.proposalPriority.slice(0, 5).map((item, index) => (
           <div className="grid grid-cols-[24px_1fr_auto] items-center gap-2 text-sm font-semibold text-[#6F676B]" key={item.title}>
-            <span className="grid h-6 w-6 place-items-center rounded bg-[#FFF0F3] text-xs font-bold text-[#EC6F8B]">{index + 1}</span>
+            <span className="grid h-6 w-6 place-items-center rounded bg-[#FFF0F3] text-xs font-medium text-[#EC6F8B]">{index + 1}</span>
             <span className="truncate">{item.title}</span>
             <span className="text-xs text-[#EC6F8B]">★ {item.score}</span>
           </div>
@@ -1188,20 +1188,20 @@ function DashboardScriptCard({ badge, id, lines, title }: { badge: string; id: s
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4" id={`playbook-${id}`}>
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">{badge}</span>
+        <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">{badge}</span>
       </div>
       <div className="mt-4 max-h-[560px] space-y-4 overflow-auto pr-1">
         {scriptParts.map((line, index) => (
           <div className="relative border-l border-[#F5C4CE] pl-5" key={`${title}-${index}`}>
-            <span className="absolute -left-2 top-0 grid h-4 w-4 place-items-center rounded-none bg-[#EC6F8B] text-[10px] font-bold text-white">{index + 1}</span>
+            <span className="absolute -left-2 top-0 grid h-4 w-4 place-items-center rounded-none bg-[#EC6F8B] text-[10px] font-medium text-white">{index + 1}</span>
             <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-[#5F585C]">{line}</p>
           </div>
         ))}
       </div>
       <div className="mt-4 flex gap-2">
         <CopyButton text={scriptParts.join("\n\n")} label="コピー" />
-        <button className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#6F676B]" type="button">
+        <button className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#6F676B]" type="button">
           <Mic2 className="h-3.5 w-3.5" />
           話し言葉にする
         </button>
@@ -1223,21 +1223,21 @@ function MeetingFlowCard({ analysis }: { analysis: MeetingPreparationAnalysis })
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4" id="playbook-script">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-bold text-[#2B2B2B]">商談スクリプト（30分）</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI生成</span>
+        <h4 className="font-medium text-[#2B2B2B]">商談スクリプト（30分）</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI生成</span>
       </div>
       <div className="mt-4 max-h-[560px] space-y-3 overflow-auto pr-1">
         {flows.map(([time, title, objective]) => (
           <div className="grid grid-cols-[72px_1fr] gap-3" key={time}>
-            <p className="pt-3 text-xs font-bold text-[#8A8186]">{time}</p>
+            <p className="pt-3 text-xs font-medium text-[#8A8186]">{time}</p>
             <div className="rounded-none bg-white p-3">
-              <p className="text-sm font-bold text-[#2B2B2B]">{title}</p>
+              <p className="text-sm font-medium text-[#2B2B2B]">{title}</p>
               <p className="mt-1 text-xs font-semibold leading-5 text-[#8A8186]">{objective || "未確認"}</p>
             </div>
           </div>
         ))}
       </div>
-      <a className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white text-xs font-bold text-[#6F676B]" href="#playbook-script">
+      <a className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white text-xs font-medium text-[#6F676B]" href="#playbook-script">
         詳細スクリプトを開く
         <ChevronRight className="h-3.5 w-3.5" />
       </a>
@@ -1249,21 +1249,21 @@ function CompactMaterialCard({ id, items }: { id: string; items: MaterialItem[] 
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4" id={`playbook-${id}`}>
       <div className="flex items-center justify-between">
-        <h4 className="font-bold text-[#2B2B2B]">準備資料</h4>
-        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-bold text-[#9B6BB5]">AI推薦</span>
+        <h4 className="font-medium text-[#2B2B2B]">準備資料</h4>
+        <span className="rounded-none bg-[#F8EDF8] px-2 py-1 text-xs font-medium text-[#9B6BB5]">AI推薦</span>
       </div>
       <div className="mt-4 space-y-3">
         {items.map((item) => (
           <div className="grid grid-cols-[28px_1fr_auto] items-center gap-3 rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={`${item.name}-${item.timing}`}>
             <FileText className="h-5 w-5 text-[#B995E0]" />
             <div className="min-w-0">
-              <p className="truncate font-bold text-[#2B2B2B]">{item.name}</p>
+              <p className="truncate font-medium text-[#2B2B2B]">{item.name}</p>
               <p className="truncate text-xs text-[#9A8F94]">{item.timing || item.purpose}</p>
             </div>
             <PriorityBadge priority={item.priority} />
           </div>
         ))}
-        {items.length === 0 ? <p className="rounded-none bg-white p-3 text-sm font-bold text-[#8A8186]">未確認</p> : null}
+        {items.length === 0 ? <p className="rounded-none bg-white p-3 text-sm font-medium text-[#8A8186]">未確認</p> : null}
       </div>
     </div>
   );
@@ -1273,21 +1273,21 @@ function CompactTaskCard({ id, items }: { id: string; items: AnalysisTaskItem[] 
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4" id={`playbook-${id}`}>
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-bold text-[#2B2B2B]">次にやること（タスク）</h4>
-        <button className="inline-flex h-8 items-center rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#6F676B]" type="button">+ タスク追加</button>
+        <h4 className="font-medium text-[#2B2B2B]">次にやること（タスク）</h4>
+        <button className="inline-flex h-8 items-center rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#6F676B]" type="button">+ タスク追加</button>
       </div>
       <div className="mt-4 space-y-2">
         {items.map((item) => (
           <label className="grid grid-cols-[18px_1fr_auto] items-center gap-2 rounded-none bg-white p-2 text-xs font-semibold text-[#6F676B]" key={item.title}>
             <input className="accent-[#EC6F8B]" type="checkbox" />
             <span className="min-w-0">
-              <span className="block truncate font-bold text-[#2B2B2B]">{item.title}</span>
+              <span className="block truncate font-medium text-[#2B2B2B]">{item.title}</span>
               <span className="block truncate text-[#9A8F94]">{item.dueDate || "期限未確認"} / {item.owner || "担当未確認"}</span>
             </span>
             <PriorityBadge priority={item.priority} />
           </label>
         ))}
-        {items.length === 0 ? <p className="rounded-none bg-white p-3 text-sm font-bold text-[#8A8186]">未確認</p> : null}
+        {items.length === 0 ? <p className="rounded-none bg-white p-3 text-sm font-medium text-[#8A8186]">未確認</p> : null}
       </div>
       <CopyButton text={items.map((item) => `${item.title} / ${item.dueDate} / ${item.completionCondition}`).join("\n")} label="すべてコピー" />
     </div>
@@ -1297,7 +1297,7 @@ function CompactTaskCard({ id, items }: { id: string; items: AnalysisTaskItem[] 
 function PlaybookSection({ id, title, children, defaultOpen = false }: { id: string; title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
     <details className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4 open:bg-white" open={defaultOpen} id={`playbook-${id}`}>
-      <summary className="cursor-pointer text-lg font-bold text-[#2B2B2B]">{title}</summary>
+      <summary className="cursor-pointer text-base font-medium text-[#2B2B2B]">{title}</summary>
       <div className="mt-4 space-y-4">{children}</div>
     </details>
   );
@@ -1321,7 +1321,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   const canCopy = text.trim().length > 0;
   return (
     <button
-      className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#6F676B] disabled:opacity-40"
+      className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#6F676B] disabled:opacity-40"
       disabled={!canCopy}
       onClick={() => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -1341,7 +1341,7 @@ function EvidenceList({ title, items }: { title: string; items: EvidenceItem[] }
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 space-y-3">
         {items.map((item, index) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={`${title}-${index}`}>
@@ -1358,11 +1358,11 @@ function IssueList({ title, items }: { title: string; items: IssueItem[] }) {
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.title}>
-            <p className="font-bold text-[#2B2B2B]">{item.title} <PriorityBadge priority={item.priority} /></p>
+            <p className="font-medium text-[#2B2B2B]">{item.title} <PriorityBadge priority={item.priority} /></p>
             <p className="mt-2">{item.detail}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">根拠: {item.evidence || "未確認"}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">確認質問: {item.confirmationQuestion}</p>
@@ -1378,11 +1378,11 @@ function ProposalList({ items }: { items: MeetingPreparationAnalysis["proposalSt
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">提案優先順位</h4>
+      <h4 className="font-medium text-[#2B2B2B]">提案優先順位</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.title}>
-            <p className="font-bold text-[#2B2B2B]">{item.title} <span className="text-[#EC6F8B]">{"★".repeat(Math.round(item.score))}</span></p>
+            <p className="font-medium text-[#2B2B2B]">{item.title} <span className="text-[#EC6F8B]">{"★".repeat(Math.round(item.score))}</span></p>
             <p className="mt-2">{item.reason}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">話し方: {item.talkPoint}</p>
           </div>
@@ -1396,11 +1396,11 @@ function MaterialList({ title, items }: { title: string; items: MaterialItem[] }
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={`${title}-${item.name}`}>
-            <p className="font-bold text-[#2B2B2B]">{item.name} <PriorityBadge priority={item.priority} /></p>
+            <p className="font-medium text-[#2B2B2B]">{item.name} <PriorityBadge priority={item.priority} /></p>
             <p className="mt-2">目的: {item.purpose}</p>
             <p className="mt-1 text-xs text-[#9A8F94]">出すタイミング: {item.timing}</p>
             <p className="mt-1 text-xs text-[#9A8F94]">ページ: {item.pages.length ? item.pages.join(" / ") : "未確認"}</p>
@@ -1415,11 +1415,11 @@ function QuestionList({ title, items }: { title: string; items: QuestionItem[] }
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.question}>
-            <p className="font-bold text-[#2B2B2B]">{item.question}</p>
+            <p className="font-medium text-[#2B2B2B]">{item.question}</p>
             <p className="mt-2">目的: {item.purpose}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">想定回答: {item.expectedAnswers.join(" / ") || "未確認"}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">切り返し: {item.followUps.join(" / ") || "未確認"}</p>
@@ -1436,7 +1436,7 @@ function ScriptCard({ title, lines }: { title: string; lines: string[] }) {
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+        <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
         <CopyButton text={text} label="コピー" />
       </div>
       <div className="mt-3 whitespace-pre-wrap rounded-none bg-white p-3 text-sm font-semibold leading-7 text-[#5F585C]">{text}</div>
@@ -1448,11 +1448,11 @@ function BranchList({ title, items }: { title: string; items: Array<{ condition:
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.condition}>
-            <p className="font-bold text-[#2B2B2B]">{item.condition}</p>
+            <p className="font-medium text-[#2B2B2B]">{item.condition}</p>
             <p className="mt-2">{item.response}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">次: {item.nextAction}</p>
           </div>
@@ -1466,7 +1466,7 @@ function ScriptSectionView({ title, section }: { title: string; section: ScriptS
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h4 className="font-bold text-[#2B2B2B]">{title} <span className="text-sm text-[#9A8F94]">{section.minutes}</span></h4>
+        <h4 className="font-medium text-[#2B2B2B]">{title} <span className="text-sm text-[#9A8F94]">{section.minutes}</span></h4>
         <CopyButton text={[...section.script, ...section.questions].join("\n")} label="コピー" />
       </div>
       <p className="mt-2 text-sm font-semibold text-[#6F676B]">目的: {section.objective}</p>
@@ -1485,11 +1485,11 @@ function ObjectionList({ items }: { items: ObjectionItem[] }) {
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">反論と切り返し</h4>
+      <h4 className="font-medium text-[#2B2B2B]">反論と切り返し</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.objection}>
-            <p className="font-bold text-[#2B2B2B]">{item.objection} <span className="text-xs text-[#EC6F8B]">発生確率 {item.probability}%</span></p>
+            <p className="font-medium text-[#2B2B2B]">{item.objection} <span className="text-xs text-[#EC6F8B]">発生確率 {item.probability}%</span></p>
             <p className="mt-2">背景: {item.background}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">避ける返答: {item.badResponse}</p>
             <p className="mt-2 rounded-none bg-[#FFF0F3] p-2 text-[#5F585C]">推奨返答: {item.recommendedResponse}</p>
@@ -1505,11 +1505,11 @@ function RiskList({ items }: { items: MeetingPreparationAnalysis["riskPoints"] }
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">危険ポイント</h4>
+      <h4 className="font-medium text-[#2B2B2B]">危険ポイント</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <div className="rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B]" key={item.title}>
-            <p className="font-bold text-[#2B2B2B]">{item.title}</p>
+            <p className="font-medium text-[#2B2B2B]">{item.title}</p>
             <p className="mt-2">理由: {item.reason}</p>
             <p className="mt-2 text-xs text-[#9A8F94]">予防: {item.prevention}</p>
           </div>
@@ -1523,13 +1523,13 @@ function TaskList({ title, items }: { title: string; items: AnalysisTaskItem[] }
   if (items.length === 0) return null;
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4">
-      <h4 className="font-bold text-[#2B2B2B]">{title}</h4>
+      <h4 className="font-medium text-[#2B2B2B]">{title}</h4>
       <div className="mt-3 space-y-3">
         {items.map((item) => (
           <label className="grid gap-2 rounded-none bg-white p-3 text-sm font-semibold text-[#6F676B] sm:grid-cols-[20px_1fr]" key={item.title}>
             <input className="mt-1 accent-[#EC6F8B]" type="checkbox" />
             <span>
-              <span className="block font-bold text-[#2B2B2B]">{item.title} <PriorityBadge priority={item.priority} /></span>
+              <span className="block font-medium text-[#2B2B2B]">{item.title} <PriorityBadge priority={item.priority} /></span>
               <span className="mt-1 block">担当: {item.owner || "未確認"} / 期限: {item.dueDate || "未確認"} / 状態: {formatTaskStatus(item.status)}</span>
               <span className="mt-1 block text-xs text-[#9A8F94]">完了条件: {item.completionCondition}</span>
               <span className="mt-1 block text-xs text-[#9A8F94]">関連資料: {item.relatedMaterials.join(" / ") || "未確認"}</span>
@@ -1544,7 +1544,7 @@ function TaskList({ title, items }: { title: string; items: AnalysisTaskItem[] }
 
 function PriorityBadge({ priority }: { priority: "high" | "medium" | "low" }) {
   const label = priority === "high" ? "重要" : priority === "medium" ? "通常" : "低め";
-  return <span className="ml-2 rounded-none bg-[#FFF0F3] px-2 py-0.5 text-xs font-bold text-[#EC6F8B]">{label}</span>;
+  return <span className="ml-2 rounded-none bg-[#FFF0F3] px-2 py-0.5 text-xs font-medium text-[#EC6F8B]">{label}</span>;
 }
 
 function formatTaskStatus(status: string): string {
@@ -1664,12 +1664,12 @@ function ProcessSteps({ status }: { status: TeleapoRecord["transcriptionStatus"]
   ] as const;
   return (
     <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-xl font-bold text-[#2B2B2B]">処理ステップ</h3>
+      <h3 className="mb-4 text-base font-medium text-[#2B2B2B]">処理ステップ</h3>
       <div className="space-y-3">
         {steps.map(([label, completed], index) => (
           <div className="flex items-center gap-3" key={label}>
             <span className={`grid h-8 w-8 place-items-center rounded-none ${completed ? "bg-[#EC6F8B] text-white" : "bg-[#FFF0F3] text-[#EC6F8B]"}`}>{completed ? <CheckCircle2 className="h-4 w-4" /> : index + 1}</span>
-            <span className="text-sm font-bold text-[#5F585C]">{label}</span>
+            <span className="text-sm font-medium text-[#5F585C]">{label}</span>
           </div>
         ))}
       </div>
@@ -1679,7 +1679,7 @@ function ProcessSteps({ status }: { status: TeleapoRecord["transcriptionStatus"]
 
 function Field({ label, children, required = false }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="grid gap-2 text-sm font-bold text-[#655D62]">
+    <label className="grid gap-2 text-sm font-medium text-[#655D62]">
       <span className="inline-flex items-center gap-2">
         {label}
         {required ? <span className="h-1.5 w-1.5 rounded-none bg-[#EC6F8B]" aria-label="必須" /> : null}
@@ -1694,7 +1694,7 @@ function Select({ value, options, onChange }: { value: string; options: Array<[s
 }
 
 function InfoCard({ title, rows }: { title: string; rows: Array<[string, string]> }) {
-  return <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm"><h3 className="mb-3 text-xl font-bold text-[#2B2B2B]">{title}</h3><div className="space-y-2 text-sm font-semibold text-[#6F676B]">{rows.map(([label, value]) => <p key={label}><span className="mr-3 inline-block min-w-20 text-[#9A8F94]">{label}</span>{value}</p>)}</div></section>;
+  return <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm"><h3 className="mb-3 text-base font-medium text-[#2B2B2B]">{title}</h3><div className="space-y-2 text-sm font-semibold text-[#6F676B]">{rows.map(([label, value]) => <p key={label}><span className="mr-3 inline-block min-w-20 text-[#9A8F94]">{label}</span>{value}</p>)}</div></section>;
 }
 
 function ConversationLogPanel({
@@ -1716,22 +1716,22 @@ function ConversationLogPanel({
     <section className="rounded-none border border-[#F0DEE2] bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-[#2B2B2B]">会話ログ</h3>
-          <p className="mt-0.5 text-xs font-bold text-[#8A8186]">{logs.length}ブロック{locked ? " / 保存済み" : ""}</p>
+          <h3 className="text-base font-medium text-[#2B2B2B]">会話ログ</h3>
+          <p className="mt-0.5 text-xs font-medium text-[#8A8186]">{logs.length}ブロック{locked ? " / 保存済み" : ""}</p>
         </div>
         {!locked ? (
-          <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-none border border-[#F0DEE2] px-3 text-xs font-bold text-[#6F676B] disabled:opacity-50" disabled={isSaving || logs.length === 0} onClick={() => void onSave()} type="button">
+          <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-none border border-[#F0DEE2] px-3 text-xs font-medium text-[#6F676B] disabled:opacity-50" disabled={isSaving || logs.length === 0} onClick={() => void onSave()} type="button">
             {isSaving ? <LoadingSpinner label="保存中" /> : null}
             保存して分析済み一覧へ
           </button>
         ) : null}
       </div>
       <div className="mt-4 max-h-[520px] space-y-3 overflow-auto pr-1">
-        {logs.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-5 py-8 text-center text-sm font-bold text-[#8A8186]">文字起こし完了後、発話単位のログが表示されます。</p> : null}
+        {logs.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-5 py-8 text-center text-sm font-medium text-[#8A8186]">文字起こし完了後、発話単位のログが表示されます。</p> : null}
         {locked
           ? logs.map((log) => (
             <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold leading-6 text-[#5F585C]" key={log.id}>
-              <span className="font-bold text-[#EC6F8B]">{speakerLabels[log.speaker]}: </span>
+              <span className="font-medium text-[#EC6F8B]">{speakerLabels[log.speaker]}: </span>
               {log.text}
             </p>
           ))
@@ -1740,7 +1740,7 @@ function ConversationLogPanel({
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                 <SingleSelect options={Object.entries(speakerLabels).map(([value, label]) => ({ value, label }))} value={log.speaker} onChange={(speaker) => onUpdate(log.id, { speaker: speaker as TeleapoSpeaker })} />
                 <button
-                  className="inline-flex h-9 items-center justify-center gap-1 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#EC6F8B] disabled:opacity-40"
+                  className="inline-flex h-9 items-center justify-center gap-1 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#EC6F8B] disabled:opacity-40"
                   disabled={splitTextIntoConversationBlocks(log.text).length <= 1}
                   onClick={() => onSplit(log.id)}
                   type="button"
@@ -1758,13 +1758,13 @@ function ConversationLogPanel({
 }
 
 function Metric({ title, value }: { title: string; value: string }) {
-  return <div className="rounded-none bg-[#FFF0F3] p-4"><p className="text-sm font-bold text-[#EC6F8B]">{title}</p><p className="mt-2 text-2xl font-bold text-[#2B2B2B]">{value}</p></div>;
+  return <div className="rounded-none bg-[#FFF0F3] p-4"><p className="text-sm font-medium text-[#EC6F8B]">{title}</p><p className="mt-2 text-base font-medium text-[#2B2B2B]">{value}</p></div>;
 }
 
 function TextBlock({ title, items }: { title: string; items: string[] }) {
   const visibleItems = items.filter(Boolean);
   if (visibleItems.length === 0) return null;
-  return <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4"><h4 className="font-bold text-[#2B2B2B]">{title}</h4><ul className="mt-3 space-y-2 text-sm font-semibold text-[#6F676B]">{visibleItems.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}</ul></div>;
+  return <div className="rounded-none border border-[#F0DEE2] bg-[#FFFBFC] p-4"><h4 className="font-medium text-[#2B2B2B]">{title}</h4><ul className="mt-3 space-y-2 text-sm font-semibold text-[#6F676B]">{visibleItems.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}</ul></div>;
 }
 
 function toDatetimeLocalValue(date: Date): string {

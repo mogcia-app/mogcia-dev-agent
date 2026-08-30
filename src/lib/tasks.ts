@@ -2,16 +2,12 @@
 
 import {
   Timestamp,
-  addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
   type DocumentData,
   type FirestoreError,
   type Unsubscribe
@@ -202,31 +198,30 @@ export async function updateTask(taskId: string, draft: TaskDraft, currentUser: 
 }
 
 export async function setTaskCompleted(task: Task, completed: boolean): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-
-  await updateDoc(doc(db, TASKS_COLLECTION, task.id), {
-    status: completed ? "completed" : "todo",
-    completedAt: completed ? serverTimestamp() : null,
-    progressLogs: [
-      ...(task.progressLogs ?? []),
-      createProgressLog(completed ? "completed" : "reopened", completed ? "タスクを完了しました" : "未完了に戻しました", { id: task.assigneeId, name: task.assigneeName || "担当者" })
-    ],
-    updatedAt: serverTimestamp()
+  await businessApi<{ task: Task }>("/api/business/tasks", {
+    method: "PATCH",
+    body: toJsonBody({
+      id: task.id,
+      action: completed ? "complete" : "reopen",
+      progressLogs: [
+        ...(task.progressLogs ?? []),
+        createProgressLog(completed ? "completed" : "reopened", completed ? "タスクを完了しました" : "未完了に戻しました", { id: task.assigneeId, name: task.assigneeName || "担当者" })
+      ]
+    })
   });
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await deleteDoc(doc(db, TASKS_COLLECTION, taskId));
+  await businessApi<{ id: string; deleted: boolean }>("/api/business/tasks", {
+    method: "DELETE",
+    body: toJsonBody({ id: taskId })
+  });
 }
 
 export async function duplicateTask(task: Task, currentUser: MemberOption & { uid: string }): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-
-  await addDoc(collection(db, TASKS_COLLECTION), {
+  await businessApi<{ id: string; taskId?: string }>("/api/business/tasks", {
+    method: "POST",
+    body: toJsonBody({
     title: `${task.title} のコピー`,
     description: task.description ?? "",
     status: "todo",
@@ -256,9 +251,9 @@ export async function duplicateTask(task: Task, currentUser: MemberOption & { ui
     checklist: task.checklist ?? [],
     comments: task.comments ?? "",
     progressLogs: [createProgressLog("created", "コピーとしてタスクを作成しました", currentUser)],
-    completedAt: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+      completedAt: null,
+      force: true
+    })
   });
 }
 

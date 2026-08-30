@@ -61,6 +61,7 @@ export interface Activity {
   companyId?: string | null;
   dealId?: string | null;
   type: ActivityType;
+  leadStatus?: LeadStatus | null;
   title?: string;
   content?: string;
   productId?: string | null;
@@ -80,6 +81,7 @@ export interface Activity {
 
 export interface ActivityDraft {
   type: ActivityType;
+  leadStatus: LeadStatus | "";
   title: string;
   content: string;
   productId: string;

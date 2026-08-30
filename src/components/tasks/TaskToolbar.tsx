@@ -39,7 +39,7 @@ export function TaskViewTabs({ view, setFilter }: { view: TaskView; setFilter: (
         const Icon = item.icon;
         const active = item.value === view;
         return (
-          <button className={`flex h-16 items-center justify-center gap-2 border-[#F0DEE2] text-sm font-bold transition md:border-r md:last:border-r-0 ${active ? "bg-[#FFF2F5] text-[#EC6F8B]" : "text-[#6F686C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("view", item.value)} type="button">
+          <button className={`flex h-16 items-center justify-center gap-2 border-[#F0DEE2] text-sm font-medium transition md:border-r md:last:border-r-0 ${active ? "bg-[#FFF2F5] text-[#EC6F8B]" : "text-[#6F686C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("view", item.value)} type="button">
             <Icon className="h-5 w-5" />
             {item.label}
           </button>
@@ -55,7 +55,7 @@ export function TaskStatusFilters({ status, counts, setFilter }: { status: TaskS
       {statusItems.map((item) => {
         const active = item.value === status;
         return (
-          <button className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-none border px-4 text-sm font-bold leading-none transition ${active ? "border-[#EC6F8B] bg-[#EC6F8B] text-white shadow-[0_10px_22px_rgba(236,111,139,0.22)]" : "border-[#F0DEE2] bg-white text-[#5F585C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("status", item.value)} type="button">
+          <button className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-none border px-4 text-sm font-medium leading-none transition ${active ? "border-[#EC6F8B] bg-[#EC6F8B] text-white shadow-[0_10px_22px_rgba(236,111,139,0.22)]" : "border-[#F0DEE2] bg-white text-[#5F585C] hover:bg-[#FFF8F9]"}`} key={item.value} onClick={() => setFilter("status", item.value)} type="button">
             <span className="whitespace-nowrap">{item.label}</span>
             <span className={`min-w-5 rounded-none px-1.5 py-0.5 text-center text-xs tabular-nums ${active ? "bg-white/20 text-white" : "bg-[#FFF0F3] text-[#EC6F8B]"}`}>{counts[item.value]}</span>
           </button>
@@ -99,7 +99,7 @@ export function TaskFilterControls({
 
 function SelectField({ label, value, options, onChange, icon }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void; icon?: ReactNode }) {
   return (
-    <label className="inline-flex min-h-9 items-center gap-2 rounded-none px-1 text-xs font-bold text-[#746B70]">
+    <label className="inline-flex min-h-9 items-center gap-2 rounded-none px-1 text-xs font-medium text-[#746B70]">
       {icon}
       {label}
       <div className="min-w-28">

@@ -2,15 +2,23 @@ import type { ActivityType, LeadDraft, LeadStatus } from "@/types/lead";
 
 export const leadStatusLabels: Record<LeadStatus, string> = {
   new: "新規",
-  contacting: "対応中",
+  contacting: "追っかけ",
   document_sent: "資料請求",
   appointment: "アポ獲得",
-  meeting: "商談中",
+  meeting: "打ち合わせ中",
   considering: "検討中",
-  hold: "保留",
-  won: "成約",
+  hold: "連絡待ち",
+  won: "契約",
   lost: "失注"
 };
+
+export const leadActivityStatusOptions: Array<[LeadStatus | "", string]> = [
+  ["won", "契約"],
+  ["lost", "失注"],
+  ["contacting", "追っかけ"],
+  ["hold", "連絡待ち"],
+  ["", "その他"]
+];
 
 export const activityTypeLabels: Record<ActivityType, string> = {
   call: "電話",

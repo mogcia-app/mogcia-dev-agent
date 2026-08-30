@@ -17,10 +17,10 @@ export function StatusToast({
 }) {
   if (!message) return null;
   const Icon = icons[type];
-  const tone = type === "error" ? "border-[#F7CAD2] text-[#D94F6E]" : type === "info" ? "border-[#DDEDF8] text-[#4F78B4]" : "border-[#DCEED8] text-[#5E9B61]";
+  const tone = type === "error" ? "border-[#F7CAD2] text-[#D94F6E]" : type === "info" ? "border-[#DDEDF8] text-[#4F78B4]" : "border-[#F7CAD2] text-[#EC6F8B]";
 
   return (
-    <div className={`fixed right-5 top-5 z-[90] flex max-w-sm items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-sm font-bold shadow-[0_18px_48px_rgba(31,31,34,0.12)] ${tone}`} role="status">
+    <div className={`fixed right-5 top-5 z-[90] flex max-w-sm items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-sm font-medium shadow-[0_18px_48px_rgba(31,31,34,0.12)] ${tone}`} role="status">
       <Icon className="h-5 w-5 shrink-0" />
       <span className="min-w-0 flex-1">{message}</span>
       {onClose ? (

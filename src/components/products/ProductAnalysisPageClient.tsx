@@ -122,13 +122,13 @@ export function ProductAnalysisPageClient() {
               >
                 <ProductIcon product={analysis.product} />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-[#2B2B2B]">{analysis.product.name}</span>
+                  <span className="block truncate text-sm font-medium text-[#2B2B2B]">{analysis.product.name}</span>
                   {analysis.product.tagline ? <span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{analysis.product.tagline}</span> : null}
                 </span>
                 <ScoreBadge score={analysis.score} />
               </button>
             ))}
-            {filteredAnalyses.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-4 py-8 text-center text-sm font-bold text-[#8A8186]">該当する商材がありません。</p> : null}
+            {filteredAnalyses.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-4 py-8 text-center text-sm font-medium text-[#8A8186]">該当する商材がありません。</p> : null}
           </div>
         </section>
       </>
@@ -148,14 +148,14 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
           <div className="flex min-w-0 gap-4">
             <ProductIcon large product={product} />
             <div className="min-w-0">
-              <h2 className="mt-1 truncate text-2xl font-bold text-[#2B2B2B]">{product.name}</h2>
+              <h2 className="mt-1 truncate text-base font-medium text-[#2B2B2B]">{product.name}</h2>
               {product.summary ? <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#6F676B]">{product.summary}</p> : null}
             </div>
           </div>
           <div className="min-w-[132px] rounded-none bg-[#FFF0F3] px-4 py-3 text-center">
-            <p className="text-[11px] font-bold text-[#EC6F8B]">AI参照スコア</p>
-            <p className="mt-0.5 text-2xl font-black text-[#EC6F8B]">{analysis.score}%</p>
-            <p className="mt-0.5 text-[11px] font-bold text-[#8A8186]">{formatLevel(analysis.level)}</p>
+            <p className="text-[11px] font-medium text-[#EC6F8B]">AI参照スコア</p>
+            <p className="mt-0.5 text-base font-semibold text-[#EC6F8B]">{analysis.score}%</p>
+            <p className="mt-0.5 text-[11px] font-medium text-[#8A8186]">{formatLevel(analysis.level)}</p>
           </div>
         </div>
         <div className="mt-5 h-2 overflow-hidden rounded-none bg-[#F5E8EC]">
@@ -176,12 +176,12 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
         <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
           <div className="space-y-4">
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">分析サマリー</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">分析サマリー</h3>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {analysis.sections.map((section) => (
                   <div className="rounded-none bg-[#FFFBFC] p-4" key={section.label}>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-bold text-[#2B2B2B]">{section.label}</p>
+                      <p className="text-sm font-medium text-[#2B2B2B]">{section.label}</p>
                       <ScoreBadge score={section.score} />
                     </div>
                     <p className="mt-2 text-sm font-semibold leading-6 text-[#6F676B]">{section.detail}</p>
@@ -191,7 +191,7 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
             </section>
 
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">営業プレイブック確認</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">営業プレイブック確認</h3>
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 <PlaybookCard title="テレアポ / 新規" entry={playbook.teleapo.new} />
                 <PlaybookCard title="テレアポ / 既存" entry={playbook.teleapo.existing} />
@@ -201,7 +201,7 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
             </section>
 
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">AIが参照できる内容</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">AIが参照できる内容</h3>
               <div className="mt-4 grid gap-3 lg:grid-cols-3">
                 <MiniList title="提案価値" items={product.values} />
                 <MiniList title="解決課題" items={product.problems} />
@@ -222,23 +222,23 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
 
           <aside className="space-y-4">
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">優先して埋めたい項目</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">優先して埋めたい項目</h3>
               <div className="mt-4 space-y-2">
                 {analysis.missing.map((item) => (
-                  <p className="flex gap-2 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#6F676B]" key={item}>
+                  <p className="flex gap-2 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-medium text-[#6F676B]" key={item}>
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#EC6F8B]" />
                     {item}
                   </p>
                 ))}
-                {analysis.missing.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-8 text-center text-sm font-bold text-[#8A8186]">主要項目は揃っています。</p> : null}
+                {analysis.missing.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-8 text-center text-sm font-medium text-[#8A8186]">主要項目は揃っています。</p> : null}
               </div>
             </section>
 
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">強いところ</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">強いところ</h3>
               <div className="mt-4 space-y-2">
                 {analysis.strengths.map((item) => (
-                  <p className="flex gap-2 rounded-none bg-[#F7FCF8] px-3 py-2 text-sm font-bold text-[#55765E]" key={item}>
+                  <p className="flex gap-2 rounded-none bg-[#F7FCF8] px-3 py-2 text-sm font-medium text-[#55765E]" key={item}>
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                     {item}
                   </p>
@@ -247,15 +247,15 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
             </section>
 
             <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-[#2B2B2B]">反論想定</h3>
+              <h3 className="text-base font-medium text-[#2B2B2B]">反論想定</h3>
               <div className="mt-4 space-y-3">
                 {product.objectionHandbook.slice(0, 5).map((item) => (
                   <div className="rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold text-[#6F676B]" key={item.id}>
-                    <p className="font-bold text-[#2B2B2B]">{item.objection || item.category}</p>
+                    <p className="font-medium text-[#2B2B2B]">{item.objection || item.category}</p>
                     <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#8A8186]">{item.responseExample || "回答例未設定"}</p>
                   </div>
                 ))}
-                {product.objectionHandbook.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-8 text-center text-sm font-bold text-[#8A8186]">反論想定が未登録です。</p> : null}
+                {product.objectionHandbook.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-8 text-center text-sm font-medium text-[#8A8186]">反論想定が未登録です。</p> : null}
               </div>
             </section>
           </aside>
@@ -268,7 +268,7 @@ function AnalysisDetail({ analysis }: { analysis: ProductAnalysis }) {
 function DetailTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
-      className={`h-11 border-b-2 px-4 text-sm font-bold transition ${active ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#6F676B] hover:text-[#EC6F8B]"}`}
+      className={`h-11 border-b-2 px-4 text-sm font-medium transition ${active ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#6F676B] hover:text-[#EC6F8B]"}`}
       onClick={onClick}
       type="button"
     >
@@ -282,14 +282,14 @@ function ActualAnalysisSection({ actual }: { actual: ProductActualAnalysis }) {
     <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold text-[#2B2B2B]">実際の分析データ</h3>
+          <h3 className="text-base font-medium text-[#2B2B2B]">実際の分析データ</h3>
           <p className="mt-1 text-sm font-semibold text-[#8A8186]">アップロード済みのテレアポ・商談AI分析から集計しています。</p>
         </div>
-        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]">分析済み {actual.analyzedCount}件</span>
+        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]">分析済み {actual.analyzedCount}件</span>
       </div>
 
       {actual.records.length === 0 ? (
-        <p className="mt-4 rounded-none bg-[#FFFBFC] px-4 py-8 text-center text-sm font-bold text-[#8A8186]">この商材に紐づく分析データはまだありません。</p>
+        <p className="mt-4 rounded-none bg-[#FFFBFC] px-4 py-8 text-center text-sm font-medium text-[#8A8186]">この商材に紐づく分析データはまだありません。</p>
       ) : (
         <div className="mt-4 grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -301,13 +301,13 @@ function ActualAnalysisSection({ actual }: { actual: ProductActualAnalysis }) {
           <div className="grid gap-3 lg:grid-cols-2">
             <SimplePanel title="見込みランク分布">
               <div className="flex flex-wrap gap-2">
-                {actual.rankCounts.map((item) => <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]" key={item.rank}>{item.rank} {item.count}件</span>)}
+                {actual.rankCounts.map((item) => <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]" key={item.rank}>{item.rank} {item.count}件</span>)}
                 {actual.rankCounts.length === 0 ? <EmptyTiny text="ランク判定がまだありません" /> : null}
               </div>
             </SimplePanel>
             <SimplePanel title="最終結果">
               <div className="flex flex-wrap gap-2">
-                {actual.finalResults.map((item) => <span className="rounded-none bg-[#FFFBFC] px-3 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0DEE2]" key={item.label}>{item.label} {item.count}件</span>)}
+                {actual.finalResults.map((item) => <span className="rounded-none bg-[#FFFBFC] px-3 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0DEE2]" key={item.label}>{item.label} {item.count}件</span>)}
                 {actual.finalResults.length === 0 ? <EmptyTiny text="商談診断シートの結果がまだありません" /> : null}
               </div>
             </SimplePanel>
@@ -328,7 +328,7 @@ function ActualAnalysisSection({ actual }: { actual: ProductActualAnalysis }) {
             <div className="grid gap-2">
               {actual.records.slice(0, 5).map((record) => (
                 <div className="grid gap-2 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B] md:grid-cols-[120px_1fr_auto]" key={record.id}>
-                  <span className="font-bold text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+                  <span className="font-medium text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
                   <span className="min-w-0 truncate">{record.customerName} / {record.contactName || "担当者未設定"}</span>
                   <span>{record.aiAdvice?.prospectRank ?? record.aiAdvice?.meetingPreparation?.prospectScore.rank ?? "未判定"}</span>
                 </div>
@@ -345,10 +345,10 @@ function SummaryMetric({ icon, title, value }: { icon: React.ReactNode; title: s
   return (
     <div className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-[#8A8186]">{title}</p>
+        <p className="text-sm font-medium text-[#8A8186]">{title}</p>
         <span className="grid h-10 w-10 place-items-center rounded-none bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span>
       </div>
-      <p className="mt-3 text-3xl font-black text-[#2B2B2B]">{value}</p>
+      <p className="mt-3 text-base font-semibold text-[#2B2B2B]">{value}</p>
     </div>
   );
 }
@@ -370,7 +370,7 @@ function ProductIcon({ large = false, product }: { large?: boolean; product: Pro
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  return <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{score}%</span>;
+  return <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-semibold text-[#EC6F8B]">{score}%</span>;
 }
 
 function PlaybookCard({ entry, title }: { entry: Product["salesSettings"]["salesPlaybooks"]["teleapo"]["new"]; title: string }) {
@@ -378,7 +378,7 @@ function PlaybookCard({ entry, title }: { entry: Product["salesSettings"]["sales
   return (
     <div className="rounded-none bg-[#FFFBFC] p-4">
       <div className="flex items-center justify-between">
-        <p className="font-bold text-[#2B2B2B]">{title}</p>
+        <p className="font-medium text-[#2B2B2B]">{title}</p>
         <ScoreBadge score={score} />
       </div>
       <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-[#6F676B]">{entry.proposalDirection || "提案方針未設定"}</p>
@@ -395,7 +395,7 @@ function MiniList({ items, title }: { items: string[]; title: string }) {
   const cleanItems = items.map((item) => item.replace(/^[・\-\s]+/, "").trim()).filter(Boolean);
   return (
     <div className="rounded-none bg-[#FFFBFC] p-4">
-      <p className="font-bold text-[#2B2B2B]">{title}</p>
+      <p className="font-medium text-[#2B2B2B]">{title}</p>
       <ul className="mt-3 space-y-1 text-sm font-semibold leading-6 text-[#6F676B]">
         {cleanItems.slice(0, 5).map((item, index) => <li key={`${item}-${index}`}>・{item}</li>)}
         {cleanItems.length === 0 ? <li className="text-[#A79DA2]">未設定</li> : null}
@@ -407,8 +407,8 @@ function MiniList({ items, title }: { items: string[]; title: string }) {
 function CompactMetric({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-none bg-[#FFFBFC] p-3">
-      <p className="text-xs font-bold text-[#8A8186]">{title}</p>
-      <p className="mt-1 text-xl font-black text-[#2B2B2B]">{value}</p>
+      <p className="text-xs font-medium text-[#8A8186]">{title}</p>
+      <p className="mt-1 text-base font-semibold text-[#2B2B2B]">{value}</p>
     </div>
   );
 }
@@ -416,7 +416,7 @@ function CompactMetric({ title, value }: { title: string; value: string }) {
 function SimplePanel({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <div className="rounded-none bg-[#FFFBFC] p-4">
-      <p className="font-bold text-[#2B2B2B]">{title}</p>
+      <p className="font-medium text-[#2B2B2B]">{title}</p>
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -432,12 +432,12 @@ function TinyList({ items }: { items: string[] }) {
 }
 
 function EmptyTiny({ text }: { text: string }) {
-  return <p className="text-sm font-bold text-[#A79DA2]">{text}</p>;
+  return <p className="text-sm font-medium text-[#A79DA2]">{text}</p>;
 }
 
 function SmallCheck({ active, label }: { active: boolean; label: string }) {
   return (
-    <span className={`rounded-none px-2.5 py-1 text-xs font-bold ${active ? "bg-[#F7FCF8] text-[#55765E]" : "bg-[#F5F1F2] text-[#9A8F94]"}`}>
+    <span className={`rounded-none px-2.5 py-1 text-xs font-medium ${active ? "bg-[#F7FCF8] text-[#55765E]" : "bg-[#F5F1F2] text-[#9A8F94]"}`}>
       {label}
     </span>
   );
@@ -448,7 +448,7 @@ function EmptyAnalysis() {
     <section className="grid min-h-[420px] place-items-center rounded-none border border-[#F0DEE2] bg-white p-8 text-center shadow-sm">
       <div>
         <BookOpenCheck className="mx-auto h-10 w-10 text-[#EC6F8B]" />
-        <h3 className="mt-4 text-xl font-bold text-[#2B2B2B]">商材がまだありません</h3>
+        <h3 className="mt-4 text-base font-medium text-[#2B2B2B]">商材がまだありません</h3>
         <p className="mt-2 text-sm font-semibold text-[#8A8186]">商材管理で商材を追加すると、AI参照状態を確認できます。</p>
       </div>
     </section>

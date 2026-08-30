@@ -12,7 +12,7 @@ export function StatusBanner({ message, type = "info" }: { message?: string | nu
   const Icon = meta.icon;
 
   return (
-    <div className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-bold ${meta.className}`}>
+    <div className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-medium ${meta.className}`}>
       <Icon className="mt-0.5 h-5 w-5 shrink-0" />
       <p className="leading-6">{message}</p>
     </div>

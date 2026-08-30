@@ -239,17 +239,15 @@ export async function updateCompany(companyId: string, user: { id: string; name:
 }
 
 export async function toggleCompanyFavorite(company: Company, userId: string): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const favoriteUserIds = company.favoriteUserIds.includes(userId) ? company.favoriteUserIds.filter((id) => id !== userId) : [...company.favoriteUserIds, userId];
-  await updateDoc(doc(db, companiesCollection, company.id), { favoriteUserIds, updatedAt: serverTimestamp() });
+  await businessApi<{ company: Company }>("/api/business/companies", {
+    method: "PATCH",
+    body: toJsonBody({ id: company.id, action: "favorite", favorite: !company.favoriteUserIds.includes(userId) })
+  });
 }
 
 export async function addCompanyLog(companyId: string, user: { id: string; name: string }, input: { type: ActivityLogType; title: string; content?: string; occurredAt: Timestamp; source?: CompanyActivityLog["source"]; direction?: ActivityDirection; actorUserIds?: string[]; actorNames?: string[]; contactIds?: string[]; contactNames?: string[]; contactNote?: string; dealId?: string | null; aiTaskRequested?: boolean; nextAction?: CompanyActivityLog["nextAction"] }): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const ref = await addDoc(collection(db, companiesCollection, companyId, "activityLogs"), { companyId, userId: user.id, userName: user.name, createdBy: user.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), source: "manual", ...input });
-  const result = await businessApi<{ id: string; activityId?: string }>("/api/business/activities", {
+  const nextActionPatch = input.nextAction?.title ? { nextActionAt: input.nextAction.dueAt ?? null, nextActionTitle: input.nextAction.title } : {};
+  const result = await businessApi<{ id: string; activityId?: string; activityLogId?: string | null }>("/api/business/activities", {
     method: "POST",
     body: toJsonBody({
       leadId: null,
@@ -263,14 +261,11 @@ export async function addCompanyLog(companyId: string, user: { id: string; name:
       audioId: null,
       transcriptId: null,
       analysisId: null,
-      nextActionAt: input.nextAction?.dueAt ?? null,
-      nextActionTitle: input.nextAction?.title ?? null,
-      occurredAt: input.occurredAt,
-      legacyCompanyActivityLogId: ref.id
+      ...nextActionPatch,
+      occurredAt: input.occurredAt
     })
   });
-  await updateDoc(doc(db, companiesCollection, companyId), { lastContactAt: input.occurredAt, nextActionTitle: input.nextAction?.title ?? null, nextActionAt: input.nextAction?.dueAt ?? null, updatedAt: serverTimestamp() });
-  return ref.id || result.activityId || result.id;
+  return result.activityLogId || result.activityId || result.id;
 }
 
 function toCommonActivityType(type: ActivityLogType): "call" | "email" | "document" | "meeting" | "telemarketing" | "note" | "status_change" | "other" {
@@ -324,7 +319,8 @@ export async function uploadCompanyFile(companyId: string, user: { id: string; n
 }
 
 export async function deleteCompany(companyId: string): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await deleteDoc(doc(db, companiesCollection, companyId));
+  await businessApi<{ id: string; deleted: boolean }>("/api/business/companies", {
+    method: "DELETE",
+    body: toJsonBody({ id: companyId })
+  });
 }

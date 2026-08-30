@@ -2,15 +2,11 @@
 
 import {
   Timestamp,
-  addDoc,
   collection,
-  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
   where,
   type DocumentData,
   type FirestoreError,
@@ -82,6 +78,7 @@ export function normalizeActivity(id: string, data: DocumentData): Activity {
     companyId: optionalStr(data.companyId),
     dealId: optionalStr(data.dealId),
     type: isActivityType(data.type) ? data.type : "other",
+    leadStatus: isLeadStatus(data.leadStatus) ? data.leadStatus : null,
     title: str(data.title),
     content: str(data.content),
     productId: optionalStr(data.productId),
@@ -110,6 +107,12 @@ export function subscribeLeadActivities(leadId: string, onNext: (activities: Act
   const db = getFirebaseDb();
   if (!db || !leadId) return () => undefined;
   return onSnapshot(query(collection(db, activitiesCollection), where("leadId", "==", leadId), orderBy("occurredAt", "desc"), limit(100)), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeActivity(entry.id, entry.data()))), onError);
+}
+
+export function subscribeActivities(onNext: (activities: Activity[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
+  const db = getFirebaseDb();
+  if (!db) return () => undefined;
+  return onSnapshot(query(collection(db, activitiesCollection), orderBy("occurredAt", "desc"), limit(500)), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeActivity(entry.id, entry.data()))), onError);
 }
 
 export function subscribeCompanyActivities(companyId: string, onNext: (activities: Activity[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
@@ -146,9 +149,10 @@ export async function updateLead(leadId: string, draft: LeadDraft, user: { id: s
 }
 
 export async function linkLeadToCompany(leadId: string, companyId: string, user: { id: string; name: string }): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, leadsCollection, leadId), { companyId, updatedAt: serverTimestamp() });
+  await businessApi<{ lead: Lead }>("/api/business/leads", {
+    method: "PATCH",
+    body: toJsonBody({ id: leadId, companyId, updatedBy: user.id, updatedByName: user.name })
+  });
   await createActivity({ leadId, companyId, type: "status_change", title: "会社に関連付けました", occurredAt: Timestamp.now() }, user);
 }
 
@@ -171,6 +175,7 @@ export async function createManualActivity(target: { leadId?: string | null; com
   return createActivity({
     ...target,
     type: draft.type,
+    leadStatus: draft.leadStatus || null,
     title: draft.title.trim() || activityTypeLabels[draft.type],
     content: draft.content.trim(),
     productId: draft.productId || null,
@@ -189,6 +194,7 @@ export async function createActivity(input: Omit<Activity, "id" | "createdBy" | 
       companyId: input.companyId ?? null,
       dealId: input.dealId ?? null,
       type: input.type,
+      leadStatus: input.leadStatus ?? null,
       title: input.title ?? activityTypeLabels[input.type],
       content: input.content ?? "",
       productId: input.productId ?? null,

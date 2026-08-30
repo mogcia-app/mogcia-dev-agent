@@ -1,8 +1,9 @@
 import type { Timestamp } from "firebase/firestore";
 
 export type CalendarItemType = "task" | "meeting" | "appointment" | "event";
-export type CalendarCategory = "ai_task" | "manual_task" | "meeting" | "appointment" | "sales" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
-export type CalendarEventType = "meeting" | "appointment" | "sales" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
+export type CalendarCategory = "ai_task" | "manual_task" | "meeting" | "appointment" | "customer_support" | "sales" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
+export type CalendarEventType = "sales" | "customer_support" | "internal" | "deskwork" | "personal" | "other" | "meeting";
+export type CalendarMeetingMethod = "online" | "visit" | "phone" | "in_person" | "other";
 export type CalendarViewMode = "timeline" | "list";
 
 export interface CalendarItem {
@@ -14,6 +15,7 @@ export interface CalendarItem {
   endAt?: Date | null;
   allDay: boolean;
   category: CalendarCategory;
+  meetingMethod?: CalendarMeetingMethod | null;
   status?: string;
   assigneeId?: string;
   assigneeName?: string;
@@ -33,6 +35,8 @@ export interface CalendarItem {
   companyName?: string | null;
   productId?: string | null;
   productName?: string | null;
+  productIds?: string[];
+  productNames?: string[];
   projectId?: string | null;
   projectName?: string | null;
   location?: string | null;
@@ -50,6 +54,7 @@ export interface CalendarEvent {
   title: string;
   description?: string;
   eventType: CalendarEventType;
+  meetingMethod?: CalendarMeetingMethod | null;
   startAt: Timestamp;
   endAt?: Timestamp | null;
   allDay: boolean;
@@ -71,6 +76,8 @@ export interface CalendarEvent {
   companyName?: string | null;
   productId?: string | null;
   productName?: string | null;
+  productIds?: string[];
+  productNames?: string[];
   projectId?: string | null;
   projectName?: string | null;
   meetingId?: string | null;
@@ -96,8 +103,10 @@ export interface CalendarEvent {
 export interface CalendarEventDraft {
   title: string;
   eventType: CalendarEventType;
+  meetingMethod: CalendarMeetingMethod;
   startDate: string;
   startTime: string;
+  durationMinutes: number;
   endDate: string;
   endTime: string;
   allDay: boolean;
@@ -115,6 +124,8 @@ export interface CalendarEventDraft {
   companyName: string;
   productId: string;
   productName: string;
+  productIds: string[];
+  productNames: string[];
   projectId: string;
   projectName: string;
   meetingId: string;

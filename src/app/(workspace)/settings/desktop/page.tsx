@@ -96,21 +96,21 @@ export default function DesktopSettingsPage() {
         <div className="mt-5 rounded-2xl border border-[#F7CAD2] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-[#EC6F8B]">
             <ShieldCheck className="h-5 w-5" />
-            <h2 className="font-bold">デスクトップアクセストークン</h2>
+            <h2 className="font-medium">デスクトップアクセストークン</h2>
           </div>
           <p className="mt-2 text-sm font-semibold text-[#777]">このトークンは今だけ表示されます。CLIまたはデスクトップウィジェットの設定へ登録してください。</p>
-          <code className="mt-4 block break-all rounded-none bg-[#FCF9F9] p-4 text-sm font-bold text-[#222]">{issuedToken}</code>
+          <code className="mt-4 block break-all rounded-none bg-[#FCF9F9] p-4 text-sm font-medium text-[#222]">{issuedToken}</code>
         </div>
       ) : null}
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[360px_1fr]">
         <section className="rounded-2xl border border-[#F0E7E9] bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold text-[#222]">新しい端末を追加</h2>
-          <label className="mt-5 grid gap-2 text-sm font-bold text-[#655D62]">
+          <h2 className="text-lg font-medium text-[#222]">新しい端末を追加</h2>
+          <label className="mt-5 grid gap-2 text-sm font-medium text-[#655D62]">
             端末名
             <input className="task-input" placeholder="MacBook Neo" value={deviceName} onChange={(event) => setDeviceName(event.target.value)} />
           </label>
-          <button className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] text-sm font-bold text-white disabled:opacity-50" disabled={saving || !deviceName.trim()} onClick={() => void createDevice()} type="button">
+          <button className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-none bg-[#EC6F8B] text-sm font-medium text-white disabled:opacity-50" disabled={saving || !deviceName.trim()} onClick={() => void createDevice()} type="button">
             {saving ? <LoadingSpinner label="登録中" /> : <Plus className="h-4 w-4" />}
             新しい端末を追加
           </button>
@@ -118,8 +118,8 @@ export default function DesktopSettingsPage() {
 
         <section className="rounded-2xl border border-[#F0E7E9] bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-[#222]">登録済み端末</h2>
-            <button className="text-sm font-bold text-[#EC6F8B]" onClick={() => user && void loadDevices(user)} type="button">再読み込み</button>
+            <h2 className="text-lg font-medium text-[#222]">登録済み端末</h2>
+            <button className="text-sm font-medium text-[#EC6F8B]" onClick={() => user && void loadDevices(user)} type="button">再読み込み</button>
           </div>
           {loading ? <div className="mt-5"><LoadingSpinner label="端末一覧を読み込み中" /></div> : null}
           {!loading && devices.length === 0 ? <div className="mt-5"><EmptyState icon={Monitor} title="登録済み端末はありません" description="最初のMacまたはCLI端末を追加してください。" /></div> : null}
@@ -127,13 +127,12 @@ export default function DesktopSettingsPage() {
             {devices.map((device) => (
               <div className="grid gap-3 rounded-2xl border border-[#F0E7E9] bg-[#FFFBFC] p-4 lg:grid-cols-[1fr_120px_180px_100px]" key={device.id}>
                 <div>
-                  <p className="font-bold text-[#222]">{device.deviceName}</p>
-                  <p className="mt-1 text-xs font-semibold text-[#888]">作成日: {formatDateOnly(device.createdAt)}</p>
+                  <p className="font-medium text-[#222]">{device.deviceName}</p>
                   <p className="mt-1 text-xs font-semibold text-[#888]">Agent: {device.agentEnabled ? "有効" : "未接続"} / 通知: {device.notificationEnabled ? "有効" : "未設定"}</p>
                 </div>
-                <span className={`h-fit rounded-none px-3 py-1 text-center text-xs font-bold ${device.status === "active" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#F5ECEE] text-[#888]"}`}>{device.status === "active" ? "有効" : "無効"}</span>
+                <span className={`h-fit rounded-none px-3 py-1 text-center text-xs font-medium ${device.status === "active" ? "bg-[#F3FAF0] text-[#5E9B61]" : "bg-[#F5ECEE] text-[#888]"}`}>{device.status === "active" ? "有効" : "無効"}</span>
                 <p className="text-xs font-semibold text-[#888]">最終利用: {device.lastSeenAt ? formatDateOnly(device.lastSeenAt) : device.lastUsedAt ? formatDateOnly(device.lastUsedAt) : "未利用"}</p>
-                <button className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F7CAD2] text-sm font-bold text-[#D94F6E] disabled:opacity-40" disabled={device.status === "revoked"} onClick={() => void revokeDevice(device.id)} type="button">
+                <button className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F7CAD2] text-sm font-medium text-[#D94F6E] disabled:opacity-40" disabled={device.status === "revoked"} onClick={() => void revokeDevice(device.id)} type="button">
                   <Trash2 className="h-4 w-4" />
                   無効化
                 </button>

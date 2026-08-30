@@ -2,8 +2,8 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
-import { useMemo } from "react";
-import { fromDateKey, toDateKey } from "@/lib/calendar-utils";
+import { useState } from "react";
+import { toDateKey } from "@/lib/calendar-utils";
 import type { CalendarViewMode } from "@/types/calendar";
 
 export function useSelectedDate(): {
@@ -18,13 +18,14 @@ export function useSelectedDate(): {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const selectedDate = useMemo(() => fromDateKey(params.get("date")), [params]);
+  const [selectedDate, setSelectedDateState] = useState(() => new Date());
   const view: CalendarViewMode = params.get("view") === "list" ? "list" : "timeline";
   const member = params.get("member") ?? "all";
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params.toString());
-    if ((key === "date" && value === toDateKey(new Date())) || (key === "view" && value === "timeline") || (key === "member" && value === "all")) {
+    next.delete("date");
+    if ((key === "view" && value === "timeline") || (key === "member" && value === "all")) {
       next.delete(key);
     } else {
       next.set(key, value);
@@ -37,7 +38,12 @@ export function useSelectedDate(): {
     selectedDateKey: toDateKey(selectedDate),
     view,
     member,
-    setSelectedDate: (date: Date) => setParam("date", toDateKey(date)),
+    setSelectedDate: (date: Date) => {
+      setSelectedDateState(date);
+      const next = new URLSearchParams(params.toString());
+      next.delete("date");
+      router.replace(`${pathname}${next.toString() ? `?${next.toString()}` : ""}` as Route, { scroll: false });
+    },
     setView: (nextView: CalendarViewMode) => setParam("view", nextView),
     setMember: (nextMember: string) => setParam("member", nextMember)
   };

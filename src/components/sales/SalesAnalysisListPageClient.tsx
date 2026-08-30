@@ -155,7 +155,7 @@ export function SalesAnalysisListPageClient() {
     <div className="">
       <PageHeader title="案件分析" description="会社・商材ごとに、テレアポから商談後までの分析履歴を確認できます。" />
       <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto]">
-        <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-3 text-sm font-bold text-[#777]">
+        <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-3 text-sm font-medium text-[#777]">
           <Search className="h-4 w-4 text-[#EC6F8B]" />
           <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・商材で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
         </label>
@@ -264,18 +264,18 @@ function DealAnalysisWorkspace({ deal, user }: { deal: DealGroup; user: User | n
       <section className="border-b border-[#E9E2E4] bg-white pb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <Link className="text-sm font-bold text-[#8A8186] hover:text-[#EC6F8B]" href="/sales/analysis">← 商談分析</Link>
-            <h1 className="mt-1 truncate text-2xl font-black text-[#2B2B2B]">{deal.companyName}</h1>
-            <p className="mt-1 text-sm font-bold text-[#8A8186]">{deal.productName || "商材未設定"} / {deal.contactName || "担当者未設定"}</p>
+            <Link className="text-sm font-medium text-[#8A8186] hover:text-[#EC6F8B]" href="/sales/analysis">← 商談分析</Link>
+            <h1 className="mt-1 truncate text-base font-semibold text-[#2B2B2B]">{deal.companyName}</h1>
+            <p className="mt-1 text-sm font-medium text-[#8A8186]">{deal.productName || "商材未設定"} / {deal.contactName || "担当者未設定"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {deal.companyId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-bold text-[#6F676B] hover:text-[#EC6F8B]" href={`/sales/companies?companyId=${deal.companyId}` as Route}>Company</Link> : null}
-            {deal.productId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-bold text-[#6F676B] hover:text-[#EC6F8B]" href={`/products?productId=${deal.productId}` as Route}>Product</Link> : null}
-            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-bold text-[#6F676B] disabled:opacity-50" disabled={isRegenerating} onClick={() => void regenerate()} type="button"><Sparkles className="h-4 w-4" />{isRegenerating ? "再分析中" : "AI再分析"}</button>
-            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-bold text-[#6F676B]" onClick={() => window.print()} type="button"><FileText className="h-4 w-4" />PDF</button>
+            {deal.companyId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-medium text-[#6F676B] hover:text-[#EC6F8B]" href={`/sales/companies?companyId=${deal.companyId}` as Route}>Company</Link> : null}
+            {deal.productId ? <Link className="inline-flex h-10 items-center px-3 text-sm font-medium text-[#6F676B] hover:text-[#EC6F8B]" href={`/products?productId=${deal.productId}` as Route}>Product</Link> : null}
+            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-medium text-[#6F676B] disabled:opacity-50" disabled={isRegenerating} onClick={() => void regenerate()} type="button"><Sparkles className="h-4 w-4" />{isRegenerating ? "再分析中" : "AI再分析"}</button>
+            <button className="inline-flex h-10 items-center gap-2 border border-[#E9E2E4] bg-white px-4 text-sm font-medium text-[#6F676B]" onClick={() => window.print()} type="button"><FileText className="h-4 w-4" />PDF</button>
           </div>
         </div>
-        {notice ? <p className="mt-4 text-sm font-bold text-[#EC6F8B]">{notice}</p> : null}
+        {notice ? <p className="mt-4 text-sm font-medium text-[#EC6F8B]">{notice}</p> : null}
         <dl className="mt-6 grid gap-x-8 gap-y-3 border-y border-[#EFE8EA] py-4 sm:grid-cols-3 lg:grid-cols-6">
           <StrategyFact label="見込み" value={`${deal.currentRank}${deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}`} />
           <StrategyFact label="前回比" value={scoreDelta === null ? "—" : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`} />
@@ -288,8 +288,8 @@ function DealAnalysisWorkspace({ deal, user }: { deal: DealGroup; user: User | n
 
       <StrategySection eyebrow="最重要" title="AIの判断" accent>
         <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-          <div><StrategyLabel>現在</StrategyLabel><p className="text-base font-bold leading-8 text-[#302A2D]">{currentState}</p></div>
-          <div><StrategyLabel>次にやること</StrategyLabel><p className="text-lg font-black text-[#EC6F8B]">{nextAction}</p><p className="mt-2 text-sm font-semibold text-[#776D72]">{formatUrgency(advice?.nextActionUrgency) || advice?.followupTiming || "時期を確認"}</p></div>
+          <div><StrategyLabel>現在</StrategyLabel><p className="text-base font-medium leading-8 text-[#302A2D]">{currentState}</p></div>
+          <div><StrategyLabel>次にやること</StrategyLabel><p className="text-base font-semibold text-[#EC6F8B]">{nextAction}</p><p className="mt-2 text-sm font-semibold text-[#776D72]">{formatUrgency(advice?.nextActionUrgency) || advice?.followupTiming || "時期を確認"}</p></div>
         </div>
         <div className="mt-6 grid gap-5 md:grid-cols-3">
           <StrategyList title="確認すること" items={missing.slice(0, 6)} />
@@ -309,30 +309,30 @@ function DealAnalysisWorkspace({ deal, user }: { deal: DealGroup; user: User | n
 
       <StrategySection title="次回営業">
         <div className="grid gap-7 md:grid-cols-2">
-          <div><StrategyLabel>推奨アクション</StrategyLabel><p className="text-base font-black text-[#302A2D]">{nextAction}</p><p className="mt-2 text-sm font-semibold leading-7 text-[#776D72]">{advice?.followUpReason || advice?.followupTimingReason || "次回接触で未確認事項を解消し、次の合意を作ります。"}</p></div>
+          <div><StrategyLabel>推奨アクション</StrategyLabel><p className="text-base font-semibold text-[#302A2D]">{nextAction}</p><p className="mt-2 text-sm font-semibold leading-7 text-[#776D72]">{advice?.followUpReason || advice?.followupTimingReason || "次回接触で未確認事項を解消し、次の合意を作ります。"}</p></div>
           <StrategyList title="聞くこと" items={questions.slice(0, 8)} />
           <StrategyList title="次回提案" items={proposals.slice(0, 8)} />
-          <div className="flex flex-wrap content-start gap-2"><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-bold text-[#6F676B]" href="/tasks">タスク作成を依頼</Link><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-bold text-[#6F676B]" href="/calendar">予定追加を依頼</Link></div>
+          <div className="flex flex-wrap content-start gap-2"><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-medium text-[#6F676B]" href="/tasks">タスク作成を依頼</Link><Link className="inline-flex h-10 items-center border border-[#E9E2E4] px-4 text-sm font-medium text-[#6F676B]" href="/calendar">予定追加を依頼</Link></div>
         </div>
-        {(advice?.followupCallScript || preparation) ? <details className="mt-6 border-t border-[#EFE8EA] pt-4"><summary className="cursor-pointer text-sm font-black text-[#554C50]">トーク案を開く</summary><div className="mt-4 space-y-3 text-sm font-semibold leading-7 text-[#5F565A]"><p>{advice?.followupCallScript || preparation?.openingTalk}</p>{preparation ? <ScriptPreview analysis={preparation} /> : null}</div></details> : null}
+        {(advice?.followupCallScript || preparation) ? <details className="mt-6 border-t border-[#EFE8EA] pt-4"><summary className="cursor-pointer text-sm font-semibold text-[#554C50]">トーク案を開く</summary><div className="mt-4 space-y-3 text-sm font-semibold leading-7 text-[#5F565A]"><p>{advice?.followupCallScript || preparation?.openingTalk}</p>{preparation ? <ScriptPreview analysis={preparation} /> : null}</div></details> : null}
       </StrategySection>
 
       {(concerns.length || missing.length || risks.length) ? <StrategySection title="リスク・まだ確認できていないこと"><div className="grid gap-7 md:grid-cols-3"><StrategyList title="懸念" items={concerns} /><StrategyList title="未確認" items={missing} /><StrategyList title="失注リスク" items={risks} /></div></StrategySection> : null}
 
       {deal.records.length > 1 ? <StrategySection title="前回からの変化"><ComparisonTable base={deal.firstRecord} target={deal.latestRecord} detailed /><p className="mt-5 text-sm font-semibold leading-7 text-[#5F565A]">{buildComparisonSummary(deal.firstRecord, deal.latestRecord)}</p></StrategySection> : null}
 
-      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-lg font-black text-[#302A2D]">文字起こし</summary><div className="mt-5 space-y-5">{latest.audioDownloadUrl ? <audio className="w-full" controls src={latest.audioDownloadUrl} /> : null}<p className="text-sm font-semibold text-[#776D72]">{formatDate(latest.recordedAt.toDate())} ・ {transcriptCount ? `${transcriptCount}ブロック` : "文字起こしなし"}</p><TranscriptTab deal={deal} /></div></details>
-      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-lg font-black text-[#302A2D]">履歴</summary><div className="mt-5"><HistoryTab deal={deal} /></div></details>
+      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-base font-semibold text-[#302A2D]">文字起こし</summary><div className="mt-5 space-y-5">{latest.audioDownloadUrl ? <audio className="w-full" controls src={latest.audioDownloadUrl} /> : null}<p className="text-sm font-semibold text-[#776D72]">{formatDate(latest.recordedAt.toDate())} ・ {transcriptCount ? `${transcriptCount}ブロック` : "文字起こしなし"}</p><TranscriptTab deal={deal} /></div></details>
+      <details className="border-t border-[#E9E2E4] bg-white py-5"><summary className="cursor-pointer text-base font-semibold text-[#302A2D]">履歴</summary><div className="mt-5"><HistoryTab deal={deal} /></div></details>
     </div>
   );
 }
 
 function StrategySection({ accent = false, children, eyebrow, title }: { accent?: boolean; children: React.ReactNode; eyebrow?: string; title: string }) {
-  return <section className={`border border-[#E9E2E4] p-6 ${accent ? "bg-[#FFF8FA]" : "bg-white"}`}>{eyebrow ? <p className="text-xs font-black uppercase tracking-[0.18em] text-[#EC6F8B]">{eyebrow}</p> : null}<h2 className="mt-1 text-xl font-black text-[#302A2D]">{title}</h2><div className="mt-6">{children}</div></section>;
+  return <section className={`border border-[#E9E2E4] p-6 ${accent ? "bg-[#FFF8FA]" : "bg-white"}`}>{eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EC6F8B]">{eyebrow}</p> : null}<h2 className="mt-1 text-base font-semibold text-[#302A2D]">{title}</h2><div className="mt-6">{children}</div></section>;
 }
 
-function StrategyLabel({ children }: { children: React.ReactNode }) { return <h3 className="mb-2 text-xs font-black uppercase tracking-[0.12em] text-[#968B90]">{children}</h3>; }
-function StrategyFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-xs font-bold text-[#968B90]">{label}</dt><dd className="mt-1 text-sm font-black text-[#302A2D]">{value || "—"}</dd></div>; }
+function StrategyLabel({ children }: { children: React.ReactNode }) { return <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#968B90]">{children}</h3>; }
+function StrategyFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-xs font-medium text-[#968B90]">{label}</dt><dd className="mt-1 text-sm font-semibold text-[#302A2D]">{value || "—"}</dd></div>; }
 function StrategyList({ items, title }: { items: string[]; title: string }) { const visible = uniqueStrings(items); return <div><StrategyLabel>{title}</StrategyLabel>{visible.length ? <ul className="space-y-2">{visible.map((item) => <li className="flex gap-2 text-sm font-semibold leading-6 text-[#5F565A]" key={item}><span className="text-[#EC6F8B]">•</span><span>{item}</span></li>)}</ul> : <p className="text-sm font-semibold text-[#A0969A]">該当情報なし</p>}</div>; }
 function uniqueStrings(items: Array<string | null | undefined>): string[] { return Array.from(new Set(items.map((item) => item?.trim()).filter((item): item is string => Boolean(item) && item !== "未確認"))); }
 function findDecisionContext(advice: TeleapoRecord["aiAdvice"], preparation: MeetingPreparationAnalysis | undefined): string { return uniqueStrings([...(advice?.closingRequirements ?? []), ...(preparation?.questions.decision.map((item) => item.purpose) ?? [])]).at(0) ?? ""; }
@@ -522,7 +522,7 @@ function CompareTab({ deal }: { deal: DealGroup }) {
 function HistoryTab({ deal }: { deal: DealGroup }) {
   return (
     <Panel title="履歴">
-      <div className="mb-4 flex flex-wrap gap-2">{["すべて", "音声", "商談", "AI分析", "タスク", "メール", "メモ"].map((label) => <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-bold text-[#EC6F8B]" key={label}>{label}</span>)}</div>
+      <div className="mb-4 flex flex-wrap gap-2">{["すべて", "音声", "商談", "AI分析", "タスク", "メール", "メモ"].map((label) => <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]" key={label}>{label}</span>)}</div>
       <DealTimeline records={deal.records} />
     </Panel>
   );
@@ -549,7 +549,7 @@ function TranscriptTab({ deal }: { deal: DealGroup }) {
       <Panel title="文字起こし">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-semibold text-[#8A8186]">{records.length}件のアップロード内容を表示しています。</p>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-bold text-[#6F676B] disabled:opacity-50" disabled={!allText.trim()} onClick={() => void copyText("all", allText)} type="button">
+          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-4 text-sm font-medium text-[#6F676B] disabled:opacity-50" disabled={!allText.trim()} onClick={() => void copyText("all", allText)} type="button">
             <Copy className="h-4 w-4" />
             {copiedId === "all" ? "コピー済み" : "すべてコピー"}
           </button>
@@ -561,10 +561,10 @@ function TranscriptTab({ deal }: { deal: DealGroup }) {
               <article className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={record.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-[#2B2B2B]">{recordLabel(record)}</p>
-                    <p className="mt-1 text-xs font-bold text-[#9A8F94]">{record.conversationLogs.length ? `${record.conversationLogs.length}ブロック` : "全文テキスト"}</p>
+                    <p className="text-sm font-medium text-[#2B2B2B]">{recordLabel(record)}</p>
+                    <p className="mt-1 text-xs font-medium text-[#9A8F94]">{record.conversationLogs.length ? `${record.conversationLogs.length}ブロック` : "全文テキスト"}</p>
                   </div>
-                  <button className="inline-flex h-9 items-center gap-2 rounded-none bg-white px-3 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9] disabled:opacity-50" disabled={!text.trim()} onClick={() => void copyText(record.id, text)} type="button">
+                  <button className="inline-flex h-9 items-center gap-2 rounded-none bg-white px-3 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9] disabled:opacity-50" disabled={!text.trim()} onClick={() => void copyText(record.id, text)} type="button">
                     <Copy className="h-3.5 w-3.5" />
                     {copiedId === record.id ? "コピー済み" : "コピー"}
                   </button>
@@ -574,7 +574,7 @@ function TranscriptTab({ deal }: { deal: DealGroup }) {
                     <div className="space-y-3">
                       {record.conversationLogs.map((log) => (
                         <p className="whitespace-pre-wrap" key={log.id}>
-                          <span className="font-black text-[#EC6F8B]">{conversationSpeakerLabels[log.speaker]}: </span>
+                          <span className="font-semibold text-[#EC6F8B]">{conversationSpeakerLabels[log.speaker]}: </span>
                           {log.text}
                         </p>
                       ))}
@@ -672,25 +672,25 @@ function DealCard({ deal, isDeleting, onDelete }: { deal: DealGroup; isDeleting:
       <Link className="min-w-0" href={`/sales/analysis?dealId=${deal.id}` as Route}>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]">案件</span>
-            <span className="inline-flex items-center gap-1 rounded-none bg-[#EC6F8B] px-2.5 py-1 text-xs font-bold text-white">
+            <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#EC6F8B] ring-1 ring-[#F0E7E9]">案件</span>
+            <span className="inline-flex items-center gap-1 rounded-none bg-[#EC6F8B] px-2.5 py-1 text-xs font-medium text-white">
               <Sparkles className="h-3.5 w-3.5" />
               {deal.currentRank}{deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}
             </span>
-            {scoreDelta !== null ? <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">前回比 {scoreDelta > 0 ? "+" : ""}{scoreDelta}</span> : null}
+            {scoreDelta !== null ? <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9]">前回比 {scoreDelta > 0 ? "+" : ""}{scoreDelta}</span> : null}
           </div>
-          <h3 className="mt-3 truncate text-lg font-bold text-[#2B2B2B]">{deal.companyName}</h3>
+          <h3 className="mt-3 truncate text-base font-medium text-[#2B2B2B]">{deal.companyName}</h3>
           <p className="mt-1 text-sm font-semibold text-[#777]">{deal.productName} / {deal.contactName}</p>
           <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{deal.latestAdviceRecord?.aiAdvice?.summary || deal.latestRecord.transcriptText || "案件の接触履歴と分析を確認できます。"}</p>
         </div>
       </Link>
-      <div className="grid content-between gap-3 text-sm font-bold text-[#8A8186] lg:min-w-52 lg:text-right">
+      <div className="grid content-between gap-3 text-sm font-medium text-[#8A8186] lg:min-w-52 lg:text-right">
         <Link className="grid gap-3" href={`/sales/analysis?dealId=${deal.id}` as Route}>
           <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />最終 {formatDate(deal.latestRecord.recordedAt.toDate())}</span>
           <span className="inline-flex items-center gap-2 lg:justify-end"><FileText className="h-4 w-4 text-[#EC6F8B]" />{deal.records.length}件の接触</span>
         </Link>
         <button
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-bold text-[#B65F6F] transition hover:bg-[#FFF0F3] disabled:opacity-50"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#B65F6F] transition hover:bg-[#FFF0F3] disabled:opacity-50"
           disabled={isDeleting}
           onClick={() => void onDelete()}
           type="button"
@@ -704,15 +704,15 @@ function DealCard({ deal, isDeleting, onDelete }: { deal: DealGroup; isDeleting:
 }
 
 function DealFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="rounded-none bg-[#FFFBFC] p-4"><p className="flex items-center gap-2 text-xs font-bold text-[#9A8F94]">{icon}{label}</p><p className="mt-2 text-lg font-black text-[#2B2B2B]">{value || "未確認"}</p></div>;
+  return <div className="rounded-none bg-[#FFFBFC] p-4"><p className="flex items-center gap-2 text-xs font-medium text-[#9A8F94]">{icon}{label}</p><p className="mt-2 text-base font-semibold text-[#2B2B2B]">{value || "未確認"}</p></div>;
 }
 
 function SmallDealInfo({ label, value }: { label: string; value?: string | null }) {
-  return <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#6F676B]"><span className="mr-2 text-[#9A8F94]">{label}</span>{value || "未確認"}</p>;
+  return <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-medium text-[#6F676B]"><span className="mr-2 text-[#9A8F94]">{label}</span>{value || "未確認"}</p>;
 }
 
 function Panel({ children, title }: { children: React.ReactNode; title: string }) {
-  return <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm"><h3 className="mb-4 text-lg font-bold text-[#2B2B2B]">{title}</h3>{children}</section>;
+  return <section className="rounded-none border border-[#F0DEE2] bg-white p-5 shadow-sm"><h3 className="mb-4 text-base font-medium text-[#2B2B2B]">{title}</h3>{children}</section>;
 }
 
 function InfoRows({ rows }: { rows: Array<[string, string | undefined | null]> }) {
@@ -728,7 +728,7 @@ function ScoreTimeline({ records }: { records: TeleapoRecord[] }) {
   return (
     <div className="space-y-3">
       {records.map((record) => (
-        <Link className="grid grid-cols-[1fr_auto] gap-3 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-bold text-[#6F676B]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route} key={record.id}>
+        <Link className="grid grid-cols-[1fr_auto] gap-3 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-medium text-[#6F676B]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route} key={record.id}>
           <span>{recordKindLabel(record)}後</span>
           <span className="text-[#EC6F8B]">{record.aiAdvice?.prospectRank ?? record.aiAdvice?.meetingPreparation?.prospectScore.rank ?? "未確認"} / {record.aiAdvice?.prospectScore ?? record.aiAdvice?.meetingPreparation?.prospectScore.score ?? "-"}</span>
         </Link>
@@ -745,12 +745,12 @@ function DealTimeline({ records }: { records: TeleapoRecord[] }) {
           <span className="absolute -left-2 top-1 grid h-4 w-4 place-items-center rounded-none bg-[#EC6F8B]" />
           <div className="rounded-none bg-[#FFFBFC] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-bold text-[#2B2B2B]">{recordKindLabel(record)}</p>
-              <p className="text-xs font-bold text-[#9A8F94]">{formatDate(record.recordedAt.toDate())}</p>
+              <p className="font-medium text-[#2B2B2B]">{recordKindLabel(record)}</p>
+              <p className="text-xs font-medium text-[#9A8F94]">{formatDate(record.recordedAt.toDate())}</p>
             </div>
             <p className="mt-2 text-sm font-semibold text-[#6F676B]">参加者: {[record.contactName, ...(record.attendeeNames ?? [])].filter(Boolean).join(" / ") || "未確認"}</p>
             <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{record.aiAdvice?.summary || record.transcriptText || "要約未作成"}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
               <span className="rounded-none bg-white px-2.5 py-1 text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.aiAdvice?.prospectRank ?? "未確認"} / {record.aiAdvice?.prospectScore ?? "-"}</span>
               <Link className="rounded-none bg-white px-2.5 py-1 text-[#6F676B] ring-1 ring-[#F0E7E9]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route}>分析結果を開く</Link>
               <Link className="rounded-none bg-white px-2.5 py-1 text-[#6F676B] ring-1 ring-[#F0E7E9]" href={`/sales/analysis?recordId=${record.id}#conversation-log` as Route}>文字起こし</Link>
@@ -765,7 +765,7 @@ function DealTimeline({ records }: { records: TeleapoRecord[] }) {
 
 function IssueCompact({ analysis }: { analysis?: MeetingPreparationAnalysis }) {
   if (!analysis) return <BulletList items={[]} empty="未確認" />;
-  return <div className="grid gap-2">{[["表面的", analysis.issues.explicit], ["本質的", analysis.issues.essential], ["潜在", analysis.issues.latent]].map(([label, items]) => <div className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={String(label)}><span className="mr-2 font-bold text-[#EC6F8B]">{String(label)}</span>{Array.isArray(items) && items.length ? items.slice(0, 2).map((item) => item.title).join(" / ") : "未確認"}</div>)}</div>;
+  return <div className="grid gap-2">{[["表面的", analysis.issues.explicit], ["本質的", analysis.issues.essential], ["潜在", analysis.issues.latent]].map(([label, items]) => <div className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={String(label)}><span className="mr-2 font-medium text-[#EC6F8B]">{String(label)}</span>{Array.isArray(items) && items.length ? items.slice(0, 2).map((item) => item.title).join(" / ") : "未確認"}</div>)}</div>;
 }
 
 function ComparisonTable({ base, detailed = false, target }: { base: TeleapoRecord; detailed?: boolean; target: TeleapoRecord }) {
@@ -785,7 +785,7 @@ function ComparisonTable({ base, detailed = false, target }: { base: TeleapoReco
     <div className="overflow-x-auto">
       <table className="w-full min-w-[620px] text-left text-sm font-semibold text-[#6F676B]">
         <thead><tr className="border-b border-[#F0DEE2] text-xs text-[#9A8F94]"><th className="py-2">比較項目</th><th className="py-2">テレアポ時の予測</th><th className="py-2">商談後に判明</th><th className="py-2">差分</th></tr></thead>
-        <tbody>{visibleRows.map(([label, before, after]) => <tr className="border-b border-[#F8EEF1]" key={label}><td className="py-3 font-bold text-[#2B2B2B]">{label}</td><td className="py-3">{before || "未確認"}</td><td className="py-3">{after || "未確認"}</td><td className="py-3"><DiffBadge before={before} after={after} /></td></tr>)}</tbody>
+        <tbody>{visibleRows.map(([label, before, after]) => <tr className="border-b border-[#F8EEF1]" key={label}><td className="py-3 font-medium text-[#2B2B2B]">{label}</td><td className="py-3">{before || "未確認"}</td><td className="py-3">{after || "未確認"}</td><td className="py-3"><DiffBadge before={before} after={after} /></td></tr>)}</tbody>
       </table>
     </div>
   );
@@ -796,12 +796,12 @@ function DiffBadge({ after, before }: { after?: string; before?: string }) {
   if (before && after && before === after) label = "一致";
   if (before && after && before !== after) label = "仮説違い";
   if (!before && after) label = "新たに判明";
-  return <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-bold text-[#EC6F8B]">{label}</span>;
+  return <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-medium text-[#EC6F8B]">{label}</span>;
 }
 
 function TaskPreview({ record }: { record: TeleapoRecord }) {
   const tasks = record.aiAdvice?.meetingPreparation?.nextActions ?? [];
-  return <div className="space-y-2">{tasks.slice(0, 5).map((task) => <label className="grid grid-cols-[18px_1fr] gap-2 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={task.title}><input className="mt-1 accent-[#EC6F8B]" type="checkbox" /><span><span className="block font-bold text-[#2B2B2B]">{task.title}</span><span className="text-xs text-[#9A8F94]">{task.dueDate || "期限未確認"} / {task.completionCondition}</span></span></label>)}{tasks.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-6 text-center text-sm font-bold text-[#9A8F94]">未確認</p> : null}</div>;
+  return <div className="space-y-2">{tasks.slice(0, 5).map((task) => <label className="grid grid-cols-[18px_1fr] gap-2 rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={task.title}><input className="mt-1 accent-[#EC6F8B]" type="checkbox" /><span><span className="block font-medium text-[#2B2B2B]">{task.title}</span><span className="text-xs text-[#9A8F94]">{task.dueDate || "期限未確認"} / {task.completionCondition}</span></span></label>)}{tasks.length === 0 ? <p className="rounded-none bg-[#FFFBFC] px-3 py-6 text-center text-sm font-medium text-[#9A8F94]">未確認</p> : null}</div>;
 }
 
 function ProposalPreview({ analysis }: { analysis: MeetingPreparationAnalysis }) {
@@ -823,12 +823,12 @@ function ScheduleTalkPreview({ analysis }: { analysis: MeetingPreparationAnalysi
         ["締め", analysis.schedulingCall.closing]
       ]} />
       <div>
-        <p className="mb-2 text-sm font-bold text-[#8A8186]">質問への返答</p>
+        <p className="mb-2 text-sm font-medium text-[#8A8186]">質問への返答</p>
         {analysis.schedulingCall.questionResponses.length ? (
           <div className="space-y-2">
             {analysis.schedulingCall.questionResponses.slice(0, 4).map((item) => (
               <div className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={item.condition}>
-                <p className="font-bold text-[#2B2B2B]">{item.condition}</p>
+                <p className="font-medium text-[#2B2B2B]">{item.condition}</p>
                 <p className="mt-1">{item.response}</p>
                 <p className="mt-1 text-xs text-[#9A8F94]">次: {item.nextAction || "未確認"}</p>
               </div>
@@ -862,20 +862,20 @@ function ScriptPreview({ analysis }: { analysis: MeetingPreparationAnalysis }) {
     ["pricing", scripts.pricing],
     ["closing", scripts.closing]
   ] as const;
-  return <div className="space-y-2">{orderedSections.map(([key, section]) => <div className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={key}><span className="font-bold text-[#2B2B2B]">{section.minutes} {section.objective}</span><p className="mt-1 line-clamp-2">{section.script.join(" ") || "未確認"}</p></div>)}</div>;
+  return <div className="space-y-2">{orderedSections.map(([key, section]) => <div className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={key}><span className="font-medium text-[#2B2B2B]">{section.minutes} {section.objective}</span><p className="mt-1 line-clamp-2">{section.script.join(" ") || "未確認"}</p></div>)}</div>;
 }
 
 function ObjectionPreview({ analysis }: { analysis: MeetingPreparationAnalysis }) {
   const items = analysis?.objections.slice(0, 6) ?? [];
-  return <div className="space-y-2">{items.map((item) => <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={item.objection}><span className="font-bold text-[#2B2B2B]">{item.objection}</span><span className="mt-1 block text-xs text-[#9A8F94]">{item.recommendedResponse}</span></p>)}{items.length === 0 ? <EmptyPreview /> : null}</div>;
+  return <div className="space-y-2">{items.map((item) => <p className="rounded-none bg-[#FFFBFC] px-3 py-2 text-sm font-semibold text-[#6F676B]" key={item.objection}><span className="font-medium text-[#2B2B2B]">{item.objection}</span><span className="mt-1 block text-xs text-[#9A8F94]">{item.recommendedResponse}</span></p>)}{items.length === 0 ? <EmptyPreview /> : null}</div>;
 }
 
 function EmptyPreview() {
-  return <p className="rounded-none bg-[#FFFBFC] px-3 py-6 text-center text-sm font-bold text-[#9A8F94]">未確認</p>;
+  return <p className="rounded-none bg-[#FFFBFC] px-3 py-6 text-center text-sm font-medium text-[#9A8F94]">未確認</p>;
 }
 
 function MiniBox({ items, title }: { items: string[]; title: string }) {
-  return <div className="rounded-none bg-[#FFFBFC] p-3"><p className="font-bold text-[#2B2B2B]">{title}</p><BulletList items={items.slice(0, 4)} empty="未確認" /></div>;
+  return <div className="rounded-none bg-[#FFFBFC] p-3"><p className="font-medium text-[#2B2B2B]">{title}</p><BulletList items={items.slice(0, 4)} empty="未確認" /></div>;
 }
 
 function recordKindLabel(record: TeleapoRecord): string {
@@ -941,7 +941,7 @@ function buildComparisonSummary(base: TeleapoRecord, target: TeleapoRecord): str
 
 function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={`h-9 rounded-none px-4 text-sm font-bold ${active ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={onClick} type="button">
+    <button className={`h-9 rounded-none px-4 text-sm font-medium ${active ? "bg-[#EC6F8B] text-white" : "text-[#746B70]"}`} onClick={onClick} type="button">
       {label}
     </button>
   );
@@ -956,17 +956,17 @@ function AnalysisRecordCard({ record }: { record: TeleapoRecord }) {
     <Link className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] lg:grid-cols-[1fr_auto]" href={`/sales/analysis?dealId=${createDealId(record)}` as Route}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-none bg-white px-2.5 py-1 text-xs font-bold text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
-          <span className={`inline-flex items-center gap-1 rounded-none px-2.5 py-1 text-xs font-bold ${hasAdvice ? "bg-[#EC6F8B] text-white" : "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]"}`}>
+          <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#EC6F8B] ring-1 ring-[#F0E7E9]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+          <span className={`inline-flex items-center gap-1 rounded-none px-2.5 py-1 text-xs font-medium ${hasAdvice ? "bg-[#EC6F8B] text-white" : "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]"}`}>
             {hasAdvice ? <Sparkles className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
             {hasAdvice ? "AI分析済み" : "話者分離済み"}
           </span>
         </div>
-        <h3 className="mt-3 truncate text-lg font-bold text-[#2B2B2B]">{record.customerName}</h3>
+        <h3 className="mt-3 truncate text-base font-medium text-[#2B2B2B]">{record.customerName}</h3>
         <p className="mt-1 text-sm font-semibold text-[#777]">{record.productName || "商材未設定"} / {record.contactName || "担当者未設定"}</p>
         <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{summary}</p>
       </div>
-      <div className="grid content-between gap-3 text-sm font-bold text-[#8A8186] lg:min-w-48 lg:text-right">
+      <div className="grid content-between gap-3 text-sm font-medium text-[#8A8186] lg:min-w-48 lg:text-right">
         <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />{date}</span>
         <span className="inline-flex items-center gap-2 lg:justify-end"><FileText className="h-4 w-4 text-[#EC6F8B]" />{record.conversationLogs.length}ブロック</span>
       </div>

@@ -1,5 +1,5 @@
 "use client";
-import { Bot, Building2, CalendarDays, ChartNoAxesCombined, Home, ListChecks, LogOut, Package, Settings, UploadCloud, UserRoundSearch, type LucideIcon } from "lucide-react";
+import { Bot, Building2, CalendarDays, ChartNoAxesCombined, Home, LayoutTemplate, ListChecks, LogOut, Package, Settings, UploadCloud, UserRoundSearch, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
@@ -13,7 +13,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 const groups: Array<{ label: string; items: NavItem[] }> = [
   { label: "今日", items: [{ href: "/home", label: "ホーム", icon: Home }] },
   { label: "仕事", items: [{ href: "/agent", label: "Agent", icon: Bot }, { href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/tasks", label: "タスク", icon: ListChecks }, { href: "/leads", label: "営業リスト", icon: UserRoundSearch }] },
-  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/sales/upload", label: "商談を追加", icon: UploadCloud }, { href: "/sales/analysis", label: "商談分析", icon: ChartNoAxesCombined }, { href: "/products", label: "商材", icon: Package }] }
+  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/sales/upload", label: "商談を追加", icon: UploadCloud }, { href: "/sales/analysis", label: "商談分析", icon: ChartNoAxesCombined }, { href: "/products", label: "商材", icon: Package }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] }
 ];
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {

@@ -43,9 +43,9 @@ export function LoadingCard({
       <div className="flex justify-center">
         <LoadingLogo size={compact ? "sm" : "md"} />
       </div>
-      <h2 className="mt-5 text-xl font-bold text-[#222]">{title ?? copy.title}</h2>
+      <h2 className="mt-5 text-base font-medium text-[#222]">{title ?? copy.title}</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-[#888]">{description ?? copy.description}</p>
-      {currentStep ? <p className="mt-4 rounded-none bg-[#FCF9F9] px-4 py-3 text-sm font-bold text-[#F45F7A]">{currentStep}</p> : null}
+      {currentStep ? <p className="mt-4 rounded-none bg-[#FCF9F9] px-4 py-3 text-sm font-medium text-[#F45F7A]">{currentStep}</p> : null}
       <div className="mt-5">
         {variant === "ai" || typeof progress === "number" ? <LoadingProgress progress={progress} /> : <LoadingDots />}
       </div>

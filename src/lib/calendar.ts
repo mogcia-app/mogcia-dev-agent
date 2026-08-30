@@ -2,21 +2,18 @@
 
 import {
   Timestamp,
-  addDoc,
   collection,
-  deleteDoc,
-  doc,
   onSnapshot,
   query,
-  serverTimestamp,
-  updateDoc,
   where,
   type DocumentData,
   type FirestoreError,
+  type Query,
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { businessApi, toJsonBody } from "@/lib/business-api-client";
+import { normalizeCalendarEventFields } from "@/lib/calendar-normalization";
 import { draftToCalendarPayload } from "@/lib/calendar-utils";
 import { isAdminUser } from "@/lib/task-utils";
 import type { CalendarEvent, CalendarEventDraft } from "@/types/calendar";
@@ -26,21 +23,13 @@ const COLLECTION = "calendarEvents";
 
 function normalizeEvent(id: string, data: DocumentData): CalendarEvent {
   const now = Timestamp.now();
+  const normalizedFields = normalizeCalendarEventFields(data);
   return {
     id,
     title: String(data.title ?? ""),
     description: typeof data.description === "string" ? data.description : "",
-    eventType:
-      data.eventType === "appointment" ||
-      data.eventType === "sales" ||
-      data.eventType === "phone" ||
-      data.eventType === "visit" ||
-      data.eventType === "internal" ||
-      data.eventType === "deskwork" ||
-      data.eventType === "personal" ||
-      data.eventType === "other"
-        ? data.eventType
-        : "meeting",
+    eventType: normalizedFields.eventType,
+    meetingMethod: normalizedFields.meetingMethod,
     startAt: data.startAt instanceof Timestamp ? data.startAt : now,
     endAt: data.endAt instanceof Timestamp ? data.endAt : null,
     allDay: Boolean(data.allDay),
@@ -57,6 +46,8 @@ function normalizeEvent(id: string, data: DocumentData): CalendarEvent {
     companyName: data.companyName ?? null,
     productId: data.productId ?? null,
     productName: data.productName ?? null,
+    productIds: Array.isArray(data.productIds) ? data.productIds : data.productId ? [String(data.productId)] : [],
+    productNames: Array.isArray(data.productNames) ? data.productNames : data.productName ? [String(data.productName)] : [],
     projectId: data.projectId ?? null,
     projectName: data.projectName ?? null,
     meetingId: data.meetingId ?? null,
@@ -88,10 +79,6 @@ export function subscribeCalendarEvents(currentUser: CalendarAccessUser | null, 
   const db = getFirebaseDb();
   if (!db || !currentUser) return () => undefined;
 
-  if (isAdminUser(currentUser.uid)) {
-    return onSnapshot(query(collection(db, COLLECTION)), (snapshot) => onNext(sortEvents(snapshot.docs.map((entry) => normalizeEvent(entry.id, entry.data())))), onError);
-  }
-
   const eventSlices = new Map<string, Map<string, CalendarEvent>>();
   const publish = () => {
     const eventsById = new Map<string, CalendarEvent>();
@@ -100,9 +87,9 @@ export function subscribeCalendarEvents(currentUser: CalendarAccessUser | null, 
     });
     onNext(sortEvents(Array.from(eventsById.values())));
   };
-  const subscribeVisibleSlice = (sliceKey: string, field: "createdBy" | "assigneeId" | "attendeeIds", op: "==" | "array-contains", value: string) =>
+  const subscribeSlice = (sliceKey: string, nextQuery: Query<DocumentData>) =>
     onSnapshot(
-      query(collection(db, COLLECTION), where(field, op, value)),
+      nextQuery,
       (snapshot) => {
         eventSlices.set(sliceKey, new Map(snapshot.docs.map((entry) => [entry.id, normalizeEvent(entry.id, entry.data())])));
         publish();
@@ -113,12 +100,20 @@ export function subscribeCalendarEvents(currentUser: CalendarAccessUser | null, 
         publish();
       }
     );
+  const subscribeParticipantSlice = (sliceKey: string, field: "createdBy" | "assigneeId" | "attendeeIds", op: "==" | "array-contains", value: string) =>
+    subscribeSlice(sliceKey, query(collection(db, COLLECTION), where(field, op, value)));
 
   const unsubscribes = [
-    subscribeVisibleSlice("created-by", "createdBy", "==", currentUser.uid),
-    subscribeVisibleSlice("assignee", "assigneeId", "==", currentUser.uid),
-    subscribeVisibleSlice("attendee", "attendeeIds", "array-contains", currentUser.uid)
+    subscribeSlice("team", query(collection(db, COLLECTION), where("visibility", "==", "team"))),
+    subscribeSlice("legacy-team", query(collection(db, COLLECTION), where("visibility", "==", null))),
+    subscribeParticipantSlice("created-by", "createdBy", "==", currentUser.uid),
+    subscribeParticipantSlice("assignee", "assigneeId", "==", currentUser.uid),
+    subscribeParticipantSlice("attendee", "attendeeIds", "array-contains", currentUser.uid)
   ];
+
+  if (isAdminUser(currentUser.uid)) {
+    unsubscribes.push(subscribeSlice("admin-all", query(collection(db, COLLECTION))));
+  }
 
   return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 }
@@ -145,7 +140,8 @@ export async function updateCalendarEvent(eventId: string, draft: CalendarEventD
 }
 
 export async function deleteCalendarEvent(eventId: string): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await deleteDoc(doc(db, COLLECTION, eventId));
+  await businessApi<{ id: string; deleted: boolean }>("/api/business/calendar", {
+    method: "DELETE",
+    body: toJsonBody({ id: eventId })
+  });
 }

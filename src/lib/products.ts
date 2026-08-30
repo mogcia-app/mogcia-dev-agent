@@ -1,6 +1,6 @@
 "use client";
 
-import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, writeBatch, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
+import { Timestamp, addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type DocumentData, type FirestoreError, type Unsubscribe } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { businessApi, toJsonBody } from "@/lib/business-api-client";
 import { getFirebaseDb, getFirebaseStorageClient } from "@/lib/firebase/client";
@@ -184,13 +184,24 @@ export async function updateProduct(productId: string, user: { id: string; name:
 }
 
 export async function duplicateProduct(product: Product, user: { id: string; name: string }): Promise<string> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const copy = { ...product, name: `${product.name} コピー`, displayName: `${product.displayName} コピー`, slug: `${product.slug}-${Date.now()}`, status: "draft" as ProductStatus, favoriteUserIds: [], createdBy: user.id, createdByName: user.name, ownerId: user.id, ownerName: user.name, createdAt: Timestamp.now(), updatedAt: Timestamp.now(), archivedAt: null };
-  const { id: _id, ...payload } = copy;
-  const ref = await addDoc(collection(db, collectionName), payload);
-  await addChangeLog(ref.id, user, "basic", "商材を複製しました");
-  return ref.id;
+  const { id: _id, ...source } = product;
+  const result = await businessApi<{ id: string; productId?: string }>("/api/business/products", {
+    method: "POST",
+    body: toJsonBody({
+      ...source,
+      name: `${product.name} コピー`,
+      displayName: `${product.displayName} コピー`,
+      slug: `${product.slug}-${Date.now()}`,
+      status: "draft" satisfies ProductStatus,
+      favoriteUserIds: [],
+      ownerId: user.id,
+      ownerName: user.name,
+      force: true
+    })
+  });
+  const productId = result.productId ?? result.id;
+  await addChangeLog(productId, user, "basic", "商材を複製しました");
+  return productId;
 }
 
 export async function archiveProduct(productId: string, user: { id: string; name: string }): Promise<void> {
@@ -198,26 +209,24 @@ export async function archiveProduct(productId: string, user: { id: string; name
 }
 
 export async function deleteProduct(productId: string): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await deleteDoc(doc(db, collectionName, productId));
+  await businessApi<{ id: string; deleted: boolean }>("/api/business/products", {
+    method: "DELETE",
+    body: toJsonBody({ id: productId })
+  });
 }
 
 export async function reorderProducts(products: Array<Pick<Product, "id">>): Promise<void> {
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  const batch = writeBatch(db);
-  products.forEach((product, index) => {
-    batch.update(doc(db, collectionName, product.id), { sortOrder: index + 1, updatedAt: serverTimestamp() });
+  await businessApi<{ ids: string[]; updated: number }>("/api/business/products", {
+    method: "PATCH",
+    body: toJsonBody({ action: "reorder", products })
   });
-  await batch.commit();
 }
 
 export async function toggleFavorite(product: Product, userId: string): Promise<void> {
-  const favoriteUserIds = product.favoriteUserIds.includes(userId) ? product.favoriteUserIds.filter((id) => id !== userId) : [...product.favoriteUserIds, userId];
-  const db = getFirebaseDb();
-  if (!db) throw new Error("Firebaseが未設定です。");
-  await updateDoc(doc(db, collectionName, product.id), { favoriteUserIds, updatedAt: serverTimestamp() });
+  await businessApi<{ product: Product }>("/api/business/products", {
+    method: "PATCH",
+    body: toJsonBody({ id: product.id, action: "favorite", favorite: !product.favoriteUserIds.includes(userId) })
+  });
 }
 
 export async function addProductMemo(productId: string, user: { id: string; name: string }, input: { title: string; content: string; pinned: boolean }): Promise<void> {

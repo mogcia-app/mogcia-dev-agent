@@ -34,7 +34,7 @@ export function SingleSelect({ label, placeholder = "選択してください", 
     <SelectShell className={className} error={error} label={label}>
       <div className="relative" ref={rootRef}>
         <button aria-expanded={open} className="task-input flex items-center justify-between gap-3 text-left disabled:cursor-not-allowed disabled:opacity-60" disabled={disabled} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => handleTriggerKey(event, setOpen)} type="button">
-          <span className={`min-w-0 truncate text-sm font-bold ${selected ? "text-[#302D30]" : "text-[#9A9296]"}`}>{selected?.label ?? placeholder}</span>
+          <span className={`min-w-0 truncate text-sm font-medium ${selected ? "text-[#302D30]" : "text-[#9A9296]"}`}>{selected?.label ?? placeholder}</span>
           <span className="flex shrink-0 items-center gap-2">
             {clearable && value ? <span aria-label="選択を解除" className="grid h-5 w-5 place-items-center rounded-none text-[#9A9296] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]" onClick={(event) => { event.stopPropagation(); onChange(""); }} role="button" tabIndex={-1}><X className="h-3.5 w-3.5" /></span> : null}
             <ChevronDown className={`h-4 w-4 text-[#EC6F8B] transition ${open ? "rotate-180" : ""}`} />
@@ -65,11 +65,11 @@ export function MultiSelect({ label, placeholder = "選択してください", o
         <button aria-expanded={open} className="task-input flex min-h-11 items-center justify-between gap-3 text-left disabled:cursor-not-allowed disabled:opacity-60" disabled={disabled} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => handleTriggerKey(event, setOpen)} type="button">
           <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
             {selectedOptions.length ? selectedOptions.map((option) => (
-              <span className="inline-flex max-w-48 items-center gap-1 rounded-none bg-white px-2 py-1 text-xs font-bold text-[#D94F6E] ring-1 ring-[#F7CAD2]" key={option.value}>
+              <span className="inline-flex max-w-48 items-center gap-1 rounded-none bg-white px-2 py-1 text-xs font-medium text-[#D94F6E] ring-1 ring-[#F7CAD2]" key={option.value}>
                 <span className="truncate">{option.label}</span>
                 <span aria-label={`${option.label}を解除`} className="grid h-4 w-4 place-items-center rounded-none hover:bg-[#FFF0F3]" onClick={(event) => { event.stopPropagation(); toggle(option.value); }} role="button" tabIndex={-1}><X className="h-3 w-3" /></span>
               </span>
-            )) : <span className="truncate text-sm font-bold text-[#9A9296]">{placeholder}</span>}
+            )) : <span className="truncate text-sm font-medium text-[#9A9296]">{placeholder}</span>}
           </span>
           <ChevronDown className={`h-4 w-4 shrink-0 text-[#EC6F8B] transition ${open ? "rotate-180" : ""}`} />
         </button>
@@ -85,10 +85,10 @@ export function SearchSelect(props: Omit<Parameters<typeof SingleSelect>[0], "se
 
 function SelectShell({ label, error, className, children }: { label?: string; error?: string; className?: string; children: ReactNode }) {
   return (
-    <div className={`grid gap-2 text-sm font-bold text-[#655D62] ${className ?? ""}`}>
+    <div className={`grid gap-2 text-sm font-medium text-[#655D62] ${className ?? ""}`}>
       {label ? <span>{label}</span> : null}
       {children}
-      {error ? <p className="text-xs font-bold text-[#D94F6E]">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-[#D94F6E]">{error}</p> : null}
     </div>
   );
 }
@@ -106,7 +106,7 @@ function OptionPopover({ filtered, selectedValues, onChoose, searchable, query, 
         {filtered.length ? filtered.map((option) => {
           const selected = selectedValues.includes(option.value);
           return (
-            <button className={`flex min-h-10 w-full items-center gap-3 rounded-none px-3 py-2 text-left text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#50494D] hover:bg-[#FFFBFC]"}`} disabled={option.disabled} key={option.value} onClick={() => onChoose(option.value)} type="button">
+            <button className={`flex min-h-10 w-full items-center gap-3 rounded-none px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "bg-[#FFF0F3] text-[#D94F6E]" : "text-[#50494D] hover:bg-[#FFFBFC]"}`} disabled={option.disabled} key={option.value} onClick={() => onChoose(option.value)} type="button">
               <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-none border ${selected ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : "border-[#E3D7DA] bg-white text-transparent"}`}>{multi || selected ? <Check className="h-3.5 w-3.5" /> : null}</span>
               {option.icon ? <span className="shrink-0">{option.icon}</span> : null}
               <span className="min-w-0">
@@ -115,7 +115,7 @@ function OptionPopover({ filtered, selectedValues, onChoose, searchable, query, 
               </span>
             </button>
           );
-        }) : <p className="px-3 py-4 text-sm font-bold text-[#8A8186]">{emptyLabel}</p>}
+        }) : <p className="px-3 py-4 text-sm font-medium text-[#8A8186]">{emptyLabel}</p>}
       </div>
     </div>
   );

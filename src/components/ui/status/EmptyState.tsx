@@ -18,10 +18,10 @@ export function EmptyState({
       <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#FFF0F3] text-[#F45F7A]">
         <Icon className="h-7 w-7" />
       </span>
-      <h3 className="mt-4 text-lg font-bold text-[#222]">{title}</h3>
+      <h3 className="mt-4 text-base font-medium text-[#222]">{title}</h3>
       {description ? <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[#888]">{description}</p> : null}
       {actionLabel && onAction ? (
-        <button className="mt-5 h-11 rounded-none bg-[#F45F7A] px-5 text-sm font-bold text-white shadow-[0_12px_26px_rgba(244,95,122,0.18)]" onClick={onAction} type="button">
+        <button className="mt-5 h-11 rounded-none bg-[#F45F7A] px-5 text-sm font-medium text-white shadow-[0_12px_26px_rgba(244,95,122,0.18)]" onClick={onAction} type="button">
           {actionLabel}
         </button>
       ) : null}

@@ -17,7 +17,7 @@ export function PageHeader({
       <div className="flex items-center gap-4">
         <Image alt="" className="h-20 w-20 object-contain" height={112} priority src={imageSrc} width={112} />
         <div>
-          <h2 className="text-3xl font-bold text-[#2B2B2B]">{title}</h2>
+          <h2 className="text-xl font-medium text-[#2B2B2B]">{title}</h2>
           <p className="mt-2 text-sm font-semibold text-[#777]">{description}</p>
         </div>
       </div>
