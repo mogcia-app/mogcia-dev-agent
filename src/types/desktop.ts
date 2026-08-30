@@ -7,6 +7,7 @@ export type DesktopAuditAction =
   | "command"
   | "company_search"
   | "company_create"
+  | "product_read"
   | "product_create"
   | "calendar_read"
   | "calendar_create"

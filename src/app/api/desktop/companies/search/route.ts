@@ -1,6 +1,8 @@
 import { desktopFailure, desktopSuccess, requireString } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { toDesktopCompany } from "@/lib/desktop/format";
+import { searchCompanies, toDesktopCompanyPayload } from "@/lib/server/business/company-service";
+import type { BusinessAuth } from "@/lib/server/business/api";
+import { getUserDisplayNameById } from "@/lib/user-display";
 
 export async function GET(request: Request) {
   let context: { userId: string; deviceId: string } | null = null;
@@ -11,12 +13,7 @@ export async function GET(request: Request) {
     const keyword = requireString(url.searchParams.get("q"), "検索キーワード", 100).toLowerCase();
 
     const data = await withDesktopAudit(context, "company_search", async () => {
-      const snapshot = await auth.db.collection("companies").orderBy("updatedAt", "desc").limit(200).get();
-      const companies = snapshot.docs
-        .map((entry) => ({ id: entry.id, data: entry.data() }))
-        .filter(({ data }) => matchesCompany(data, keyword))
-        .slice(0, 20)
-        .map(({ id, data }) => toDesktopCompany(id, data));
+      const companies = (await searchCompanies(toBusinessAuth(auth), keyword, { limit: 20 })).map(toDesktopCompanyPayload);
       return { companies };
     });
 
@@ -26,15 +23,12 @@ export async function GET(request: Request) {
   }
 }
 
-function matchesCompany(data: FirebaseFirestore.DocumentData, keyword: string): boolean {
-  const fields = [
-    data.name,
-    data.nameKana,
-    data.primaryContactName,
-    data.internalOwnerName,
-    data.phone,
-    data.email,
-    ...(Array.isArray(data.tags) ? data.tags : [])
-  ];
-  return fields.some((value) => String(value ?? "").toLowerCase().includes(keyword));
+function toBusinessAuth(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>): BusinessAuth {
+  return {
+    db: auth.db,
+    userId: auth.userId,
+    userName: getUserDisplayNameById(auth.userId),
+    source: "desktop",
+    deviceId: auth.device.id
+  };
 }

@@ -55,10 +55,15 @@ export async function authenticateBusinessRequest(request: Request, desktopPermi
         deviceId: desktop.device.id
       };
     } catch (error) {
-      if (error instanceof DesktopApiError) throw new BusinessApiError(error.code, error.message, error.status);
+      if (error instanceof DesktopApiError) throw new BusinessApiError(toBusinessErrorCode(error.code), error.message, error.status);
       throw new BusinessApiError("UNAUTHORIZED", "認証に失敗しました。", 401);
     }
   }
+}
+
+function toBusinessErrorCode(code: DesktopApiError["code"]): BusinessErrorCode {
+  if (code === "CONVERSATION_EXPIRED" || code === "CANDIDATE_INVALID" || code === "CONFIRMATION_REQUIRED") return "VALIDATION_ERROR";
+  return code;
 }
 
 export async function withBusinessAudit<T>(auth: BusinessAuth, action: string, run: () => Promise<T>, targetId?: string | null): Promise<T> {

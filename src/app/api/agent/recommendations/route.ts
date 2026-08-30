@@ -1,14 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { authenticateBusinessRequest, businessFailure, businessSuccess, requireString, serializeDoc } from "@/lib/server/business/api";
+import { authenticateBusinessRequest, businessFailure, businessSuccess, requireString } from "@/lib/server/business/api";
+import { listTasks } from "@/lib/server/business/task-service";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
     const auth = await authenticateBusinessRequest(request, "readTasks");
-    const snapshot = await auth.db.collection("tasks").where("assigneeId", "==", auth.userId).orderBy("createdAt", "desc").limit(20).get();
-    const recommendations = snapshot.docs
-      .map((entry) => serializeDoc(entry.id, entry.data()))
+    const recommendations = (await listTasks(auth, { assigneeId: auth.userId, includeCompleted: true, limit: 20 }))
       .filter((task) => task.status !== "completed" && task.status !== "cancelled")
       .slice(0, 6)
       .map((task) => ({

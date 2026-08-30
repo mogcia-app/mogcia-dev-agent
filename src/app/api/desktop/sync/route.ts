@@ -1,8 +1,12 @@
 import { desktopFailure, desktopSuccess } from "@/lib/desktop/api";
-import type { DocumentData } from "firebase-admin/firestore";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { endOfTokyoToday, startOfTokyoToday, timestampToIso, toDesktopCompany, toDesktopTask } from "@/lib/desktop/format";
+import { endOfTokyoToday, startOfTokyoToday } from "@/lib/desktop/format";
 import { listAgentNotifications } from "@/lib/server/agent/repository";
+import { type BusinessAuth } from "@/lib/server/business/api";
+import { listCalendarEvents, toDesktopSyncCalendarEvent } from "@/lib/server/business/calendar-service";
+import { listCompanies, toDesktopCompanyPayload } from "@/lib/server/business/company-service";
+import { listTasks, toDesktopTaskPayload } from "@/lib/server/business/task-service";
+import { getUserDisplayNameById } from "@/lib/user-display";
 
 type SyncItem = { key: string; label: string; success: boolean; data?: unknown; error?: string };
 
@@ -12,6 +16,7 @@ export async function GET(request: Request) {
     const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "sync", async () => {
       const items = await Promise.all([
         syncItem("calendar", "カレンダー", () => loadTodayCalendar(auth)),
+        syncItem("tasks", "タスク", () => loadTasks(auth)),
         syncItem("notifications", "通知", async () => ({ notifications: await listAgentNotifications(auth.userId, 20) })),
         syncItem("companies", "会社", () => loadCompanies(auth)),
         syncItem("ai", "AI提案", () => loadAiSuggestions(auth))
@@ -20,7 +25,13 @@ export async function GET(request: Request) {
         syncedAt: new Date().toISOString(),
         items,
         calendarEvents: itemPayload<{ events: unknown[] }>(items, "calendar")?.events ?? [],
-        notifications: itemPayload<{ notifications: unknown[] }>(items, "notifications")?.notifications ?? []
+        tasks: itemPayload<{ tasks: unknown[] }>(items, "tasks")?.tasks ?? [],
+        companies: itemPayload<{ companies: unknown[] }>(items, "companies")?.companies ?? [],
+        notifications: itemPayload<{ notifications: unknown[] }>(items, "notifications")?.notifications ?? [],
+        aiSuggestions: itemPayload<{ tasks: unknown[] }>(items, "ai")?.tasks ?? [],
+        partialErrors: items
+          .filter((item) => !item.success)
+          .map((item) => ({ key: item.key, label: item.label, message: item.error ?? "読み込みに失敗しました" }))
       };
     });
     return desktopSuccess(data);
@@ -43,22 +54,31 @@ async function syncItem(key: string, label: string, load: () => Promise<unknown>
 }
 
 async function loadTodayCalendar(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
-  const start = startOfTokyoToday().getTime();
-  const end = endOfTokyoToday().getTime();
-  const snapshot = await auth.db.collection("calendarEvents").orderBy("startAt", "asc").limit(120).get();
-  const events = snapshot.docs.map((entry): DocumentData => ({ id: entry.id, ...entry.data() })).filter((event) => {
-    const startsAt = event.startAt?.toDate?.()?.getTime() ?? 0;
-    return startsAt >= start && startsAt <= end && (event.createdBy === auth.userId || event.assigneeId === auth.userId || event.attendeeIds?.includes?.(auth.userId));
-  }).map((event) => ({ id: event.id, title: String(event.title ?? ""), startAt: timestampToIso(event.startAt), companyName: event.companyName ?? null }));
+  const events = (await listCalendarEvents(toBusinessAuth(auth), { limit: 120, startFrom: startOfTokyoToday(), startTo: endOfTokyoToday() })).map(toDesktopSyncCalendarEvent);
   return { events };
 }
 
 async function loadCompanies(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
-  const snapshot = await auth.db.collection("companies").orderBy("updatedAt", "desc").limit(8).get();
-  return { companies: snapshot.docs.map((entry) => toDesktopCompany(entry.id, entry.data())) };
+  const companies = await listCompanies(toBusinessAuth(auth), { limit: 8 });
+  return { companies: companies.map(toDesktopCompanyPayload) };
+}
+
+async function loadTasks(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
+  const tasks = await listTasks(toBusinessAuth(auth), { assigneeId: auth.userId, includeCompleted: false, limit: 20 });
+  return { tasks: tasks.map(toDesktopTaskPayload) };
 }
 
 async function loadAiSuggestions(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
-  const snapshot = await auth.db.collection("tasks").where("assigneeId", "==", auth.userId).orderBy("createdAt", "desc").limit(6).get();
-  return { tasks: snapshot.docs.map((entry) => toDesktopTask(entry.id, entry.data())).filter((task) => task.status !== "completed") };
+  const tasks = await listTasks(toBusinessAuth(auth), { assigneeId: auth.userId, includeCompleted: false, limit: 6 });
+  return { tasks: tasks.map(toDesktopTaskPayload) };
+}
+
+function toBusinessAuth(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>): BusinessAuth {
+  return {
+    db: auth.db,
+    userId: auth.userId,
+    userName: getUserDisplayNameById(auth.userId),
+    source: "desktop",
+    deviceId: auth.device.id
+  };
 }

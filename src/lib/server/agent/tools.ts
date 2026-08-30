@@ -1,7 +1,15 @@
 import "server-only";
 
-import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { timestampToIso } from "@/lib/desktop/format";
 import { getAdminDb } from "@/lib/firebase/admin";
+import { createActivity as createBusinessActivity, listActivitiesByCompanyId, listActivitiesByLeadId } from "@/lib/server/business/activity-service";
+import type { BusinessAuth } from "@/lib/server/business/api";
+import { listCalendarEvents } from "@/lib/server/business/calendar-service";
+import { getCompanyById, listCompanies, searchCompanies as searchBusinessCompanies } from "@/lib/server/business/company-service";
+import { getLeadById, listLeads, searchLeads as searchBusinessLeads } from "@/lib/server/business/lead-service";
+import { getProductById, listProducts, searchProducts as searchBusinessProducts } from "@/lib/server/business/product-service";
+import { createTask as createBusinessTask, listTasks, updateTask as updateBusinessTask } from "@/lib/server/business/task-service";
 import type { AgentPendingAction, AgentResultCard, AgentTargetType, AgentToolLog } from "@/types/agent";
 
 type ToolUser = { uid: string; name?: string };
@@ -11,12 +19,10 @@ type ToolResult<T> = { data: T; log: Omit<AgentToolLog, "executedAt"> };
 const OPEN_TASK_STATUSES = new Set(["todo", "in_progress", "waiting"]);
 
 export async function searchLeads(input: { query?: string; productName?: string; status?: string; limit?: number }): Promise<ToolResult<EntityCandidate[]>> {
-  const snapshot = await getAdminDb().collection("leads").orderBy("updatedAt", "desc").limit(240).get();
-  const query = normalize(input.query ?? "");
+  const auth = toolAuth({ uid: "agent" });
   const product = normalize(input.productName ?? "");
-  const results = snapshot.docs
-    .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
-    .filter((lead) => !query || normalize(String(lead.companyName ?? "") + String(lead.contactName ?? "")).includes(query))
+  const leads = input.query ? await searchBusinessLeads(auth, input.query, { limit: 240 }) : await listLeads(auth, { limit: 240 });
+  const results = leads
     .filter((lead) => !product || normalize(String(lead.productName ?? "")).includes(product))
     .filter((lead) => !input.status || lead.status === input.status)
     .slice(0, input.limit ?? 20)
@@ -31,17 +37,15 @@ export async function searchLeads(input: { query?: string; productName?: string;
 }
 
 export async function getLead(leadId: string): Promise<ToolResult<DocumentData | null>> {
-  const snapshot = await getAdminDb().collection("leads").doc(leadId).get();
-  return success("getLead", snapshot.exists ? "見込み客を取得しました。" : "見込み客が見つかりませんでした。", snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null, "lead", leadId);
+  const lead = await getLeadById(toolAuth({ uid: "agent" }), leadId).catch(() => null);
+  return success("getLead", lead ? "見込み客を取得しました。" : "見込み客が見つかりませんでした。", lead, "lead", leadId);
 }
 
 export async function searchCompanies(input: { query?: string; productName?: string; limit?: number }): Promise<ToolResult<EntityCandidate[]>> {
-  const snapshot = await getAdminDb().collection("companies").orderBy("updatedAt", "desc").limit(240).get();
-  const query = normalize(input.query ?? "");
+  const auth = toolAuth({ uid: "agent" });
   const product = normalize(input.productName ?? "");
-  const results = snapshot.docs
-    .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
-    .filter((company) => !query || normalize(String(company.name ?? "") + String(company.nameKana ?? "")).includes(query))
+  const companies = input.query ? await searchBusinessCompanies(auth, input.query, { limit: 240 }) : await listCompanies(auth, { limit: 240 });
+  const results = companies
     .filter((company) => !product || normalize(Array.isArray(company.productNames) ? company.productNames.join(" ") : "").includes(product))
     .slice(0, input.limit ?? 20)
     .map((company) => ({
@@ -55,32 +59,22 @@ export async function searchCompanies(input: { query?: string; productName?: str
 }
 
 export async function getCompany(companyId: string): Promise<ToolResult<DocumentData | null>> {
-  const snapshot = await getAdminDb().collection("companies").doc(companyId).get();
-  return success("getCompany", snapshot.exists ? "会社を取得しました。" : "会社が見つかりませんでした。", snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null, "company", companyId);
+  const company = await getCompanyById(toolAuth({ uid: "agent" }), companyId).catch(() => null);
+  return success("getCompany", company ? "会社を取得しました。" : "会社が見つかりませんでした。", company, "company", companyId);
 }
 
 export async function getCompanyActivities(companyId: string, count = 20): Promise<ToolResult<DocumentData[]>> {
-  const db = getAdminDb();
-  const canonical = await db.collection("activities").where("companyId", "==", companyId).orderBy("occurredAt", "desc").limit(count).get();
-  const legacy = await db.collection("companies").doc(companyId).collection("activityLogs").orderBy("occurredAt", "desc").limit(count).get();
-  const legacyIds = new Set(canonical.docs.map((entry) => String(entry.data().legacyCompanyActivityLogId ?? "")).filter(Boolean));
-  const rows = [
-    ...canonical.docs.map((entry): DocumentData => ({ id: entry.id, sourceCollection: "activities", ...entry.data() })),
-    ...legacy.docs.filter((entry) => !legacyIds.has(entry.id)).map((entry): DocumentData => ({ id: entry.id, sourceCollection: "companies/activityLogs", ...entry.data() }))
-  ].sort((a, b) => dateMillis(b.occurredAt) - dateMillis(a.occurredAt)).slice(0, count);
+  const rows = await listActivitiesByCompanyId(toolAuth({ uid: "agent" }), companyId, { limit: count, includeLegacy: true });
   return success("getCompanyActivities", `${rows.length}件の活動履歴を取得しました。`, rows, "company", companyId);
 }
 
 export async function getLeadActivities(leadId: string, count = 20): Promise<ToolResult<DocumentData[]>> {
-  const snapshot = await getAdminDb().collection("activities").where("leadId", "==", leadId).orderBy("occurredAt", "desc").limit(count).get();
-  const rows = snapshot.docs.map((entry): DocumentData => ({ id: entry.id, ...entry.data() }));
+  const rows = await listActivitiesByLeadId(toolAuth({ uid: "agent" }), leadId, { limit: count });
   return success("getLeadActivities", `${rows.length}件の見込み客活動履歴を取得しました。`, rows, "lead", leadId);
 }
 
 export async function getTasks(input: { userId: string; leadId?: string | null; companyId?: string | null; from?: Date; to?: Date; includeCompleted?: boolean; limit?: number }): Promise<ToolResult<DocumentData[]>> {
-  const snapshot = await getAdminDb().collection("tasks").orderBy("createdAt", "desc").limit(260).get();
-  const rows = snapshot.docs
-    .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
+  const rows = (await listTasks(toolAuth({ uid: input.userId }), { includeCompleted: input.includeCompleted ?? false, limit: Math.max(input.limit ?? 40, 260), from: input.from, to: input.to }))
     .filter((task) => input.includeCompleted || OPEN_TASK_STATUSES.has(String(task.status ?? "")))
     .filter((task) => !input.leadId || task.leadId === input.leadId)
     .filter((task) => !input.companyId || task.companyId === input.companyId)
@@ -91,9 +85,7 @@ export async function getTasks(input: { userId: string; leadId?: string | null; 
 }
 
 export async function createTask(input: DocumentData, user: ToolUser): Promise<ToolResult<{ id: string }>> {
-  const db = getAdminDb();
-  const dueDate = dateOrNull(input.dueDate);
-  const ref = await db.collection("tasks").add({
+  const result = await createBusinessTask(toolAuth(user), {
     title: stringValue(input.title) || "フォロー対応",
     description: stringValue(input.description),
     status: "todo",
@@ -119,7 +111,7 @@ export async function createTask(input: DocumentData, user: ToolUser): Promise<T
     projectName: null,
     meetingId: null,
     meetingTitle: null,
-    dueDate,
+    dueDate: timestampToIso(dateOrNull(input.dueDate)),
     completedAt: null,
     checklist: [],
     comments: stringValue(input.comments),
@@ -132,45 +124,27 @@ export async function createTask(input: DocumentData, user: ToolUser): Promise<T
       userName: user.name ?? "",
       createdAt: Timestamp.now()
     }],
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp()
+    force: true
   });
-  return success("createTask", "承認されたタスクを作成しました。", { id: ref.id }, "task", ref.id);
+  const taskId = String(result.taskId ?? result.id ?? "");
+  return success("createTask", "承認されたタスクを作成しました。", { id: taskId }, "task", taskId);
 }
 
 export async function updateTask(input: DocumentData, user: ToolUser): Promise<ToolResult<{ id: string }>> {
   const taskId = stringValue(input.taskId);
   if (!taskId) throw new Error("更新対象のタスクが不明です。");
-  const ref = getAdminDb().collection("tasks").doc(taskId);
-  const snapshot = await ref.get();
-  if (!snapshot.exists) throw new Error("更新対象のタスクが見つかりません。");
-  const patch: DocumentData = { updatedAt: FieldValue.serverTimestamp() };
+  const patch: DocumentData = { id: taskId };
   if (input.status === "completed" || input.status === "todo" || input.status === "in_progress" || input.status === "waiting" || input.status === "cancelled") {
     patch.status = input.status;
-    patch.completedAt = input.status === "completed" ? FieldValue.serverTimestamp() : null;
   }
   if (typeof input.title === "string" && input.title.trim()) patch.title = input.title.trim();
-  if (typeof input.dueDate === "string" && input.dueDate.trim()) patch.dueDate = dateOrNull(input.dueDate);
-  patch.progressLogs = [
-    ...arrayValue(snapshot.data()?.progressLogs),
-    {
-      id: `log-${Date.now()}`,
-      type: patch.status === "completed" ? "completed" : "status",
-      title: "Agent承認によりタスクを更新しました",
-      content: "",
-      userId: user.uid,
-      userName: user.name ?? "",
-      createdAt: Timestamp.now()
-    }
-  ];
-  await ref.update(patch);
+  if (typeof input.dueDate === "string" && input.dueDate.trim()) patch.dueDate = input.dueDate;
+  await updateBusinessTask(toolAuth(user), patch);
   return success("updateTask", "承認されたタスク更新を実行しました。", { id: taskId }, "task", taskId);
 }
 
 export async function getCalendarEvents(input: { from: Date; to: Date; userId: string }): Promise<ToolResult<DocumentData[]>> {
-  const snapshot = await getAdminDb().collection("calendarEvents").orderBy("startAt", "asc").limit(240).get();
-  const rows = snapshot.docs
-    .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
+  const rows = (await listCalendarEvents(toolAuth({ uid: input.userId }), { limit: 240, visibleOnly: false }))
     .filter((event) => dateMillis(event.startAt) >= input.from.getTime() && dateMillis(event.startAt) <= input.to.getTime());
   return success("getCalendarEvents", `${rows.length}件の予定を取得しました。`, rows, "calendar");
 }
@@ -227,45 +201,11 @@ export async function summarizeMeetingAndTeleapo(input: { leadId?: string | null
 }
 
 export async function createActivity(input: DocumentData, user: ToolUser): Promise<ToolResult<{ id: string; legacyCompanyActivityLogId?: string | null }>> {
-  const db = getAdminDb();
-  const companyId = nullableString(input.companyId);
-  const occurredAt = dateOrNull(input.occurredAt) ?? Timestamp.now();
-  let legacyCompanyActivityLogId: string | null = null;
-  if (companyId) {
-    const legacyRef = await db.collection("companies").doc(companyId).collection("activityLogs").add({
-      companyId,
-      type: toLegacyActivityType(input.type),
-      title: stringValue(input.title) || "Agent活動ログ",
-      content: stringValue(input.content),
-      occurredAt,
-      userId: user.uid,
-      userName: user.name ?? "",
-      direction: "unknown",
-      actorUserIds: [user.uid],
-      actorNames: [user.name ?? ""].filter(Boolean),
-      contactIds: [],
-      contactNames: [],
-      contactNote: "",
-      dealId: null,
-      meetingId: null,
-      taskId: null,
-      fileId: null,
-      attachments: [],
-      nextAction: null,
-      aiTaskRequested: false,
-      aiTaskGeneratedIds: [],
-      source: "ai",
-      createdBy: user.uid,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    });
-    legacyCompanyActivityLogId = legacyRef.id;
-  }
-  const ref = await db.collection("activities").add({
+  const result = await createBusinessActivity(toolAuth(user), {
     leadId: nullableString(input.leadId),
-    companyId,
+    companyId: nullableString(input.companyId),
     dealId: null,
-    type: validActivityType(input.type),
+    type: input.type,
     title: stringValue(input.title) || "Agent活動ログ",
     content: stringValue(input.content),
     productId: nullableString(input.productId),
@@ -273,28 +213,19 @@ export async function createActivity(input: DocumentData, user: ToolUser): Promi
     audioId: null,
     transcriptId: null,
     analysisId: null,
-    legacyCompanyActivityLogId,
-    nextActionAt: dateOrNull(input.nextActionAt),
+    nextActionAt: timestampToIso(dateOrNull(input.nextActionAt)),
     nextActionTitle: nullableString(input.nextActionTitle),
-    occurredAt,
-    createdBy: user.uid,
-    createdByName: user.name ?? "",
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp()
+    occurredAt: timestampToIso(dateOrNull(input.occurredAt)) ?? new Date().toISOString(),
+    force: true
   });
-  const leadId = nullableString(input.leadId);
-  if (leadId) {
-    await db.collection("leads").doc(leadId).set({ lastActivityAt: occurredAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  }
-  return success("createActivity", "承認された活動ログを作成しました。", { id: ref.id, legacyCompanyActivityLogId }, "activity", ref.id);
+  const activityId = String(result.activityId ?? result.id ?? "");
+  return success("createActivity", "承認された活動ログを作成しました。", { id: activityId, legacyCompanyActivityLogId: result.activityLogId ?? null }, "activity", activityId);
 }
 
 export async function searchProducts(input: { query?: string; limit?: number }): Promise<ToolResult<EntityCandidate[]>> {
-  const snapshot = await getAdminDb().collection("products").orderBy("updatedAt", "desc").limit(120).get();
-  const query = normalize(input.query ?? "");
-  const results = snapshot.docs
-    .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
-    .filter((product) => !query || normalize(`${String(product.name ?? "")} ${String(product.displayName ?? "")} ${String(product.summary ?? "")}`).includes(query))
+  const auth = toolAuth({ uid: "agent" });
+  const products = input.query ? await searchBusinessProducts(auth, input.query, { limit: 120 }) : await listProducts(auth, { limit: 120 });
+  const results = products
     .slice(0, input.limit ?? 20)
     .map((product) => ({
       id: String(product.id),
@@ -307,8 +238,8 @@ export async function searchProducts(input: { query?: string; limit?: number }):
 }
 
 export async function getProduct(productId: string): Promise<ToolResult<DocumentData | null>> {
-  const snapshot = await getAdminDb().collection("products").doc(productId).get();
-  return success("getProduct", snapshot.exists ? "商材を取得しました。" : "商材が見つかりませんでした。", snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null, "product", productId);
+  const product = await getProductById(toolAuth({ uid: "agent" }), productId).catch(() => null);
+  return success("getProduct", product ? "商材を取得しました。" : "商材が見つかりませんでした。", product, "product", productId);
 }
 
 export function createPendingAction(input: AgentPendingAction): AgentPendingAction {
@@ -343,10 +274,6 @@ function nullableString(value: unknown): string | null {
   return next || null;
 }
 
-function arrayValue(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
 function stringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 5);
   if (typeof value === "string" && value.trim()) return [value.trim()];
@@ -361,19 +288,6 @@ function shortText(value: unknown): string {
 
 function validPriority(value: unknown): string {
   return value === "high" || value === "low" ? value : "medium";
-}
-
-function validActivityType(value: unknown): string {
-  return value === "call" || value === "email" || value === "document" || value === "meeting" || value === "telemarketing" || value === "note" || value === "status_change" ? value : "other";
-}
-
-function toLegacyActivityType(value: unknown): string {
-  if (value === "call" || value === "telemarketing") return "phone";
-  if (value === "email") return "email";
-  if (value === "meeting") return "meeting";
-  if (value === "document") return "file";
-  if (value === "status_change") return "status_change";
-  return "memo";
 }
 
 export function dateOrNull(value: unknown): Timestamp | null {
@@ -392,4 +306,14 @@ export function dateMillis(value: unknown): number {
     return Number.isNaN(date.getTime()) ? 0 : date.getTime();
   }
   return 0;
+}
+
+function toolAuth(user: ToolUser): BusinessAuth {
+  return {
+    db: getAdminDb(),
+    userId: user.uid,
+    userName: user.name ?? "",
+    source: "web",
+    deviceId: null
+  };
 }

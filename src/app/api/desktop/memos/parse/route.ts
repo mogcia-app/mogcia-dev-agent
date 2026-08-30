@@ -1,7 +1,11 @@
 import { FieldValue, type DocumentData } from "firebase-admin/firestore";
 import { DesktopApiError, desktopFailure, desktopSuccess, optionalString, requireString } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { toDesktopCompany } from "@/lib/desktop/format";
+import { listActivitiesByCompanyId } from "@/lib/server/business/activity-service";
+import type { BusinessAuth } from "@/lib/server/business/api";
+import { getCompanyById, listCompanies, toDesktopCompanyPayload } from "@/lib/server/business/company-service";
+import { listTasks } from "@/lib/server/business/task-service";
+import { getUserDisplayNameById } from "@/lib/user-display";
 import type { DesktopMemoSource, ParsedDesktopMemo } from "@/types/desktop";
 
 const memoSchema = {
@@ -85,11 +89,12 @@ export async function POST(request: Request) {
     const createdFrom = normalizeSource(body.createdFrom);
 
     const data = await withDesktopAudit(context, "memo_parse", async () => {
-      const companySnapshot = companyId ? await auth.db.collection("companies").doc(companyId).get() : null;
-      if (companyId && !companySnapshot?.exists) throw new DesktopApiError("NOT_FOUND", "会社が見つかりません", 404);
-      const candidates = await findCompanyCandidates(auth.db, text, companyId);
-      const recentLogs = companyId ? await auth.db.collection("companies").doc(companyId).collection("activityLogs").orderBy("occurredAt", "desc").limit(8).get() : null;
-      const openTasks = companyId ? await auth.db.collection("tasks").where("companyId", "==", companyId).limit(20).get() : null;
+      const businessAuth = toBusinessAuth(auth);
+      const selectedCompany = companyId ? await getCompanyById(businessAuth, companyId).catch(() => null) : null;
+      if (companyId && !selectedCompany) throw new DesktopApiError("NOT_FOUND", "会社が見つかりません", 404);
+      const candidates = await findCompanyCandidates(businessAuth, text, companyId);
+      const recentLogs = companyId ? await listActivitiesByCompanyId(businessAuth, companyId, { limit: 8, includeLegacy: true }) : [];
+      const openTasks = companyId ? await listTasks(businessAuth, { includeCompleted: false, limit: 20 }) : [];
 
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -114,13 +119,10 @@ export async function POST(request: Request) {
                 timezone: "Asia/Tokyo",
                 userId: auth.userId,
                 memo: text,
-                selectedCompany: companySnapshot?.exists ? { id: companySnapshot.id, ...companySnapshot.data() } : null,
+                selectedCompany,
                 companyCandidates: candidates,
-                recentLogs: recentLogs?.docs.map((entry) => ({ id: entry.id, ...entry.data() })) ?? [],
-                openTasks:
-                  openTasks?.docs
-                    .map((entry): DocumentData & { id: string } => ({ id: entry.id, ...entry.data() }))
-                    .filter((task) => task.status !== "completed") ?? []
+                recentLogs,
+                openTasks: openTasks.filter((task) => !companyId || task.companyId === companyId)
               })
             }
           ]
@@ -151,13 +153,13 @@ export async function POST(request: Request) {
   }
 }
 
-async function findCompanyCandidates(db: FirebaseFirestore.Firestore, text: string, selectedCompanyId: string | null) {
-  const snapshot = await db.collection("companies").orderBy("updatedAt", "desc").limit(200).get();
+async function findCompanyCandidates(auth: BusinessAuth, text: string, selectedCompanyId: string | null) {
+  const companies = await listCompanies(auth, { limit: 200 });
   const lower = text.toLowerCase();
-  return snapshot.docs
-    .map((entry) => ({ id: entry.id, data: entry.data() }))
-    .map(({ id, data }) => {
-      const company = toDesktopCompany(id, data);
+  return companies
+    .map((data) => {
+      const company = toDesktopCompanyPayload(data);
+      const id = String(company.id ?? "");
       const confidence = selectedCompanyId === id ? 1 : lower.includes(company.name.toLowerCase()) || company.name.split(/\s+/).some((part) => part && lower.includes(part.toLowerCase())) ? 0.78 : 0.3;
       return { id, name: company.name, confidence };
     })
@@ -188,4 +190,14 @@ function normalizeParsedMemo(parsed: ParsedDesktopMemo, candidates: Array<{ id: 
 function normalizeSource(value: unknown): DesktopMemoSource {
   if (value === "menubar" || value === "floating_window") return value;
   return "cli";
+}
+
+function toBusinessAuth(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>): BusinessAuth {
+  return {
+    db: auth.db,
+    userId: auth.userId,
+    userName: getUserDisplayNameById(auth.userId),
+    source: "desktop",
+    deviceId: auth.device.id
+  };
 }

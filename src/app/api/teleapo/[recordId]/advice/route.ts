@@ -2,6 +2,11 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { requireUserFromRequest } from "@/lib/server/auth";
+import { listActivitiesByCompanyId } from "@/lib/server/business/activity-service";
+import type { BusinessAuth } from "@/lib/server/business/api";
+import { listCalendarEvents } from "@/lib/server/business/calendar-service";
+import { getCompanyById } from "@/lib/server/business/company-service";
+import { getProductById } from "@/lib/server/business/product-service";
 import { getUserFamilyNameById } from "@/lib/user-display";
 
 const stringArraySchema = { type: "array", items: { type: "string" } } as const;
@@ -463,13 +468,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
 
     await ref.update({ aiAdviceStatus: "running", aiAdviceModel: model, aiAdviceError: null, updatedAt: FieldValue.serverTimestamp() });
 
-    const productSnapshot = record?.productId ? await db.collection("products").doc(String(record.productId)).get() : null;
-    const companySnapshot = record?.companyId ? await db.collection("companies").doc(String(record.companyId)).get() : null;
-    const activitySnapshot = record?.companyId ? await db.collection("companies").doc(String(record.companyId)).collection("activityLogs").orderBy("occurredAt", "desc").limit(20).get() : null;
-    const calendarSnapshot = await db.collection("calendarEvents").orderBy("startAt", "asc").limit(100).get();
+    const businessAuth = toBusinessAuth(user);
+    const [product, company, recentActivityLogs, calendarEvents] = await Promise.all([
+      record?.productId ? getProductById(businessAuth, String(record.productId)).catch(() => null) : Promise.resolve(null),
+      record?.companyId ? getCompanyById(businessAuth, String(record.companyId)).catch(() => null) : Promise.resolve(null),
+      record?.companyId ? listActivitiesByCompanyId(businessAuth, String(record.companyId), { limit: 20, includeLegacy: true }) : Promise.resolve([]),
+      listCalendarEvents(businessAuth, { limit: 100, visibleOnly: false })
+    ]);
     const now = new Date();
     const salesRepFamilyName = getUserFamilyNameById(String(record?.userId ?? user.uid), typeof record?.userName === "string" ? record.userName : null);
-    const calendarEvents = calendarSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as CalendarEventLike[];
     const availableScheduleSlots = buildAvailableScheduleSlots(calendarEvents, now);
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -492,9 +499,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
             content: JSON.stringify({
               record,
               salesRepFamilyName,
-              product: productSnapshot?.exists ? productSnapshot.data() : null,
-              company: companySnapshot?.exists ? companySnapshot.data() : null,
-              recentActivityLogs: activitySnapshot?.docs.map((doc) => ({ id: doc.id, ...doc.data() })) ?? [],
+              product,
+              company,
+              recentActivityLogs,
               currentDateTime: formatDateTimeForPrompt(now),
               timezone: "Asia/Tokyo",
               scheduleRules: {
@@ -604,8 +611,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
 }
 
 type CalendarEventLike = {
-  startAt?: { toDate?: () => Date } | Date | null;
-  endAt?: { toDate?: () => Date } | Date | null;
+  startAt?: { toDate?: () => Date } | Date | string | null;
+  endAt?: { toDate?: () => Date } | Date | string | null;
   allDay?: unknown;
 };
 
@@ -650,6 +657,10 @@ function buildAvailableScheduleSlots(events: CalendarEventLike[], now: Date): Ar
 function toDate(value: CalendarEventLike["startAt"]): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   if (typeof value.toDate === "function") return value.toDate();
   return null;
 }
@@ -685,4 +696,14 @@ function formatJapaneseSlot(start: Date, end: Date): string {
 
 function formatDateTimeForPrompt(date: Date): string {
   return `${formatJapaneseSlot(date, new Date(date.getTime() + 60 * 60 * 1000)).split("-")[0]} / ${toIsoWithTokyoOffset(date)}`;
+}
+
+function toBusinessAuth(user: { uid: string; name?: string }): BusinessAuth {
+  return {
+    db: getAdminDb(),
+    userId: user.uid,
+    userName: user.name ?? "",
+    source: "web",
+    deviceId: null
+  };
 }

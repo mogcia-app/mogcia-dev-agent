@@ -1,6 +1,8 @@
-import { Timestamp } from "firebase-admin/firestore";
-import { authenticateBusinessRequest, businessFailure, businessSuccess, serializeDoc } from "@/lib/server/business/api";
+import { authenticateBusinessRequest, businessFailure, businessSuccess } from "@/lib/server/business/api";
 import { listAgentNotifications } from "@/lib/server/agent/repository";
+import { listCalendarEvents } from "@/lib/server/business/calendar-service";
+import { listCompanies } from "@/lib/server/business/company-service";
+import { listTasks } from "@/lib/server/business/task-service";
 
 export const runtime = "nodejs";
 
@@ -13,16 +15,16 @@ export async function GET(request: Request) {
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
     const [companies, tasks, calendar, notifications] = await Promise.all([
-      auth.db.collection("companies").orderBy("updatedAt", "desc").limit(8).get(),
-      auth.db.collection("tasks").where("assigneeId", "==", auth.userId).orderBy("createdAt", "desc").limit(12).get(),
-      auth.db.collection("calendarEvents").where("startAt", ">=", Timestamp.fromDate(todayStart)).where("startAt", "<=", Timestamp.fromDate(todayEnd)).orderBy("startAt", "asc").limit(12).get(),
+      listCompanies(auth, { limit: 8 }),
+      listTasks(auth, { assigneeId: auth.userId, includeCompleted: true, limit: 12 }),
+      listCalendarEvents(auth, { startFrom: todayStart, startTo: todayEnd, limit: 12 }),
       listAgentNotifications(auth.userId, 20)
     ]);
     return businessSuccess({
       syncedAt: new Date().toISOString(),
-      companies: companies.docs.map((entry) => serializeDoc(entry.id, entry.data())),
-      tasks: tasks.docs.map((entry) => serializeDoc(entry.id, entry.data())),
-      calendarEvents: calendar.docs.map((entry) => serializeDoc(entry.id, entry.data())),
+      companies,
+      tasks,
+      calendarEvents: calendar,
       notifications
     });
   } catch (error) {
