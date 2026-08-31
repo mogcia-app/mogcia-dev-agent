@@ -642,6 +642,7 @@ function leadStatusFromText(value: unknown, rawMessage: string) {
   if (/契約|受注|成約/.test(rawMessage)) return "won";
   if (/失注|終了/.test(rawMessage)) return "lost";
   if (/追っかけ|追客|接触中/.test(rawMessage)) return "contacting";
+  if (/送付済|送信済|メール済/.test(rawMessage)) return "sent";
   if (/資料請求|資料送付/.test(rawMessage)) return "document_sent";
   if (/アポ獲得|アポ/.test(rawMessage)) return "appointment";
   if (/打ち合わせ中|商談中|商談/.test(rawMessage)) return "meeting";
@@ -814,5 +815,5 @@ function normalizeActivityLogType(value: unknown): "phone" | "email" | "visit" |
 }
 
 function normalizeLeadStatus(value: unknown) {
-  return value === "contacting" || value === "document_sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
+  return value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
 }

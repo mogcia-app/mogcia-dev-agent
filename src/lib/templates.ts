@@ -7,12 +7,13 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { BusinessTemplate, BusinessTemplateDraft, GeneratedTemplateContent } from "@/types/template";
 
 export function createEmptyTemplateDraft(): BusinessTemplateDraft {
-  return { title: "", description: "", category: "email", scene: "", content: "", favorite: false };
+  return { title: "", subject: "", description: "", category: "email", scene: "", content: "", favorite: false };
 }
 
 export function templateToDraft(template: BusinessTemplate): BusinessTemplateDraft {
   return {
     title: template.title,
+    subject: template.subject ?? template.description,
     description: template.description,
     category: template.category,
     scene: template.scene,
@@ -87,6 +88,7 @@ function normalizeTemplate(id: string, data: DocumentData): BusinessTemplate {
   return {
     id,
     title: text(data.title),
+    subject: text(data.subject) || text(data.description),
     description: text(data.description),
     category: normalizeCategory(data.category),
     scene: text(data.scene),

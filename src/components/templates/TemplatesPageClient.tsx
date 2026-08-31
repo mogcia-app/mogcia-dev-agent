@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Edit2, FileText, LayoutTemplate, Plus, Search, Sparkles, Star, Trash2, X } from "lucide-react";
+import { Copy, Edit2, FileText, LayoutTemplate, Play, Plus, Search, Sparkles, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonList } from "@/components/ui/loading";
@@ -58,6 +58,7 @@ export function TemplatesPageClient() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("updatedDesc");
   const [selected, setSelected] = useState<BusinessTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<BusinessTemplate | null>(null);
   const [draft, setDraft] = useState<BusinessTemplateDraft>(() => createEmptyTemplateDraft());
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
   const [useTemplate, setUseTemplate] = useState<BusinessTemplate | null>(null);
@@ -90,7 +91,7 @@ export function TemplatesPageClient() {
     const needle = query.trim().toLowerCase();
     return templates
       .filter((template) => category === "all" || (category === "favorite" ? template.favorite : template.category === category))
-      .filter((template) => !needle || [template.title, template.description, categoryLabels[template.category], template.scene, template.content].join(" ").toLowerCase().includes(needle))
+      .filter((template) => !needle || [template.title, template.subject, template.description, categoryLabels[template.category], template.content].join(" ").toLowerCase().includes(needle))
       .sort((left, right) => sortTemplates(left, right, sort));
   }, [category, query, sort, templates]);
 
@@ -104,8 +105,9 @@ export function TemplatesPageClient() {
   };
 
   const openEdit = (template: BusinessTemplate) => {
-    setSelected(template);
+    setEditingTemplate(template);
     setDraft(templateToDraft(template));
+    setSelected(null);
     setModal("edit");
   };
 
@@ -114,8 +116,8 @@ export function TemplatesPageClient() {
     setSaving(true);
     setError(null);
     try {
-      if (modal === "edit" && selected) {
-        await updateBusinessTemplate(selected, draft);
+      if (modal === "edit" && editingTemplate) {
+        await updateBusinessTemplate(editingTemplate, draft);
         setToast("テンプレートを更新しました");
       } else {
         const id = await createBusinessTemplate(draft);
@@ -124,6 +126,7 @@ export function TemplatesPageClient() {
         if (created) setSelected(created);
       }
       setModal(null);
+      setEditingTemplate(null);
       setDraft(createEmptyTemplateDraft());
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "テンプレートを保存できませんでした。");
@@ -227,7 +230,7 @@ export function TemplatesPageClient() {
         {recentlyUsed.length ? <div className="grid gap-2 md:grid-cols-3">{recentlyUsed.map((template) => <button className="rounded-lg border border-[#F0E7E9] bg-white p-3 text-left" key={template.id} onClick={() => setUseTemplate(template)} type="button"><span className="block truncate text-sm font-semibold text-[#2B2B2B]">{template.title}</span><span className="mt-1 block text-xs font-medium text-[#8A8186]">{template.lastUsedAt ? formatDate(template.lastUsedAt.toDate()) : ""}</span></button>)}</div> : <p className="text-sm font-medium text-[#8A8186]">最近使ったテンプレートはありません</p>}
       </SidePanel>
 
-      {modal ? <TemplateModal draft={draft} mode={modal} onChange={setDraft} onClose={() => setModal(null)} onSave={saveTemplate} saving={saving} /> : null}
+      {modal ? <TemplateModal draft={draft} mode={modal} onChange={setDraft} onClose={() => { setModal(null); setEditingTemplate(null); }} onSave={saveTemplate} saving={saving} /> : null}
       {selected ? <TemplateDetailDrawer onClose={() => setSelected(null)} onDuplicate={() => void duplicateTemplate(selected)} onEdit={() => openEdit(selected)} onFavorite={() => void toggleTemplateFavorite(selected)} onUse={() => setUseTemplate(selected)} template={selected} /> : null}
       {useTemplate ? <UseTemplateDrawer companies={companies} leads={leads} onClose={() => setUseTemplate(null)} onError={setError} onToast={setToast} products={products} template={useTemplate} /> : null}
     </section>
@@ -236,22 +239,37 @@ export function TemplatesPageClient() {
 
 function TemplateRow({ template, onOpen, onUse, onFavorite, onEdit, onDuplicate, onDelete }: { template: BusinessTemplate; onOpen: () => void; onUse: () => void; onFavorite: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) {
   return (
-    <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.2fr)_120px_140px_110px_180px] md:items-center">
+    <div className="grid gap-3 px-4 py-3 transition hover:bg-[#FFFBFC] md:grid-cols-[minmax(220px,1fr)_minmax(180px,300px)_220px] md:items-center">
       <button className="min-w-0 text-left" onClick={onOpen} type="button">
-        <span className="block truncate text-sm font-semibold text-[#2B2B2B]">{template.title}</span>
-        <span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{template.description || "説明未設定"}</span>
+        <span className="block truncate text-sm font-medium text-[#2B2B2B]">{template.title}</span>
+        {template.subject ? <span className="mt-1 block truncate text-xs font-normal text-[#8A8186]">{template.subject}</span> : null}
       </button>
-      <span className="w-fit rounded-md bg-[#FFF2F5] px-2 py-1 text-xs font-semibold text-[#EC6F8B]">{categoryLabels[template.category]}</span>
-      <span className="truncate text-sm font-semibold text-[#655D62]">{template.scene || "用途未設定"}</span>
-      <span className="text-xs font-medium text-[#8A8186]">{formatDate(template.updatedAt.toDate())}</span>
-      <div className="flex flex-wrap gap-2 md:justify-end">
-        <button className="grid h-9 w-9 place-items-center rounded-lg border border-[#F0E7E9] text-[#EC6F8B]" onClick={onFavorite} type="button" aria-label="お気に入り"><Star className={`h-4 w-4 ${template.favorite ? "fill-[#EC6F8B]" : ""}`} /></button>
-        <button className="h-9 rounded-lg bg-[#EC6F8B] px-3 text-xs font-semibold text-white" onClick={onUse} type="button">使う</button>
-        <button className="grid h-9 w-9 place-items-center rounded-lg border border-[#F0E7E9]" onClick={onEdit} type="button" aria-label="編集"><Edit2 className="h-4 w-4" /></button>
-        <button className="grid h-9 w-9 place-items-center rounded-lg border border-[#F0E7E9]" onClick={onDuplicate} type="button" aria-label="複製"><Copy className="h-4 w-4" /></button>
-        <button className="grid h-9 w-9 place-items-center rounded-lg border border-[#F7CAD2] text-[#D94F6E]" onClick={onDelete} type="button" aria-label="削除"><Trash2 className="h-4 w-4" /></button>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="w-fit shrink-0 rounded-md bg-[#FFF2F5] px-2 py-1 text-xs font-medium text-[#EC6F8B]">{categoryLabels[template.category]}</span>
+        {template.description ? <span className="min-w-0 truncate text-xs font-normal text-[#6F676B]">{template.description}</span> : null}
+      </div>
+      <div className="flex flex-nowrap gap-2 md:justify-end">
+        <IconButton active={template.favorite} label="お気に入り" onClick={onFavorite}><Star className={`h-4 w-4 ${template.favorite ? "fill-[#EC6F8B]" : ""}`} /></IconButton>
+        <IconButton label="使う" onClick={onUse} primary><Play className="h-4 w-4" /></IconButton>
+        <IconButton label="編集" onClick={onEdit}><Edit2 className="h-4 w-4" /></IconButton>
+        <IconButton label="複製" onClick={onDuplicate}><Copy className="h-4 w-4" /></IconButton>
+        <IconButton danger label="削除" onClick={onDelete}><Trash2 className="h-4 w-4" /></IconButton>
       </div>
     </div>
+  );
+}
+
+function IconButton({ label, children, primary = false, danger = false, active = false, onClick }: { label: string; children: React.ReactNode; primary?: boolean; danger?: boolean; active?: boolean; onClick: () => void }) {
+  return (
+    <button
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border text-sm transition ${primary ? "border-[#EC6F8B] bg-[#EC6F8B] text-white" : danger ? "border-[#F7CAD2] bg-white text-[#D94F6E] hover:bg-[#FFF0F3]" : active ? "border-[#F7CAD2] bg-[#FFF0F3] text-[#EC6F8B]" : "border-[#F0E7E9] bg-white text-[#655D62] hover:bg-[#FFF8FA] hover:text-[#EC6F8B]"}`}
+      onClick={onClick}
+      title={label}
+      type="button"
+      aria-label={label}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -311,9 +329,9 @@ function TemplateModal({ draft, mode, saving, onChange, onClose, onSave }: { dra
     <Drawer title={mode === "create" ? "テンプレートを作成" : "テンプレートを編集"} onClose={onClose}>
       <div className="grid gap-4">
         <Field label="テンプレート名"><input className="task-input" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} placeholder="テンプレート名を入力" /></Field>
-        <Field label="説明"><input className="task-input" value={draft.description} onChange={(event) => onChange({ ...draft, description: event.target.value })} placeholder="用途が分かる説明を入力" /></Field>
+        <Field label="件名"><input className="task-input" value={draft.subject} onChange={(event) => onChange({ ...draft, subject: event.target.value })} placeholder="メールの件名を入力" /></Field>
+        <Field label="説明"><input className="task-input" value={draft.description} onChange={(event) => onChange({ ...draft, description: event.target.value })} placeholder="用途メモ。空でも大丈夫です" /></Field>
         <SingleSelect label="カテゴリ" options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))} value={draft.category} onChange={(category) => onChange({ ...draft, category: category as TemplateCategory })} />
-        <Field label="用途・シーン"><input className="task-input" value={draft.scene} onChange={(event) => onChange({ ...draft, scene: event.target.value })} placeholder="利用場面を入力" /></Field>
         <Field label="テンプレート本文"><textarea className="task-input min-h-80 resize-y" value={draft.content} onChange={(event) => onChange({ ...draft, content: event.target.value })} placeholder="本文・構成・質問項目を入力" /></Field>
         <label className="inline-flex items-center gap-2 text-sm font-medium text-[#655D62]"><input className="accent-[#EC6F8B]" checked={draft.favorite} onChange={(event) => onChange({ ...draft, favorite: event.target.checked })} type="checkbox" />よく使うに表示</label>
         <div className="flex justify-end gap-2 border-t border-[#F0E7E9] pt-4">
@@ -337,9 +355,9 @@ function TemplateDetailDrawer({ template, onClose, onUse, onEdit, onFavorite, on
             </div>
             <button className="grid h-10 w-10 place-items-center rounded-lg border border-[#F0E7E9] text-[#EC6F8B]" onClick={onFavorite} type="button" aria-label="お気に入り"><Star className={`h-5 w-5 ${template.favorite ? "fill-[#EC6F8B]" : ""}`} /></button>
           </div>
+          {template.subject ? <p className="mt-3 rounded-lg bg-[#FFF0F3] px-3 py-2 text-sm font-medium leading-6 text-[#B84563]">件名: {template.subject}</p> : null}
           {template.description ? <p className="mt-3 text-sm font-semibold leading-6 text-[#655D62]">{template.description}</p> : null}
         </div>
-        <Info label="用途" value={template.scene || "未設定"} />
         <div>
           <p className="text-sm font-semibold text-[#655D62]">本文</p>
           <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-semibold leading-7 text-[#2B2B2B]">{template.content}</pre>

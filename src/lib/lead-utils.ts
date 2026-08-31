@@ -4,6 +4,7 @@ export const leadStatusLabels: Record<LeadStatus, string> = {
   new: "新規",
   contacting: "追っかけ",
   document_sent: "資料請求",
+  sent: "送付済",
   appointment: "アポ獲得",
   meeting: "打ち合わせ中",
   considering: "検討中",
@@ -34,7 +35,8 @@ export const activityTypeLabels: Record<ActivityType, string> = {
 export const leadStatusOptions = Object.entries(leadStatusLabels) as Array<[LeadStatus, string]>;
 export const leadCreateStatusOptions: Array<[LeadStatus, string]> = [
   ["appointment", leadStatusLabels.appointment],
-  ["document_sent", leadStatusLabels.document_sent]
+  ["document_sent", leadStatusLabels.document_sent],
+  ["sent", leadStatusLabels.sent]
 ];
 export const activityTypeOptions = Object.entries(activityTypeLabels) as Array<[ActivityType, string]>;
 
@@ -65,6 +67,7 @@ export function createEmptyLeadDraft(): LeadDraft {
 export function leadStatusTone(status: LeadStatus): string {
   if (status === "won") return "bg-[#F3FAF0] text-[#5E9B61]";
   if (status === "lost") return "bg-[#F5ECEE] text-[#888]";
+  if (status === "sent" || status === "document_sent") return "bg-[#FFF7ED] text-[#A06122]";
   if (status === "appointment" || status === "meeting") return "bg-[#FFF0F3] text-[#EC6F8B]";
   if (status === "hold" || status === "considering") return "bg-[#FFF8E8] text-[#9B7332]";
   return "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]";

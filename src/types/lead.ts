@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type LeadStatus = "new" | "contacting" | "document_sent" | "appointment" | "meeting" | "considering" | "hold" | "won" | "lost";
+export type LeadStatus = "new" | "contacting" | "document_sent" | "sent" | "appointment" | "meeting" | "considering" | "hold" | "won" | "lost";
 export type LeadSort = "updated" | "nextAction" | "lastActivity" | "companyName" | "rank";
 
 export type ActivityType = "call" | "email" | "document" | "meeting" | "telemarketing" | "note" | "status_change" | "other";

@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const data = await withBusinessAudit(auth, "business_template_create", async () => {
       const ref = await auth.db.collection("businessTemplates").add({
         title,
+        subject: optionalString(body.subject, 300),
         description: optionalString(body.description, 1000),
         category: normalizeCategory(body.category),
         scene: optionalString(body.scene, 500),
@@ -55,6 +56,7 @@ export async function PATCH(request: Request) {
       const previous = snapshot.data() ?? {};
       const patch = {
         title: typeof body.title === "string" && body.title.trim() ? body.title.trim().slice(0, 160) : previous.title,
+        subject: optionalString(body.subject ?? previous.subject, 300),
         description: optionalString(body.description ?? previous.description, 1000),
         category: normalizeCategory(body.category ?? previous.category),
         scene: optionalString(body.scene ?? previous.scene, 500),

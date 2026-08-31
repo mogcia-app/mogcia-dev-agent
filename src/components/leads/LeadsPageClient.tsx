@@ -13,15 +13,17 @@ import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadActivityStatusOptions, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
+import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
 import { createLead, createManualActivity, subscribeActivities, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
+import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
 import { createTeleapoRecord, subscribeTeleapoRecords, updateTeleapoRecord, uploadTeleapoFile } from "@/lib/teleapo";
-import { createTask, subscribeTasks } from "@/lib/tasks";
+import { subscribeTasks } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayName } from "@/lib/user-display";
 import type { Product } from "@/types/product";
+import type { BusinessTemplate } from "@/types/template";
 import type { TeleapoRecord } from "@/types/teleapo";
-import type { Task, TaskDraft } from "@/types/task";
+import type { Task } from "@/types/task";
 import type { Activity, ActivityDraft, Lead, LeadDraft, LeadSort, LeadStatus } from "@/types/lead";
 import type { CalendarEvent } from "@/types/calendar";
 
@@ -30,10 +32,19 @@ type TabKey = "overview" | "activity" | "meetings" | "tasks" | "files" | "notes"
 const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新しい順"], ["nextAction", "次回予定が近い順"], ["lastActivity", "最終活動日が新しい順"], ["companyName", "会社名順"]];
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
+const leadFilterTabs: Array<[LeadStatus | "all", string]> = [["all", "すべて"], ["appointment", leadStatusLabels.appointment], ["document_sent", leadStatusLabels.document_sent], ["sent", leadStatusLabels.sent], ["contacting", leadStatusLabels.contacting], ["hold", leadStatusLabels.hold], ["won", leadStatusLabels.won], ["lost", leadStatusLabels.lost]];
+const ALL_MONTHS = "all";
+const UNSET_MONTH = "unset";
 
 type NextActionDraft = {
   nextActionAt: string;
   nextActionTitle: string;
+};
+
+type NextActionView = {
+  title: string;
+  meta: string;
+  source: "lead" | "calendar" | "none";
 };
 
 export function LeadsPageClient() {
@@ -49,10 +60,12 @@ export function LeadsPageClient() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [templates, setTemplates] = useState<BusinessTemplate[]>([]);
   const [records, setRecords] = useState<TeleapoRecord[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<LeadStatus | "all">(initialStatus);
+  const [monthFilter, setMonthFilter] = useState(ALL_MONTHS);
   const [productId, setProductId] = useState("all");
   const [assigneeId, setAssigneeId] = useState("all");
   const [sort, setSort] = useState<LeadSort>("updated");
@@ -63,6 +76,7 @@ export function LeadsPageClient() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [nextActionOpen, setNextActionOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [audioUploadProgress, setAudioUploadProgress] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
@@ -92,6 +106,7 @@ export function LeadsPageClient() {
       setLoading(false);
     }, onError("leads"));
     const unsubProducts = subscribeProductsMaster((nextProducts) => setProducts(nextProducts.filter((product) => product.status !== "archived")), onError("products"));
+    const unsubTemplates = subscribeBusinessTemplates(setTemplates, () => setTemplates([]));
     const unsubRecords = subscribeTeleapoRecords(setRecords, onError("teleapoRecords"));
     const unsubTasks = subscribeTasks(setTasks, onError("tasks"));
     const unsubActivities = subscribeActivities(setAllActivities, onError("activities"));
@@ -99,6 +114,7 @@ export function LeadsPageClient() {
     return () => {
       unsubLeads();
       unsubProducts();
+      unsubTemplates();
       unsubRecords();
       unsubTasks();
       unsubActivities();
@@ -128,12 +144,15 @@ export function LeadsPageClient() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return leads
-      .filter((lead) => status === "all" || lead.status === status)
+      .filter((lead) => monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter)
+      .filter((lead) => status === "all" ? lead.status !== "lost" : lead.status === status)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
       .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
       .sort((a, b) => compareLeads(a, b, sort));
-  }, [assigneeId, leads, productId, query, sort, status]);
+  }, [assigneeId, leads, monthFilter, productId, query, sort, status]);
+
+  const monthTabs = useMemo(() => buildMonthTabs(leads, status), [leads, status]);
 
   const selectedLead = selectedId ? leads.find((lead) => lead.id === selectedId) ?? null : null;
   const selectedRecords = useMemo(() => {
@@ -252,18 +271,19 @@ export function LeadsPageClient() {
   };
 
   const saveNextAction = async () => {
-    if (!selectedLead || !user || !nextActionDraft.nextActionTitle.trim()) return;
+    if (!selectedLead || !user || (!nextActionDraft.nextActionTitle.trim() && !nextActionDraft.nextActionAt)) return;
     setSaving(true);
     setError(null);
     try {
+      const fallbackTitle = nextActionDraft.nextActionTitle.trim() || (nextActionDraft.nextActionAt ? "次回対応" : "");
+      if (!fallbackTitle) return;
       await updateLead(selectedLead.id, {
         ...leadToDraft(selectedLead),
         nextActionAt: nextActionDraft.nextActionAt,
-        nextActionTitle: nextActionDraft.nextActionTitle
+        nextActionTitle: fallbackTitle
       }, currentUser);
-      await createTask(nextActionTaskDraft(selectedLead, nextActionDraft, user.uid, currentUser.name), { id: user.uid, uid: user.uid, name: currentUser.name });
       setNextActionOpen(false);
-      setToast("次回予定をタスクに追加しました");
+      setToast("次回予定を保存しました");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "次回予定を保存できませんでした。");
     } finally {
@@ -296,12 +316,25 @@ export function LeadsPageClient() {
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
 
         <section className="mt-5 overflow-hidden rounded-none border border-[#EAE5E3] bg-white p-4 shadow-sm">
-          <div className="flex gap-1 overflow-x-auto border-b border-[#EEEAE8] pt-1">{(["all", "appointment", "document_sent", "contacting", "hold", "won", "lost"] as const).map((value) => { const label = value === "all" ? "すべて" : leadStatusLabels[value]; const count = leads.filter((lead) => value === "all" || lead.status === value).length; return <button className={`shrink-0 border-b-2 px-3 py-3 text-sm font-semibold ${status === value ? "border-[#EC6F8B] text-[#B84563]" : "border-transparent text-neutral-500"}`} key={value} onClick={() => setStatus(value)} type="button">{label} <span className="ml-1 text-xs text-neutral-400">{count}</span></button>; })}</div>
+          <div className="flex gap-1 overflow-x-auto border-b border-[#EEEAE8] pt-1">
+            {monthTabs.map((tab) => <button className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium ${monthFilter === tab.value ? "border-[#EC6F8B] text-[#B84563]" : "border-transparent text-neutral-500"}`} key={tab.value} onClick={() => setMonthFilter(tab.value)} type="button">{tab.label} <span className="ml-1 text-xs text-neutral-400">{tab.count}</span></button>)}
+          </div>
           <div className="border-b border-[#EEEAE8] py-4">
-            <label className="flex h-10 max-w-xl items-center gap-2 rounded-none border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#777]">
-              <Search className="h-4 w-4" />
-              <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
-            </label>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <label className="flex h-10 w-full max-w-xl items-center gap-2 rounded-none border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#777]">
+                <Search className="h-4 w-4" />
+                <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
+              </label>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-[#8A8186]">ステータス</span>
+                <div className="flex max-w-full gap-1 overflow-x-auto">
+                  {leadFilterTabs.map(([value, label]) => {
+                    const count = leads.filter((lead) => (monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter) && (value === "all" ? lead.status !== "lost" : lead.status === value)).length;
+                    return <button className={`shrink-0 rounded-none border px-3 py-2 text-xs font-medium ${status === value ? value === "lost" ? "border-[#111] bg-[#111] text-white" : "border-[#EC6F8B] bg-[#FFF0F3] text-[#B84563]" : "border-[#EEEAE8] bg-white text-neutral-500"}`} key={value} onClick={() => setStatus(value)} type="button">{label} <span className="ml-1 text-[11px] opacity-70">{count}</span></button>;
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto pb-1">
             <div className="grid min-w-[1120px] grid-cols-[34px_70px_1.05fr_1.35fr_1fr_0.9fr_0.85fr_1.25fr] gap-4 border-b border-[#EEEAE8] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
@@ -309,7 +342,7 @@ export function LeadsPageClient() {
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
             {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
-            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} needsActivityLog={leadNeedsActivityLog(lead, calendarEvents, allActivities)} onSelect={() => setRoute({ id: lead.id, tab: "overview" })} />)}
+            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} needsActivityLog={leadNeedsActivityLog(lead, calendarEvents, allActivities)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "overview" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
           </div>
         </section>
 
@@ -319,8 +352,8 @@ export function LeadsPageClient() {
             <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
           </div>
           <div className="space-y-5 px-8 pb-8">
-            <LeadHeader lead={selectedLead} saving={saving} onActivity={() => setActivityOpen(true)} onEdit={() => openEditLead(selectedLead)} onStatusChange={(nextStatus) => void saveLeadStatus(selectedLead, nextStatus)} />
-            <NextActionPanel lead={selectedLead} onNextAction={openNextAction} />
+            <LeadHeader lead={selectedLead} saving={saving} onActivity={() => setActivityOpen(true)} onEdit={() => openEditLead(selectedLead)} onEmail={() => setEmailOpen(true)} onStatusChange={(nextStatus) => void saveLeadStatus(selectedLead, nextStatus)} />
+            <NextActionPanel lead={selectedLead} nextAction={nextActionDisplay(selectedLead, calendarEvents)} onNextAction={openNextAction} />
             <LeadSummaryStrip lead={selectedLead} />
             <LeadMemoCard activities={activities} lead={selectedLead} />
             <div className="bg-white">
@@ -344,28 +377,37 @@ export function LeadsPageClient() {
       {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} products={products} saving={saving} /> : null}
       {activityOpen && selectedLead ? <ActivityModal draft={activityDraft} onChange={setActivityDraft} onClose={() => setActivityOpen(false)} onSave={saveActivity} saving={saving} /> : null}
       {nextActionOpen && selectedLead ? <NextActionModal draft={nextActionDraft} onChange={setNextActionDraft} onClose={() => setNextActionOpen(false)} onSave={saveNextAction} saving={saving} /> : null}
+      {emailOpen && selectedLead ? <EmailPrepModal calendars={calendarEvents.filter((event) => isRelatedToLead(event, selectedLead)).sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis()).slice(0, 8)} lead={selectedLead} templates={templates} onClose={() => setEmailOpen(false)} /> : null}
     </section>
   );
 }
 
-function LeadRow({ lead, needsActivityLog, onSelect }: { lead: Lead; needsActivityLog: boolean; onSelect: () => void }) {
+function LeadRow({ lead, nextAction, needsActivityLog, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; needsActivityLog: boolean; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
+  const lost = lead.status === "lost";
   return (
-    <div className="grid min-w-[1120px] w-full grid-cols-[34px_70px_1.05fr_1.35fr_1fr_0.9fr_0.85fr_1.25fr] items-center gap-4 border-b border-[#EEEAE8] py-4 pl-8 pr-6 text-left transition hover:bg-[#FCFAFA]">
+    <div className={`grid min-w-[1120px] w-full grid-cols-[34px_70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}`}>
       <button className="grid h-7 w-7 place-items-center text-left" onClick={onSelect} title={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"} type="button" aria-label={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"}>
-        <span className={`block h-3 w-3 rounded-full ${needsActivityLog ? "bg-[#EC6F8B] ring-4 ring-[#FFF0F3]" : "bg-[#E7E0E3]"}`} />
+        <span className={`block h-3 w-3 rounded-full ${needsActivityLog ? "bg-[#EC6F8B] ring-4 ring-[#FFF0F3]" : lost ? "bg-[#666]" : "bg-[#E7E0E3]"}`} />
       </button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className="block truncate text-sm font-medium text-[#B84563]">{formatLeadMonth(lead)}</span></button>
-      <button className="min-w-0 truncate text-left text-sm font-medium text-[#5E565A]" onClick={onSelect} type="button">{lead.productName || "未設定"}</button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className="block truncate text-sm font-semibold text-[#2B2B2B]">{lead.companyName}</span></button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className="block truncate text-sm font-medium text-[#5E565A]">{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className="mt-1 block truncate text-xs text-[#999]">{lead.contactRole}</span> : null}</button>
-      <button className="min-w-0 truncate text-left text-sm font-medium text-[#5E565A]" onClick={onSelect} type="button">{lead.industry || "未設定"}</button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span></button>
-      <button className="min-w-0 truncate text-left text-sm font-medium text-[#5E565A]" onClick={onSelect} type="button">{lead.nextActionTitle || (lead.nextActionAt ? "予定あり" : "未設定")}</button>
+      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>{formatLeadMonth(lead)}</span></button>
+      <button className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">{lead.productName || "未設定"}</button>
+      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#2B2B2B]"}`}>{lead.companyName}</span></button>
+      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</button>
+      <button className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">{lead.industry || "未設定"}</button>
+      <label className={`min-w-0 rounded-md border px-2 py-1 ${lost ? "border-[#444] bg-[#111]" : "border-[#F0E7E9] bg-white"}`}>
+        <select className={`w-full bg-transparent text-xs font-medium outline-none disabled:opacity-50 ${lost ? "text-white" : "text-[#2B2B2B]"}`} disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)}>
+          {leadStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <button className={`min-w-0 text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">
+        <span className="block truncate">{nextAction.title}</span>
+        {nextAction.meta ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{nextAction.meta}</span> : null}
+      </button>
     </div>
   );
 }
 
-function LeadHeader({ lead, saving, onActivity, onEdit, onStatusChange }: { lead: Lead; saving: boolean; onActivity: () => void; onEdit: () => void; onStatusChange: (status: LeadStatus) => void }) {
+function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange }: { lead: Lead; saving: boolean; onActivity: () => void; onEdit: () => void; onEmail: () => void; onStatusChange: (status: LeadStatus) => void }) {
   const compact = [
     lead.contactName ? <span className="inline-flex items-center gap-1" key="contact"><Building2 className="h-4 w-4" />{lead.contactName}</span> : null,
     lead.contactRole ? <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 text-xs font-medium text-[#EC6F8B]" key="role">{lead.contactRole}</span> : null,
@@ -390,7 +432,7 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onStatusChange }: { lead
           {compact.length ? <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-[#4B5563]">{compact}</div> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" href={`mailto:${lead.email}`}><Mail className="h-4 w-4 text-[#EC6F8B]" />メール</a> : null}
+          <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEmail} type="button"><Mail className="h-4 w-4 text-[#EC6F8B]" />メール作成</button>
           {lead.website ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" href={normalizeWebsiteUrl(lead.website)} rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4 text-[#EC6F8B]" />HP</a> : null}
           <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-5 text-xs font-medium text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />活動を追加</button>
           <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
@@ -400,15 +442,15 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onStatusChange }: { lead
   );
 }
 
-function NextActionPanel({ lead, onNextAction }: { lead: Lead; onNextAction: () => void }) {
-  const needsFollow = lead.status === "appointment" || lead.status === "document_sent" || lead.status === "contacting";
+function NextActionPanel({ lead, nextAction, onNextAction }: { lead: Lead; nextAction: NextActionView; onNextAction: () => void }) {
+  const needsFollow = lead.status === "appointment" || lead.status === "document_sent" || lead.status === "sent" || lead.status === "contacting";
   return (
     <section className="flex flex-col gap-4 rounded-none bg-[#FFF4F7] p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-4">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFE2E9] text-[#EC6F8B]"><Target className="h-6 w-6" /></span>
         <div className="min-w-0">
           <h3 className="text-base font-medium text-[#111827]">{needsFollow ? "次の対応を設定して、商談につなげましょう" : "次の対応を整理しましょう"}</h3>
-          <p className="mt-1 text-sm font-normal leading-6 text-[#4B5563]">{lead.nextActionTitle ? `${lead.nextActionTitle} / ${formatMaybeDate(lead.nextActionAt?.toDate())}` : `${leadStatusLabels[lead.status]}後のフォローや商談の日程を登録できます。`}</p>
+          <p className="mt-1 text-sm font-normal leading-6 text-[#4B5563]">{nextAction.title !== "未設定" ? `${nextAction.title}${nextAction.meta ? ` / ${nextAction.meta}` : ""}` : `${leadStatusLabels[lead.status]}後のフォローや打ち合わせの日程を登録できます。`}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-3">
@@ -503,15 +545,14 @@ function ActivityTab({ activities, records }: { activities: Activity[]; records:
 function ActivityItem({ activity }: { activity: Activity }) {
   return (
     <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
-        {activity.leadStatus ? <span className={`rounded-none px-2.5 py-1 text-xs font-black ${leadStatusTone(activity.leadStatus)}`}>{leadStatusLabels[activity.leadStatus]}</span> : null}
-        <span className="text-xs font-bold text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</span>
+        <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
+        <span className="text-xs font-medium text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</span>
       </div>
-      <h3 className="mt-2 font-black text-[#2B2B2B]">{activity.title || activityTypeLabels[activity.type]}</h3>
-      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#6F676B]">{activity.content}</p> : null}
-      {activity.nextActionTitle ? <p className="mt-3 text-sm font-bold text-[#D94F6E]">次回予定: {activity.nextActionTitle} / {formatMaybeDate(activity.nextActionAt?.toDate())}</p> : null}
+      <h3 className="mt-2 text-sm font-medium text-[#2B2B2B]">{activity.title || activityTypeLabels[activity.type]}</h3>
+      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-normal leading-6 text-[#6F676B]">{activity.content}</p> : null}
+      {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#D94F6E]">次回予定: {activity.nextActionTitle} / {formatMaybeDate(activity.nextActionAt?.toDate())}</p> : null}
     </article>
   );
 }
@@ -556,11 +597,10 @@ function NotesTab({ lead, activities }: { lead: Lead; activities: Activity[] }) 
       {memoActivities.length ? memoActivities.map((activity) => (
         <section className="rounded-none border border-[#F0E7E9] bg-white p-4" key={activity.id}>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
-            {activity.leadStatus ? <span className={`rounded-none px-2.5 py-1 text-xs font-black ${leadStatusTone(activity.leadStatus)}`}>{leadStatusLabels[activity.leadStatus]}</span> : null}
-            <time className="text-xs font-bold text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</time>
+            <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
+            <time className="text-xs font-medium text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</time>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{activity.content}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm font-normal leading-7 text-[#2B2B2B]">{activity.content}</p>
         </section>
       )) : null}
       {!lead.notes?.trim() && !memoActivities.length ? <EmptyState icon={StickyNote} title="メモはまだありません" description="活動ログにメモを残すと、ここに時系列で表示されます。" /> : null}
@@ -582,7 +622,7 @@ function LeadModal({ draft, mode, products, saving, audioUploadProgress = 0, all
         <IndustrySelect label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
         <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <MonthSelect label="実施月" value={draft.appointmentAt} onChange={(appointmentAt) => onChange({ ...draft, appointmentAt })} />
-        <SelectBox label="ステータス" value={draft.status === "document_sent" ? "document_sent" : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
+        <SelectBox label="ステータス" value={draft.status === "document_sent" || draft.status === "sent" ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
         {allowAudio ? (
           <div className="sm:col-span-2">
@@ -611,7 +651,6 @@ function ActivityModal({ draft, saving, onChange, onSave, onClose }: { draft: Ac
           <h3 className="text-sm font-medium text-[#2B2B2B]">活動ログ</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <SelectBox label="種類" value={draft.type} options={activityTypeOptions} onChange={(type) => onChange({ ...draft, type: type as ActivityDraft["type"] })} />
-            <SelectBox label="ステータス" value={draft.leadStatus} options={leadActivityStatusOptions} onChange={(leadStatus) => onChange({ ...draft, leadStatus: leadStatus as ActivityDraft["leadStatus"] })} />
             <div className="sm:col-span-2"><Input label="タイトル" value={draft.title} onChange={(title) => onChange({ ...draft, title })} /></div>
             <div className="sm:col-span-2"><Text label="内容" value={draft.content} onChange={(content) => onChange({ ...draft, content })} /></div>
           </div>
@@ -629,19 +668,98 @@ function NextActionModal({ draft, saving, onChange, onSave, onClose }: { draft: 
   return (
     <Modal title="次回予定を追加" onClose={onClose}>
       <div className="grid gap-4">
-        <Input label="次回予定" required value={draft.nextActionTitle} onChange={(nextActionTitle) => onChange({ ...draft, nextActionTitle })} />
+        <Input label="次回予定" value={draft.nextActionTitle} onChange={(nextActionTitle) => onChange({ ...draft, nextActionTitle })} />
         <Input label="予定日時" type="datetime-local" value={draft.nextActionAt} onChange={(nextActionAt) => onChange({ ...draft, nextActionAt })} />
+        <p className="text-xs font-normal text-[#8A8186]">日時だけでも保存できます。内容が空の場合は「次回対応」としてタスクに追加します。</p>
       </div>
       <div className="mt-6 flex justify-end gap-3">
         <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.nextActionTitle.trim()} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || (!draft.nextActionTitle.trim() && !draft.nextActionAt)} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function EmailPrepModal({ lead, templates, calendars, onClose }: { lead: Lead; templates: BusinessTemplate[]; calendars: CalendarEvent[]; onClose: () => void }) {
+  const emailTemplates = templates.filter((template) => template.category === "email" || template.category === "proposal" || template.category === "meeting");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(emailTemplates[0]?.id ?? "");
+  const [subject, setSubject] = useState("");
+  const [bodyText, setBodyText] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const selectedTemplate = emailTemplates.find((template) => template.id === selectedTemplateId) ?? null;
+  const fallbackBody = selectedTemplate ? fillTemplate(selectedTemplate.content, lead, calendars[0]) : "";
+  const fallbackSubject = selectedTemplate ? fillTemplate(selectedTemplate.subject || selectedTemplate.description || selectedTemplate.title, lead, calendars[0]) : `${lead.companyName} ${lead.productName ?? ""}`.trim();
+  const resolvedSubject = subject || fallbackSubject;
+  const resolvedBody = bodyText || fallbackBody;
+  const mailto = `mailto:${encodeURIComponent(lead.email ?? "")}?subject=${encodeURIComponent(resolvedSubject)}&body=${encodeURIComponent(resolvedBody)}`;
+  const generate = async () => {
+    if (!selectedTemplate) return;
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const generated = await generateTemplateContent({
+        templateId: selectedTemplate.id,
+        relatedSource: "lead",
+        relatedId: lead.id,
+        productId: lead.productId ?? undefined
+      });
+      setSubject(generated.subject || fallbackSubject);
+      setBodyText(generated.body || fallbackBody);
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : "メール文を生成できませんでした。");
+    } finally {
+      setGenerating(false);
+    }
+  };
+  return (
+    <Modal title="メール準備" onClose={onClose}>
+      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
+          <h3 className="text-sm font-medium text-[#2B2B2B]">テンプレート</h3>
+          <div className="mt-3 grid gap-3">
+            {emailTemplates.length ? (
+              <SearchSelect clearable={false} emptyLabel="テンプレートがありません。" options={emailTemplates.map((template) => ({ value: template.id, label: template.title }))} placeholder="テンプレートを選択" value={selectedTemplateId} onChange={(templateId) => { setSelectedTemplateId(templateId); setSubject(""); setBodyText(""); setGenerateError(null); }} />
+            ) : <EmptyState icon={Mail} title="メール用テンプレートはまだありません" description="テンプレート集に登録すると、ここで確認できます。" />}
+            {selectedTemplate ? (
+              <>
+                <button className="inline-flex h-10 w-fit items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={generating} onClick={() => void generate()} type="button"><Mail className="h-4 w-4" />{generating ? "生成中..." : "AIで文面作成"}</button>
+                <Input label="件名" value={resolvedSubject} onChange={setSubject} />
+                <Text label="本文" value={resolvedBody} onChange={setBodyText} />
+                {generateError ? <p className="text-sm font-medium text-[#D94F6E]">{generateError}</p> : null}
+              </>
+            ) : null}
+          </div>
+        </section>
+        <aside className="grid gap-4">
+          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
+            <h3 className="text-sm font-medium text-[#2B2B2B]">差し込み情報</h3>
+            <div className="mt-3 grid gap-2 text-sm font-normal text-[#5E565A]">
+              <p>会社: {lead.companyName}</p>
+              <p>担当者: {lead.contactName || "未設定"}</p>
+              <p>商材: {lead.productName || "未設定"}</p>
+              <p>ステータス: {leadStatusLabels[lead.status]}</p>
+            </div>
+          </section>
+          <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
+            <h3 className="text-sm font-medium text-[#2B2B2B]">関連予定</h3>
+            {calendars.length ? (
+              <div className="mt-3 divide-y divide-[#F0E7E9]">
+                {calendars.map((event) => <div className="py-3" key={event.id}><p className="text-sm font-medium text-[#2B2B2B]">{event.title}</p><p className="mt-1 text-xs font-normal text-[#8A8186]">{formatCalendarDate(event)}</p></div>)}
+              </div>
+            ) : <p className="mt-3 text-sm font-normal text-[#8A8186]">関連予定はまだありません。</p>}
+          </section>
+          <div className="flex flex-wrap justify-end gap-3">
+            {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-medium text-white" href={mailto}><Mail className="h-4 w-4" />メールを開く</a> : null}
+          </div>
+        </aside>
       </div>
     </Modal>
   );
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><div className="mt-5">{children}</div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-4"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><button className="grid h-9 w-9 shrink-0 place-items-center rounded-none text-[#8A8186] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div><div className="mt-5">{children}</div></section></div>;
 }
 
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
@@ -668,46 +786,60 @@ function createEmptyActivityDraft(): ActivityDraft {
   return { type: "call", leadStatus: "", title: "", content: "", productId: "", productName: "", occurredAt: toDatetimeLocalInput(new Date()), nextActionAt: "", nextActionTitle: "" };
 }
 
-function nextActionTaskDraft(lead: Lead, nextAction: NextActionDraft, currentUserId: string, currentUserName: string): TaskDraft {
-  const due = splitDateTimeLocal(nextAction.nextActionAt);
-  return {
-    title: nextAction.nextActionTitle.trim(),
-    description: [lead.companyName, lead.contactName, lead.productName].filter(Boolean).join(" / "),
-    status: "todo",
-    priority: "medium",
-    source: "manual",
-    assigneeId: lead.assignedUserId || currentUserId,
-    assigneeName: lead.assignedUserName || currentUserName,
-    collaboratorIds: [],
-    collaboratorNames: [],
-    companyId: lead.companyId ?? "",
-    companyName: lead.companyName,
-    leadId: lead.id,
-    leadName: lead.companyName,
-    productId: lead.productId ?? "",
-    productName: lead.productName ?? "",
-    projectId: "",
-    projectName: "",
-    meetingId: "",
-    meetingTitle: "",
-    dueDate: due.date,
-    dueTime: due.time,
-    aiReason: "",
-    comments: "",
-    checklistText: ""
-  };
-}
-
-function splitDateTimeLocal(value: string): { date: string; time: string } {
-  if (!value) return { date: "", time: "" };
-  const [date, time = ""] = value.split("T");
-  return { date: date ?? "", time: time.slice(0, 5) };
-}
-
 function formatLeadMonth(lead: Lead): string {
   const date = lead.appointmentAt?.toDate();
   if (!date) return "未設定";
   return date.toLocaleDateString("ja-JP", { month: "numeric" });
+}
+
+function leadMonthKey(lead: Lead): string {
+  const date = lead.appointmentAt?.toDate();
+  if (!date) return UNSET_MONTH;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildMonthTabs(leads: Lead[], status: LeadStatus | "all") {
+  const scoped = leads.filter((lead) => status === "all" ? lead.status !== "lost" : lead.status === status);
+  const counts = new Map<string, { label: string; count: number; sort: number }>();
+  scoped.forEach((lead) => {
+    const key = leadMonthKey(lead);
+    const date = lead.appointmentAt?.toDate();
+    const current = counts.get(key);
+    counts.set(key, {
+      label: key === UNSET_MONTH ? "未設定" : date ? `${date.getMonth() + 1}月` : "未設定",
+      count: (current?.count ?? 0) + 1,
+      sort: key === UNSET_MONTH ? -1 : Number(key.replace("-", ""))
+    });
+  });
+  const monthTabs = Array.from(counts, ([value, data]) => ({ value, ...data }))
+    .filter((tab) => tab.value !== UNSET_MONTH)
+    .sort((a, b) => b.sort - a.sort);
+  const unset = counts.get(UNSET_MONTH);
+  return [
+    { value: ALL_MONTHS, label: "すべて", count: scoped.length, sort: Number.MAX_SAFE_INTEGER },
+    ...monthTabs,
+    ...(unset ? [{ value: UNSET_MONTH, label: "未設定", count: unset.count, sort: unset.sort }] : [])
+  ];
+}
+
+function nextActionDisplay(lead: Lead, events: CalendarEvent[]): NextActionView {
+  if (lead.nextActionTitle || lead.nextActionAt) {
+    return {
+      title: lead.nextActionTitle || "次回対応",
+      meta: formatMaybeDate(lead.nextActionAt?.toDate()),
+      source: "lead"
+    };
+  }
+  const now = Date.now();
+  const nextEvent = events
+    .filter((event) => isRelatedToLead(event, lead) && event.startAt.toMillis() >= now)
+    .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis())[0];
+  if (!nextEvent) return { title: "未設定", meta: "", source: "none" };
+  return {
+    title: nextEvent.title || nextEvent.companyName || "カレンダー予定",
+    meta: `${formatMaybeDate(nextEvent.startAt.toDate())} / カレンダー`,
+    source: "calendar"
+  };
 }
 
 function leadNeedsActivityLog(lead: Lead, events: CalendarEvent[], activities: Activity[]): boolean {
@@ -757,6 +889,19 @@ function IndustrySelect({ label, value, onChange }: { label: string; value: stri
   );
 }
 
+function formatCalendarDate(event: CalendarEvent) {
+  return event.startAt.toDate().toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function fillTemplate(content: string, lead: Lead, event?: CalendarEvent) {
+  const nextDate = event ? formatCalendarDate(event) : "";
+  return content
+    .replace(/\{\{\s*会社名\s*\}\}|\{会社名\}/g, lead.companyName)
+    .replace(/\{\{\s*担当者名\s*\}\}|\{担当者名\}/g, lead.contactName || "ご担当者")
+    .replace(/\{\{\s*商材名\s*\}\}|\{商材名\}/g, lead.productName || "")
+    .replace(/\{\{\s*次回予定\s*\}\}|\{次回予定\}/g, nextDate);
+}
+
 function leadToDraft(lead: Lead): LeadDraft {
   return {
     companyName: lead.companyName,
@@ -802,6 +947,6 @@ function leadMonthSortValue(lead: Lead): number {
 }
 
 function readStatusParam(value: string | null): LeadStatus | "all" {
-  if (value === "new" || value === "contacting" || value === "document_sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost") return value;
+  if (value === "new" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost") return value;
   return "all";
 }

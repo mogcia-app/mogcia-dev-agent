@@ -227,6 +227,7 @@ function leadStatusLabel(status: string): string {
   return ({
     appointment: "アポ獲得",
     document_sent: "資料請求",
+    sent: "送付済",
     meeting: "打ち合わせ中",
     considering: "検討中",
     won: "成約",

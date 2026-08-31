@@ -1824,6 +1824,7 @@ function leadStatusText(status: Lead["status"]): string {
   if (status === "new") return "新規";
   if (status === "contacting") return "対応中";
   if (status === "document_sent") return "資料送付";
+  if (status === "sent") return "送付済";
   if (status === "appointment") return "アポ取得";
   if (status === "meeting") return "商談中";
   if (status === "considering") return "検討中";

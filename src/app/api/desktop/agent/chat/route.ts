@@ -8,6 +8,7 @@ import { listCompanies } from "@/lib/server/business/company-service";
 import { listLeads } from "@/lib/server/business/lead-service";
 import { listProducts } from "@/lib/server/business/product-service";
 import { listTasks } from "@/lib/server/business/task-service";
+import { findTemplateForInstruction, generateBusinessTemplateContent } from "@/lib/server/business/template-service";
 import { getUserDisplayNameById } from "@/lib/user-display";
 
 type DesktopAuth = Awaited<ReturnType<typeof authenticateDesktopRequest>>;
@@ -27,6 +28,27 @@ export async function POST(request: Request) {
     const rawMessage = requireString(body.message ?? body.rawMessage, "質問", 2000);
     const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "agent_chat", async () => {
       const result = await handleDesktopConversation(auth, { ...body, rawMessage });
+      const generatedEmail = await maybeGenerateEmailDraft(auth, rawMessage, result.items ?? []);
+      if (generatedEmail) {
+        return {
+          requestId: "",
+          runId: "",
+          answer: generatedEmail.answer,
+          handled: true,
+          kind: "business_query",
+          items: generatedEmail.items,
+          draft: generatedEmail.draft,
+          conversationId: result.conversationId ?? null,
+          conversationStatus: result.conversationStatus ?? "completed",
+          missingFields: result.missingFields ?? [],
+          candidateEntities: result.candidateEntities ?? [],
+          confirmationRequired: false,
+          confirmationPayload: null,
+          executedAction: null,
+          refreshRequired: false,
+          error: null
+        };
+      }
       if (shouldGenerateAnswer(rawMessage, result.kind)) {
         const answer = await generateBusinessAnswer(auth, rawMessage, result.items ?? []);
         return {
@@ -71,6 +93,67 @@ export async function POST(request: Request) {
   } catch (error) {
     return desktopFailure(error);
   }
+}
+
+async function maybeGenerateEmailDraft(auth: DesktopAuth, rawMessage: string, searchItems: unknown[]) {
+  if (!/(メール|mail|文面|文章|返信文|送付文)/i.test(rawMessage) || !/(作って|作成|生成|考えて|用意|書いて)/.test(rawMessage)) return null;
+  const businessAuth = toBusinessAuth(auth);
+  const template = await findTemplateForInstruction(businessAuth, rawMessage);
+  if (!template) {
+    return {
+      answer: "メール文作成に使えるテンプレートがまだありません。テンプレート集にメール用テンプレートを登録してください。",
+      items: [],
+      draft: { action: "generate_email", missingFields: ["templateId"] }
+    };
+  }
+
+  const target = await resolveEmailTarget(auth, rawMessage, searchItems);
+  if (!target) {
+    return {
+      answer: "どの会社または営業リスト向けのメールか分かりませんでした。会社名や営業リスト名を入れてもう一度送ってください。",
+      items: [],
+      draft: { action: "generate_email", templateId: template.id, missingFields: ["relatedId"] }
+    };
+  }
+
+  const generated = await generateBusinessTemplateContent(businessAuth, {
+    templateId: template.id,
+    relatedSource: target.source,
+    relatedId: target.id,
+    productId: target.productId,
+    instruction: rawMessage
+  });
+  return {
+    answer: [`件名: ${generated.subject}`, "", generated.body].join("\n"),
+    items: [{ type: "email_draft", subject: generated.subject, body: generated.body, templateId: template.id, relatedSource: target.source, relatedId: target.id }],
+    draft: { action: "generate_email", subject: generated.subject, body: generated.body, templateId: template.id, relatedSource: target.source, relatedId: target.id }
+  };
+}
+
+async function resolveEmailTarget(auth: DesktopAuth, rawMessage: string, searchItems: unknown[]) {
+  const fromItems = sanitizeSearchItems(searchItems).find((item) => {
+    const type = typeof item.type === "string" ? item.type : "";
+    return type === "lead" || type === "company";
+  });
+  if (fromItems) {
+    const type = String(fromItems.type);
+    return {
+      source: type === "lead" ? "lead" as const : "company" as const,
+      id: String(fromItems.id ?? ""),
+      productId: typeof fromItems.productId === "string" ? fromItems.productId : undefined
+    };
+  }
+
+  const keywords = extractKeywords(rawMessage);
+  const [leads, companies] = await Promise.all([
+    listLeads(toBusinessAuth(auth), { limit: 120 }),
+    listCompanies(toBusinessAuth(auth), { limit: 120 })
+  ]);
+  const lead = leads.find((entry) => matchesKeywords(entry, keywords));
+  if (lead) return { source: "lead" as const, id: String(lead.id ?? ""), productId: typeof lead.productId === "string" ? lead.productId : undefined };
+  const company = companies.find((entry) => matchesKeywords(entry, keywords));
+  if (company) return { source: "company" as const, id: String(company.id ?? ""), productId: undefined };
+  return null;
 }
 
 function shouldGenerateAnswer(rawMessage: string, kind: string) {
@@ -282,6 +365,7 @@ function sanitizeSearchItems(items: unknown[]) {
       name: textField(item, "name", "title", "companyName"),
       status: textField(item, "status"),
       companyName: textField(item, "companyName"),
+      productId: textField(item, "productId"),
       dueDate: dateField(item, "dueDate"),
       updatedAt: dateField(item, "updatedAt")
     }));
@@ -290,7 +374,7 @@ function sanitizeSearchItems(items: unknown[]) {
 function extractKeywords(rawMessage: string) {
   const cleaned = rawMessage
     .replace(/[「」『』（）()[\]、。,.!?！？]/g, " ")
-    .replace(/(会社情報|会社|企業|取引先|顧客|情報|詳細|状況|一覧|見せて|見たい|教えて|確認|検索|探して|について|って|とは|ですか|ますか|ください|して|を|に|の|は|が|ある|ありますか)/g, " ");
+    .replace(/(会社情報|会社|企業|取引先|顧客|情報|詳細|状況|一覧|見せて|見たい|教えて|確認|検索|探して|メール文|返信文|送付文|メール|文章|文面|作って|作成|生成|考えて|用意|書いて|について|って|とは|ですか|ますか|ください|して|へ|を|に|の|は|が|ある|ありますか)/g, " ");
   const words = cleaned
     .split(/\s+/)
     .map((word) => word.trim().toLowerCase())

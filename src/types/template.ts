@@ -5,6 +5,7 @@ export type TemplateCategory = "email" | "phone" | "meeting" | "proposal" | "hea
 export interface BusinessTemplate {
   id: string;
   title: string;
+  subject?: string;
   description: string;
   category: TemplateCategory;
   scene: string;
@@ -20,6 +21,7 @@ export interface BusinessTemplate {
 
 export interface BusinessTemplateDraft {
   title: string;
+  subject: string;
   description: string;
   category: TemplateCategory;
   scene: string;
