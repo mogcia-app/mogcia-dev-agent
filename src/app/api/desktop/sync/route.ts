@@ -1,6 +1,6 @@
 import { desktopFailure, desktopSuccess } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { endOfTokyoToday, startOfTokyoToday } from "@/lib/desktop/format";
+import { startOfTokyoToday } from "@/lib/desktop/format";
 import { listAgentNotifications } from "@/lib/server/agent/repository";
 import { type BusinessAuth } from "@/lib/server/business/api";
 import { listCalendarEvents, toDesktopSyncCalendarEvent } from "@/lib/server/business/calendar-service";
@@ -9,6 +9,8 @@ import { listTasks, toDesktopTaskPayload } from "@/lib/server/business/task-serv
 import { getUserDisplayNameById } from "@/lib/user-display";
 
 type SyncItem = { key: string; label: string; success: boolean; data?: unknown; error?: string };
+const CALENDAR_SYNC_DAYS = 7;
+const CALENDAR_SYNC_LIMIT = 20;
 
 export async function GET(request: Request) {
   try {
@@ -54,7 +56,9 @@ async function syncItem(key: string, label: string, load: () => Promise<unknown>
 }
 
 async function loadTodayCalendar(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
-  const events = (await listCalendarEvents(toBusinessAuth(auth), { limit: 120, startFrom: startOfTokyoToday(), startTo: endOfTokyoToday() })).map(toDesktopSyncCalendarEvent);
+  const startFrom = startOfTokyoToday();
+  const startTo = new Date(startFrom.getTime() + CALENDAR_SYNC_DAYS * 24 * 60 * 60 * 1000 - 1);
+  const events = (await listCalendarEvents(toBusinessAuth(auth), { limit: CALENDAR_SYNC_LIMIT, startFrom, startTo })).map(toDesktopSyncCalendarEvent);
   return { events };
 }
 

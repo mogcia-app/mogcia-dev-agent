@@ -244,13 +244,31 @@ async function executeConfirmed(auth: DesktopAuth, conversation: DesktopConversa
         executedAction: committed.executedAction,
         refreshRequired: committed.refreshRequired
       };
-      await updateConversation(auth, conversation.id, { status: "completed", lastUserMessage: rawMessage, lastAssistantMessage: result.message, confirmationRequired: false });
-      return envelope(conversation, result, "completed");
+      const completed = completedConversation(conversation);
+      await updateConversation(auth, conversation.id, {
+        status: "completed",
+        lastUserMessage: rawMessage,
+        lastAssistantMessage: result.message,
+        confirmationRequired: false,
+        confirmationPayload: null,
+        missingFields: [],
+        candidateEntities: []
+      });
+      return envelope(completed, result, "completed");
     }
 
     const result = await handleDesktopCommand(auth, { ...conversation.collectedFields, ...body, ...confirmationActionFields(conversation), rawMessage: conversation.lastUserMessage, confirmed: true });
-    await updateConversation(auth, conversation.id, { status: "completed", lastUserMessage: rawMessage, lastAssistantMessage: result.message, confirmationRequired: false });
-    return envelope(conversation, result, "completed");
+    const completed = completedConversation(conversation);
+    await updateConversation(auth, conversation.id, {
+      status: "completed",
+      lastUserMessage: rawMessage,
+      lastAssistantMessage: result.message,
+      confirmationRequired: false,
+      confirmationPayload: null,
+      missingFields: [],
+      candidateEntities: []
+    });
+    return envelope(completed, result, "completed");
   } catch (error) {
     const message = error instanceof DesktopApiError
       ? `実行に失敗しました。もう一度「はい」で再試行できます。${error.message}`
@@ -258,6 +276,17 @@ async function executeConfirmed(auth: DesktopAuth, conversation: DesktopConversa
     await updateConversation(auth, conversation.id, { lastUserMessage: rawMessage, lastAssistantMessage: message });
     return envelope(conversation, { handled: true, kind: conversation.intent, message, items: conversation.candidateEntities, draft: conversation.collectedFields }, conversation.status);
   }
+}
+
+function completedConversation(conversation: DesktopConversation) {
+  return {
+    ...conversation,
+    status: "completed" as StoredConversationStatus,
+    confirmationRequired: false,
+    confirmationPayload: null,
+    missingFields: [],
+    candidateEntities: []
+  };
 }
 
 function pendingStateFromResult(result: DesktopCommandResult) {

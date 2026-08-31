@@ -19,7 +19,10 @@ export type CalendarListOptions = {
 export async function listCalendarEvents(auth: BusinessAuth, options: CalendarListOptions = {}) {
   const limit = options.limit ?? 500;
   const memberIds = options.visibleOnly === false ? null : await getActiveCalendarMemberIds(auth.userId);
-  const snapshot = await auth.db.collection(COLLECTION).orderBy("startAt", "asc").limit(limit).get();
+  let query: FirebaseFirestore.Query<DocumentData> = auth.db.collection(COLLECTION).orderBy("startAt", "asc");
+  if (options.startFrom) query = query.where("startAt", ">=", Timestamp.fromDate(options.startFrom));
+  if (options.startTo) query = query.where("startAt", "<=", Timestamp.fromDate(options.startTo));
+  const snapshot = await query.limit(limit).get();
   return snapshot.docs
     .map((entry): DocumentData => ({ id: entry.id, ...entry.data() }))
     .filter((event) => {
