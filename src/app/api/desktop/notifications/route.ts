@@ -1,28 +1,6 @@
 import { desktopFailure, desktopSuccess } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { createAgentNotification, deleteAgentNotifications, listAgentNotifications, markAllAgentNotificationsRead, updateAgentNotificationStatus } from "@/lib/server/agent/repository";
-
-export async function POST(request: Request) {
-  try {
-    const auth = await authenticateDesktopRequest(request);
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    if (body.e2e !== true || !auth.device.deviceName.includes("E2E")) {
-      throw new Error("E2E通知はテスト端末からのみ作成できます。");
-    }
-    const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "notification_update", async () => createAgentNotification({
-      userId: auth.userId,
-      title: "[E2E] Desktop通知確認",
-      message: "延期・対応メモ・完了・削除の一時確認通知です。",
-      type: "info",
-      source: "desktop",
-      environment: "development",
-      targetUrl: "/home"
-    }));
-    return desktopSuccess(data, 201);
-  } catch (error) {
-    return desktopFailure(error);
-  }
-}
+import { deleteAgentNotifications, listAgentNotifications, markAllAgentNotificationsRead, updateAgentNotificationStatus } from "@/lib/server/agent/repository";
 
 export async function GET(request: Request) {
   try {
