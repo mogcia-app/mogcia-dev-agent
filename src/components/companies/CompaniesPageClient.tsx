@@ -12,16 +12,13 @@ import { SkeletonList } from "@/components/ui/loading";
 import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
-import { subscribeCalendarEvents } from "@/lib/calendar";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
 import { activityTypeLabels as commonActivityTypeLabels } from "@/lib/lead-utils";
-import { subscribeActivities } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask } from "@/lib/tasks";
 import { DEFAULT_WORKSPACE_MEMBERS, getUserDisplayNameById } from "@/lib/user-display";
 import type { ActivityLogType, Company, CompanyActivityLog, CompanyContactPerson, CompanyMeeting, ContactMethod, DealFinalResult } from "@/types/company";
-import type { CalendarEvent } from "@/types/calendar";
 import type { Product } from "@/types/product";
 import type { Activity } from "@/types/lead";
 import type { TaskDraft } from "@/types/task";
@@ -64,8 +61,6 @@ export function CompaniesPageClient() {
   const [members, setMembers] = useState<Array<{ uid: string; name: string; email: string }>>(DEFAULT_WORKSPACE_MEMBERS);
   const [products, setProducts] = useState<Product[]>([]);
   const [analysisRecords, setAnalysisRecords] = useState<TeleapoRecord[]>([]);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
 
   useEffect(() => {
     if (!store.user) return undefined;
@@ -95,16 +90,6 @@ export function CompaniesPageClient() {
   useEffect(() => {
     if (!store.user) return undefined;
     return subscribeTeleapoRecords(setAnalysisRecords, () => setAnalysisRecords([]));
-  }, [store.user]);
-
-  useEffect(() => {
-    if (!store.user) return undefined;
-    return subscribeCalendarEvents(store.user, setCalendarEvents, () => setCalendarEvents([]));
-  }, [store.user]);
-
-  useEffect(() => {
-    if (!store.user) return undefined;
-    return subscribeActivities(setAllActivities, () => setAllActivities([]));
   }, [store.user]);
 
   const setRoute = useCallback((next: { id?: string | null; tab?: TabKey; q?: string }) => {
@@ -211,7 +196,7 @@ export function CompaniesPageClient() {
             </div>
             {store.loading ? <CompanySkeleton /> : null}
             {!store.loading && filtered.length === 0 ? <EmptyCompanies hasQuery={Boolean(q)} onCreate={() => setCreateOpen(true)} /> : null}
-            {filtered.map((company) => <CompanyListItem active={false} company={company} favorite={company.favoriteUserIds.includes(store.user?.uid ?? "")} key={company.id} needsActivityLog={companyNeedsActivityLog(company, calendarEvents, allActivities)} onFavorite={() => void store.toggleFavorite(company)} onSelect={() => setRoute({ id: company.id, tab: "overview" })} />)}
+            {filtered.map((company) => <CompanyListItem active={false} company={company} favorite={company.favoriteUserIds.includes(store.user?.uid ?? "")} key={company.id} onFavorite={() => void store.toggleFavorite(company)} onSelect={() => setRoute({ id: company.id, tab: "overview" })} />)}
           </div>
         </section>
         ) : (
@@ -244,11 +229,10 @@ export function CompaniesPageClient() {
   );
 }
 
-function CompanyListItem({ company, active, favorite, needsActivityLog, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; needsActivityLog: boolean; onSelect: () => void; onFavorite: () => void }) {
+function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
   const primaryContact = getPrimaryContactLabel(company);
   return <button className={`grid min-w-[920px] w-full grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr_110px] items-center gap-4 border-b border-[#F0E7E9] px-3 py-4 text-left transition ${active ? "bg-[#FFF0F3]" : "bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
     <span className="flex min-w-0 items-center gap-2">
-      <span className={`block h-3 w-3 shrink-0 rounded-full ${needsActivityLog ? "bg-[#EC6F8B] ring-4 ring-[#FFF0F3]" : "bg-[#E7E0E3]"}`} title={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"} aria-label={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"} />
       <Bookmark className={`h-4 w-4 shrink-0 text-[#EC6F8B] ${favorite ? "fill-current" : ""}`} onClick={(event) => { event.stopPropagation(); onFavorite(); }} />
       <span className="min-w-0"><span className="block truncate font-medium text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{primaryContact || "先方担当者未設定"}</span></span>
     </span>
@@ -1191,23 +1175,6 @@ function companyNextActionTaskDraft(company: Company, nextAction: NextActionDraf
     comments: "",
     checklistText: ""
   };
-}
-
-function companyNeedsActivityLog(company: Company, events: CalendarEvent[], activities: Activity[]): boolean {
-  const now = Date.now();
-  const relatedEvents = events.filter((event) => isRelatedToCompany(event, company) && event.startAt.toMillis() <= now);
-  if (!relatedEvents.length) return false;
-  const latestEventAt = Math.max(...relatedEvents.map((event) => event.startAt.toMillis()));
-  const hasActivityAfterEvent = activities.some((activity) => isRelatedToCompany(activity, company) && activity.occurredAt.toMillis() >= latestEventAt);
-  return !hasActivityAfterEvent;
-}
-
-function isRelatedToCompany(item: CalendarEvent | Activity, company: Company): boolean {
-  if ("companyId" in item && item.companyId === company.id) return true;
-  if ("relatedType" in item && item.relatedType === "company" && item.relatedId === company.id) return true;
-  if ("companyName" in item && item.companyName && item.companyName === company.name) return true;
-  if ("relatedName" in item && item.relatedName && item.relatedName === company.name) return true;
-  return false;
 }
 
 async function createSuggestedTasks(company: Company, input: { title: string; content?: string; occurredAt: Timestamp; type?: ActivityLogType; meetingId?: string; meetingTitle?: string; productNames?: string[]; contactNames?: string[] }, user: { id: string; name: string }, authUser?: { getIdToken: () => Promise<string> } | null) {

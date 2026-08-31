@@ -26,6 +26,7 @@ export interface Lead {
   assignedUserId?: string | null;
   assignedUserName?: string | null;
   notes?: string;
+  lostReason?: string;
   companyId?: string | null;
   createdBy: string;
   createdByName?: string;
@@ -52,6 +53,7 @@ export interface LeadDraft {
   assignedUserId: string;
   assignedUserName: string;
   notes: string;
+  lostReason: string;
   companyId: string;
 }
 

@@ -136,6 +136,7 @@ export function buildLeadPayload(auth: BusinessAuth, body: Record<string, unknow
     assignedUserId: nullableString(body.assignedUserId, 160),
     assignedUserName: nullableString(body.assignedUserName, 160),
     notes: optionalString(body.notes, 5000),
+    lostReason: optionalString(body.lostReason, 2000),
     companyId: nullableString(body.companyId, 160),
     ...defaultBusinessFields(auth)
   };
@@ -151,7 +152,8 @@ export function serializeLead(id: string, data: DocumentData): DocumentData {
     companyId: nullableString(data.companyId, 160),
     assignedUserId: nullableString(data.assignedUserId, 160),
     assignedUserName: nullableString(data.assignedUserName, 160),
-    nextActionTitle: nullableString(data.nextActionTitle, 200)
+    nextActionTitle: nullableString(data.nextActionTitle, 200),
+    lostReason: optionalString(data.lostReason, 2000)
   };
 }
 
@@ -192,6 +194,7 @@ function buildLeadUpdatePayload(auth: BusinessAuth, body: Record<string, unknown
     ...(body.assignedUserId !== undefined ? { assignedUserId: nullableString(body.assignedUserId, 160) } : {}),
     ...(body.assignedUserName !== undefined ? { assignedUserName: nullableString(body.assignedUserName, 160) } : {}),
     ...(body.notes !== undefined ? { notes: optionalString(body.notes, 5000) } : {}),
+    ...(body.lostReason !== undefined ? { lostReason: optionalString(body.lostReason, 2000) } : {}),
     ...(body.companyId !== undefined ? { companyId: nullableString(body.companyId, 160) } : {}),
     ...(body.tags !== undefined ? { tags: arrayOfStrings(body.tags) } : {}),
     id: FieldValue.delete(),
@@ -215,7 +218,8 @@ function matchesLead(lead: DocumentData, keyword: string) {
     lead.status,
     lead.prospectRank,
     lead.assignedUserName,
-    lead.notes
+    lead.notes,
+    lead.lostReason
   ];
   return fields.some((value) => String(value ?? "").toLowerCase().includes(keyword));
 }

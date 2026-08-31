@@ -14,7 +14,7 @@ import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
-import { createLead, createManualActivity, subscribeActivities, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
+import { createLead, createManualActivity, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
 import { createTeleapoRecord, subscribeTeleapoRecords, updateTeleapoRecord, uploadTeleapoFile } from "@/lib/teleapo";
@@ -27,9 +27,9 @@ import type { Task } from "@/types/task";
 import type { Activity, ActivityDraft, Lead, LeadDraft, LeadSort, LeadStatus } from "@/types/lead";
 import type { CalendarEvent } from "@/types/calendar";
 
-type TabKey = "overview" | "activity" | "meetings" | "tasks" | "files" | "notes";
+type TabKey = "activity" | "meetings" | "tasks" | "files" | "notes";
 
-const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
+const tabs: Array<[TabKey, string]> = [["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新しい順"], ["nextAction", "次回予定が近い順"], ["lastActivity", "最終活動日が新しい順"], ["companyName", "会社名順"]];
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
 const leadFilterTabs: Array<[LeadStatus | "all", string]> = [["all", "すべて"], ["appointment", leadStatusLabels.appointment], ["document_sent", leadStatusLabels.document_sent], ["sent", leadStatusLabels.sent], ["contacting", leadStatusLabels.contacting], ["hold", leadStatusLabels.hold], ["won", leadStatusLabels.won], ["lost", leadStatusLabels.lost]];
@@ -52,12 +52,11 @@ export function LeadsPageClient() {
   const pathname = usePathname();
   const params = useSearchParams();
   const selectedId = params.get("leadId") ?? params.get("id");
-  const selectedTab = (params.get("tab") as TabKey | null) ?? "overview";
+  const selectedTab = readTabParam(params.get("tab"));
   const initialStatus = readStatusParam(params.get("status"));
   const [user, setUser] = useState<User | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [templates, setTemplates] = useState<BusinessTemplate[]>([]);
@@ -109,7 +108,6 @@ export function LeadsPageClient() {
     const unsubTemplates = subscribeBusinessTemplates(setTemplates, () => setTemplates([]));
     const unsubRecords = subscribeTeleapoRecords(setRecords, onError("teleapoRecords"));
     const unsubTasks = subscribeTasks(setTasks, onError("tasks"));
-    const unsubActivities = subscribeActivities(setAllActivities, onError("activities"));
     const unsubCalendar = subscribeCalendarEvents(user, setCalendarEvents, onError("calendar"));
     return () => {
       unsubLeads();
@@ -117,7 +115,6 @@ export function LeadsPageClient() {
       unsubTemplates();
       unsubRecords();
       unsubTasks();
-      unsubActivities();
       unsubCalendar();
     };
   }, [user]);
@@ -145,7 +142,7 @@ export function LeadsPageClient() {
     const needle = query.trim().toLowerCase();
     return leads
       .filter((lead) => monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter)
-      .filter((lead) => status === "all" ? lead.status !== "lost" : lead.status === status)
+      .filter((lead) => status === "all" ? true : lead.status === status)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
       .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
@@ -210,7 +207,7 @@ export function LeadsPageClient() {
       setDraft(createEmptyLeadDraft());
       setCreateOpen(false);
       setToast(audioFile ? "営業リストと音声を登録しました" : "営業リストを登録しました");
-      setRoute({ id, tab: "overview" });
+      setRoute({ id, tab: "activity" });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "営業リストを保存できませんでした。");
     } finally {
@@ -305,6 +302,20 @@ export function LeadsPageClient() {
     }
   };
 
+  const saveLostReason = async (lead: Lead, lostReason: string) => {
+    if (!user) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateLead(lead.id, { ...leadToDraft(lead), lostReason }, currentUser);
+      setToast("失注理由を保存しました");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "失注理由を保存できませんでした。");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <PageHeader
@@ -329,7 +340,7 @@ export function LeadsPageClient() {
                 <span className="text-xs font-medium text-[#8A8186]">ステータス</span>
                 <div className="flex max-w-full gap-1 overflow-x-auto">
                   {leadFilterTabs.map(([value, label]) => {
-                    const count = leads.filter((lead) => (monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter) && (value === "all" ? lead.status !== "lost" : lead.status === value)).length;
+                    const count = leads.filter((lead) => (monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter) && (value === "all" ? true : lead.status === value)).length;
                     return <button className={`shrink-0 rounded-none border px-3 py-2 text-xs font-medium ${status === value ? value === "lost" ? "border-[#111] bg-[#111] text-white" : "border-[#EC6F8B] bg-[#FFF0F3] text-[#B84563]" : "border-[#EEEAE8] bg-white text-neutral-500"}`} key={value} onClick={() => setStatus(value)} type="button">{label} <span className="ml-1 text-[11px] opacity-70">{count}</span></button>;
                   })}
                 </div>
@@ -337,12 +348,12 @@ export function LeadsPageClient() {
             </div>
           </div>
           <div className="overflow-x-auto pb-1">
-            <div className="grid min-w-[1120px] grid-cols-[34px_70px_1.05fr_1.35fr_1fr_0.9fr_0.85fr_1.25fr] gap-4 border-b border-[#EEEAE8] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
-              <span></span><span>実施月</span><span>商材</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
+            <div className="grid min-w-[1080px] grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] gap-4 border-b border-[#EEEAE8] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
+              <span>実施月</span><span>商材</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
             {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
-            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} needsActivityLog={leadNeedsActivityLog(lead, calendarEvents, allActivities)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "overview" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
+            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "activity" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
           </div>
         </section>
 
@@ -355,13 +366,13 @@ export function LeadsPageClient() {
             <LeadHeader lead={selectedLead} saving={saving} onActivity={() => setActivityOpen(true)} onEdit={() => openEditLead(selectedLead)} onEmail={() => setEmailOpen(true)} onStatusChange={(nextStatus) => void saveLeadStatus(selectedLead, nextStatus)} />
             <NextActionPanel lead={selectedLead} nextAction={nextActionDisplay(selectedLead, calendarEvents)} onNextAction={openNextAction} />
             <LeadSummaryStrip lead={selectedLead} />
+            {selectedLead.status === "lost" ? <LostReasonCard key={selectedLead.id} lead={selectedLead} saving={saving} onSave={(lostReason) => void saveLostReason(selectedLead, lostReason)} /> : null}
             <LeadMemoCard activities={activities} lead={selectedLead} />
             <div className="bg-white">
               <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
                 {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
               </div>
               <div className="pt-5">
-                {selectedTab === "overview" ? <OverviewTab records={selectedRecords} /> : null}
                 {selectedTab === "activity" ? <ActivityTab activities={activities} records={selectedRecords} /> : null}
                 {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} /> : null}
                 {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
@@ -382,27 +393,26 @@ export function LeadsPageClient() {
   );
 }
 
-function LeadRow({ lead, nextAction, needsActivityLog, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; needsActivityLog: boolean; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
+function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
   const lost = lead.status === "lost";
+  const statusStyle = leadStatusCellStyle(lead.status);
   return (
-    <div className={`grid min-w-[1120px] w-full grid-cols-[34px_70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}`}>
-      <button className="grid h-7 w-7 place-items-center text-left" onClick={onSelect} title={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"} type="button" aria-label={needsActivityLog ? "予定あり・活動ログ未記録" : "活動ログ確認済み、または対象予定なし"}>
-        <span className={`block h-3 w-3 rounded-full ${needsActivityLog ? "bg-[#EC6F8B] ring-4 ring-[#FFF0F3]" : lost ? "bg-[#666]" : "bg-[#E7E0E3]"}`} />
-      </button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>{formatLeadMonth(lead)}</span></button>
-      <button className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">{lead.productName || "未設定"}</button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#2B2B2B]"}`}>{lead.companyName}</span></button>
-      <button className="min-w-0 text-left" onClick={onSelect} type="button"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</button>
-      <button className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">{lead.industry || "未設定"}</button>
-      <label className={`min-w-0 rounded-md border px-2 py-1 ${lost ? "border-[#444] bg-[#111]" : "border-[#F0E7E9] bg-white"}`}>
-        <select className={`w-full bg-transparent text-xs font-medium outline-none disabled:opacity-50 ${lost ? "text-white" : "text-[#2B2B2B]"}`} disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)}>
-          {leadStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}`} role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
+      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>{formatLeadMonth(lead)}</span></div>
+      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.productName || "未設定"}</div>
+      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#2B2B2B]"}`}>{lead.companyName}</span></div>
+      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
+      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.industry || "未設定"}</div>
+      <label className="relative inline-flex h-9 min-w-0 cursor-pointer items-center rounded-md border px-2.5 shadow-sm" style={statusStyle} onClick={(event) => event.stopPropagation()}>
+        <span className="truncate text-xs font-medium">{leadStatusLabels[lead.status]}</span>
+        <select className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)} aria-label="ステータスを変更">
+          {leadStatusOptions.map(([value, label]) => <option className="text-[#2B2B2B]" key={value} value={value}>{label}</option>)}
         </select>
       </label>
-      <button className={`min-w-0 text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`} onClick={onSelect} type="button">
-        <span className="block truncate">{nextAction.title}</span>
+      <div className={`min-w-0 text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>
+        {nextAction.source !== "none" ? <span className="block truncate">{nextAction.title}</span> : null}
         {nextAction.meta ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{nextAction.meta}</span> : null}
-      </button>
+      </div>
     </div>
   );
 }
@@ -450,7 +460,7 @@ function NextActionPanel({ lead, nextAction, onNextAction }: { lead: Lead; nextA
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFE2E9] text-[#EC6F8B]"><Target className="h-6 w-6" /></span>
         <div className="min-w-0">
           <h3 className="text-base font-medium text-[#111827]">{needsFollow ? "次の対応を設定して、商談につなげましょう" : "次の対応を整理しましょう"}</h3>
-          <p className="mt-1 text-sm font-normal leading-6 text-[#4B5563]">{nextAction.title !== "未設定" ? `${nextAction.title}${nextAction.meta ? ` / ${nextAction.meta}` : ""}` : `${leadStatusLabels[lead.status]}後のフォローや打ち合わせの日程を登録できます。`}</p>
+          <p className="mt-1 text-sm font-normal leading-6 text-[#4B5563]">{nextAction.source !== "none" ? `${nextAction.title}${nextAction.meta ? ` / ${nextAction.meta}` : ""}` : `${leadStatusLabels[lead.status]}後のフォローや打ち合わせの日程を登録できます。`}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-3">
@@ -484,6 +494,23 @@ function LeadSummaryStrip({ lead }: { lead: Lead }) {
   );
 }
 
+function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean; onSave: (lostReason: string) => void }) {
+  const [lostReason, setLostReason] = useState(lead.lostReason ?? "");
+  const changed = lostReason.trim() !== (lead.lostReason ?? "").trim();
+  return (
+    <section className="rounded-none border border-[#2F2F2F] bg-[#1F1F22] p-5 text-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-base font-medium">失注理由</h3>
+          <p className="mt-1 text-sm font-normal text-[#CFCFCF]">次に同じ条件で営業するときの判断材料として残します。</p>
+        </div>
+        <button className="inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-xs font-medium text-[#242424] disabled:opacity-50" disabled={saving || !changed} onClick={() => onSave(lostReason)} type="button">{saving ? "保存中..." : "保存"}</button>
+      </div>
+      <textarea className="mt-4 min-h-32 w-full resize-y rounded-none border border-[#444] bg-[#111] p-3 text-sm font-normal leading-6 text-white outline-none placeholder:text-[#777] focus:border-[#EC6F8B]" placeholder="例: 予算が合わない、導入時期が先、担当者と連絡が取れない など" value={lostReason} onChange={(event) => setLostReason(event.target.value)} />
+    </section>
+  );
+}
+
 function LeadMemoCard({ lead, activities }: { lead: Lead; activities: Activity[] }) {
   const latestActivityMemo = activities.find((activity) => activity.content?.trim());
   if (!lead.notes?.trim() && !latestActivityMemo?.content?.trim()) return null;
@@ -493,36 +520,6 @@ function LeadMemoCard({ lead, activities }: { lead: Lead; activities: Activity[]
       {latestActivityMemo?.content?.trim() ? <div className="mt-4 rounded-none bg-[#FFF8FA] p-4"><p className="text-xs font-medium text-[#EC6F8B]">最新の活動メモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{latestActivityMemo.content}</p></div> : null}
       {lead.notes?.trim() ? <div className="mt-4 rounded-none bg-[#F9FAFB] p-4"><p className="text-xs font-medium text-[#6B7280]">登録時メモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p></div> : null}
     </section>
-  );
-}
-
-function OverviewTab({ records }: { records: TeleapoRecord[] }) {
-  const recent = records.slice(0, 4);
-  return (
-    <div className="grid gap-5">
-      <section className="min-h-[360px] rounded-none border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-base font-medium text-[#111827]">最近の活動</h3>
-          <button className="text-xs font-medium text-[#EC6F8B]" type="button">すべての活動を見る →</button>
-        </div>
-        {recent.length ? <div className="divide-y divide-[#E5E7EB]">{recent.map((record) => <CompactRecordItem key={record.id} record={record} />)}</div> : <EmptyState icon={MessageSquarePlus} title="活動ログはまだありません" description="電話、メール、メモなどを追加するとここに表示されます。" />}
-      </section>
-    </div>
-  );
-}
-
-function CompactRecordItem({ record }: { record: TeleapoRecord }) {
-  return (
-    <div className="flex items-start gap-4 py-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]"><Phone className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#6B7280]">
-          <time>{record.recordedAt.toDate().toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</time>
-          <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 font-medium text-[#EC6F8B]">{record.salesDomain === "meeting" ? "商談" : "電話"}</span>
-        </div>
-        <p className="mt-2 text-sm font-medium leading-6 text-[#111827]">{record.aiAdvice?.summary || record.meetingTitle || record.productName || "営業活動を記録しました。"}</p>
-      </div>
-    </div>
   );
 }
 
@@ -799,7 +796,7 @@ function leadMonthKey(lead: Lead): string {
 }
 
 function buildMonthTabs(leads: Lead[], status: LeadStatus | "all") {
-  const scoped = leads.filter((lead) => status === "all" ? lead.status !== "lost" : lead.status === status);
+  const scoped = leads.filter((lead) => status === "all" ? true : lead.status === status);
   const counts = new Map<string, { label: string; count: number; sort: number }>();
   scoped.forEach((lead) => {
     const key = leadMonthKey(lead);
@@ -826,7 +823,7 @@ function nextActionDisplay(lead: Lead, events: CalendarEvent[]): NextActionView 
   if (lead.nextActionTitle || lead.nextActionAt) {
     return {
       title: lead.nextActionTitle || "次回対応",
-      meta: formatMaybeDate(lead.nextActionAt?.toDate()),
+      meta: lead.nextActionAt ? formatMaybeDate(lead.nextActionAt.toDate()) : "",
       source: "lead"
     };
   }
@@ -834,21 +831,12 @@ function nextActionDisplay(lead: Lead, events: CalendarEvent[]): NextActionView 
   const nextEvent = events
     .filter((event) => isRelatedToLead(event, lead) && event.startAt.toMillis() >= now)
     .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis())[0];
-  if (!nextEvent) return { title: "未設定", meta: "", source: "none" };
+  if (!nextEvent) return { title: "", meta: "", source: "none" };
   return {
     title: nextEvent.title || nextEvent.companyName || "カレンダー予定",
     meta: `${formatMaybeDate(nextEvent.startAt.toDate())} / カレンダー`,
     source: "calendar"
   };
-}
-
-function leadNeedsActivityLog(lead: Lead, events: CalendarEvent[], activities: Activity[]): boolean {
-  const now = Date.now();
-  const relatedEvents = events.filter((event) => isRelatedToLead(event, lead) && event.startAt.toMillis() <= now);
-  if (!relatedEvents.length) return false;
-  const latestEventAt = Math.max(...relatedEvents.map((event) => event.startAt.toMillis()));
-  const hasActivityAfterEvent = activities.some((activity) => isRelatedToLead(activity, lead) && activity.occurredAt.toMillis() >= latestEventAt);
-  return !hasActivityAfterEvent;
 }
 
 function isRelatedToLead(item: CalendarEvent | Activity, lead: Lead): boolean {
@@ -922,6 +910,7 @@ function leadToDraft(lead: Lead): LeadDraft {
     assignedUserId: lead.assignedUserId ?? "",
     assignedUserName: lead.assignedUserName ?? "",
     notes: lead.notes ?? "",
+    lostReason: lead.lostReason ?? "",
     companyId: lead.companyId ?? ""
   };
 }
@@ -949,4 +938,19 @@ function leadMonthSortValue(lead: Lead): number {
 function readStatusParam(value: string | null): LeadStatus | "all" {
   if (value === "new" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost") return value;
   return "all";
+}
+
+function readTabParam(value: string | null): TabKey {
+  if (value === "meetings" || value === "tasks" || value === "files" || value === "notes") return value;
+  return "activity";
+}
+
+function leadStatusCellStyle(status: LeadStatus) {
+  if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
+  if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };
+  if (status === "contacting" || status === "hold") return { backgroundColor: "#FFE45C", borderColor: "#E8C72D", color: "#6B5200" };
+  if (status === "considering") return { backgroundColor: "#2F80ED", borderColor: "#2F80ED", color: "#FFFFFF" };
+  if (status === "won") return { backgroundColor: "#22A06B", borderColor: "#22A06B", color: "#FFFFFF" };
+  if (status === "lost") return { backgroundColor: "#242424", borderColor: "#242424", color: "#FFFFFF" };
+  return { backgroundColor: "#F7F7F7", borderColor: "#D9D9D9", color: "#555555" };
 }

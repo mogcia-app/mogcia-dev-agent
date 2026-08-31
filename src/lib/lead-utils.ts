@@ -60,17 +60,19 @@ export function createEmptyLeadDraft(): LeadDraft {
     assignedUserId: "",
     assignedUserName: "",
     notes: "",
+    lostReason: "",
     companyId: ""
   };
 }
 
 export function leadStatusTone(status: LeadStatus): string {
-  if (status === "won") return "bg-[#F3FAF0] text-[#5E9B61]";
-  if (status === "lost") return "bg-[#F5ECEE] text-[#888]";
-  if (status === "sent" || status === "document_sent") return "bg-[#FFF7ED] text-[#A06122]";
-  if (status === "appointment" || status === "meeting") return "bg-[#FFF0F3] text-[#EC6F8B]";
-  if (status === "hold" || status === "considering") return "bg-[#FFF8E8] text-[#9B7332]";
-  return "bg-white text-[#6F676B] ring-1 ring-[#F0E7E9]";
+  if (status === "appointment" || status === "meeting") return "bg-[#EC2F7A] text-white";
+  if (status === "document_sent" || status === "sent") return "bg-[#FF8A3D] text-white";
+  if (status === "contacting" || status === "hold") return "bg-[#FFE45C] text-[#6B5200] ring-1 ring-[#E8C72D]";
+  if (status === "considering") return "bg-[#2F80ED] text-white";
+  if (status === "won") return "bg-[#22A06B] text-white";
+  if (status === "lost") return "bg-[#242424] text-white";
+  return "bg-[#F7F7F7] text-[#555] ring-1 ring-[#D9D9D9]";
 }
 
 export function toDatetimeLocalInput(date?: Date | null): string {

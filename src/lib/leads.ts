@@ -63,6 +63,7 @@ export function normalizeLead(id: string, data: DocumentData): Lead {
     assignedUserId: optionalStr(data.assignedUserId),
     assignedUserName: optionalStr(data.assignedUserName),
     notes: str(data.notes),
+    lostReason: str(data.lostReason),
     companyId: optionalStr(data.companyId),
     createdBy: str(data.createdBy),
     createdByName: str(data.createdByName),
@@ -233,6 +234,7 @@ function leadDraftPayload(draft: LeadDraft) {
     assignedUserId: draft.assignedUserId || null,
     assignedUserName: draft.assignedUserName.trim() || null,
     notes: draft.notes.trim(),
+    lostReason: draft.lostReason.trim(),
     companyId: draft.companyId || null
   };
 }
