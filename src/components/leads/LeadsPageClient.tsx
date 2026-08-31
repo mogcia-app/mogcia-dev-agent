@@ -948,7 +948,8 @@ function readTabParam(value: string | null): TabKey {
 function leadStatusCellStyle(status: LeadStatus) {
   if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
   if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };
-  if (status === "contacting" || status === "hold") return { backgroundColor: "#FFE45C", borderColor: "#E8C72D", color: "#6B5200" };
+  if (status === "contacting") return { backgroundColor: "#6E3F4D", borderColor: "#6E3F4D", color: "#FFFFFF" };
+  if (status === "hold") return { backgroundColor: "#FFE45C", borderColor: "#E8C72D", color: "#6B5200" };
   if (status === "considering") return { backgroundColor: "#2F80ED", borderColor: "#2F80ED", color: "#FFFFFF" };
   if (status === "won") return { backgroundColor: "#22A06B", borderColor: "#22A06B", color: "#FFFFFF" };
   if (status === "lost") return { backgroundColor: "#242424", borderColor: "#242424", color: "#FFFFFF" };

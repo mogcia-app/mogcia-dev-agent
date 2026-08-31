@@ -68,7 +68,8 @@ export function createEmptyLeadDraft(): LeadDraft {
 export function leadStatusTone(status: LeadStatus): string {
   if (status === "appointment" || status === "meeting") return "bg-[#EC2F7A] text-white";
   if (status === "document_sent" || status === "sent") return "bg-[#FF8A3D] text-white";
-  if (status === "contacting" || status === "hold") return "bg-[#FFE45C] text-[#6B5200] ring-1 ring-[#E8C72D]";
+  if (status === "contacting") return "bg-[#6E3F4D] text-white";
+  if (status === "hold") return "bg-[#FFE45C] text-[#6B5200] ring-1 ring-[#E8C72D]";
   if (status === "considering") return "bg-[#2F80ED] text-white";
   if (status === "won") return "bg-[#22A06B] text-white";
   if (status === "lost") return "bg-[#242424] text-white";
