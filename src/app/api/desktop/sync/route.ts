@@ -30,7 +30,7 @@ export async function GET(request: Request) {
         tasks: itemPayload<{ tasks: unknown[] }>(items, "tasks")?.tasks ?? [],
         companies: itemPayload<{ companies: unknown[] }>(items, "companies")?.companies ?? [],
         notifications: itemPayload<{ notifications: unknown[] }>(items, "notifications")?.notifications ?? [],
-        aiSuggestions: itemPayload<{ tasks: unknown[] }>(items, "ai")?.tasks ?? [],
+        aiSuggestions: itemPayload<{ suggestions: unknown[] }>(items, "ai")?.suggestions ?? [],
         partialErrors: items
           .filter((item) => !item.success)
           .map((item) => ({ key: item.key, label: item.label, message: item.error ?? "読み込みに失敗しました" }))
@@ -73,8 +73,24 @@ async function loadTasks(auth: Awaited<ReturnType<typeof authenticateDesktopRequ
 }
 
 async function loadAiSuggestions(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
-  const tasks = await listTasks(toBusinessAuth(auth), { assigneeId: auth.userId, includeCompleted: false, limit: 6 });
-  return { tasks: tasks.map(toDesktopTaskPayload) };
+  const companies = await listCompanies(toBusinessAuth(auth), { limit: 20 });
+  const suggestions = companies.slice(0, 6).map((company) => {
+    const companyId = String(company.id ?? "");
+    const companyName = String(company.name ?? "");
+    const nextActionTitle = String(company.nextActionTitle ?? "").trim();
+    return {
+      id: `company:${companyId}:next-action`,
+      type: "company_next_action",
+      title: nextActionTitle ? "次回対応を確認" : "次回対応を設定",
+      message: nextActionTitle
+        ? `${companyName}の「${nextActionTitle}」を確認しておくとよさそうです。`
+        : `${companyName}の次回対応を設定しておくとよさそうです。`,
+      companyId,
+      companyName,
+      targetURL: `/sales/companies?id=${companyId}&tab=overview`
+    };
+  });
+  return { suggestions };
 }
 
 function toBusinessAuth(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>): BusinessAuth {
