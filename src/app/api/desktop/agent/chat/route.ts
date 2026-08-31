@@ -288,7 +288,9 @@ function sanitizeSearchItems(items: unknown[]) {
 }
 
 function extractKeywords(rawMessage: string) {
-  const cleaned = rawMessage.replace(/[「」『』（）()[\]、。,.!?！？]/g, " ");
+  const cleaned = rawMessage
+    .replace(/[「」『』（）()[\]、。,.!?！？]/g, " ")
+    .replace(/(会社情報|会社|企業|取引先|顧客|情報|詳細|状況|一覧|見せて|見たい|教えて|確認|検索|探して|について|って|とは|ですか|ますか|ください|して|を|に|の|は|が|ある|ありますか)/g, " ");
   const words = cleaned
     .split(/\s+/)
     .map((word) => word.trim().toLowerCase())
@@ -314,8 +316,14 @@ function matchesKeywords(data: FirebaseFirestore.DocumentData, keywords: string[
     data.content
   ]
     .map((value) => String(value ?? "").toLowerCase())
-    .join(" ");
-  return keywords.some((keyword) => haystack.includes(keyword));
+    .join(" ")
+    .toLowerCase();
+  const normalizedHaystack = normalizeSearchText(haystack);
+  return keywords.some((keyword) => normalizedHaystack.includes(normalizeSearchText(keyword)));
+}
+
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "").replace(/株式会社|有限会社|合同会社|社/g, "");
 }
 
 function extractTargetDateKey(rawMessage: string) {

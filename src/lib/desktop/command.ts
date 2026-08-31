@@ -195,8 +195,11 @@ async function handleCompanyDeleteCommand(auth: DesktopAuth, body: Record<string
   const query = optionalString(body.companyName, "会社名", 200) || extractNameAfter(rawMessage, /(会社|企業|取引先|顧客)/) || rawMessage.replace(/(会社|企業|取引先|顧客|削除|消して|して|ください)/g, "").trim();
   if (!query) return { handled: true, kind: "company" as const, message: "削除する会社名を入力してください", items: [], draft: null };
   const candidates = await searchCompanies(businessAuth, query, { limit: 5 });
+  if (!candidates.length) {
+    return { handled: true, kind: "company" as const, message: "削除対象の会社が見つかりませんでした。会社名を指定してもう一度入力してください。", items: [], draft: null };
+  }
   if (candidates.length !== 1) {
-    return { handled: true, kind: "company" as const, message: candidates.length ? "削除対象の会社を選んでください" : "削除対象の会社が見つかりませんでした", items: candidates.map((company) => ({ type: "company", ...toDesktopCompanyPayload(company) })), draft: { action: "delete_company", query, confirmationRequired: true } };
+    return { handled: true, kind: "company" as const, message: "削除対象の会社を選んでください", items: candidates.map((company) => ({ type: "company", ...toDesktopCompanyPayload(company) })), draft: { action: "delete_company", query, candidateEntities: candidates.map(toDesktopCompanyPayload) } };
   }
   const company = candidates[0];
   const impact = await getCompanyDeletionImpact(businessAuth, String(company.id ?? ""));
@@ -693,17 +696,16 @@ function parseDateFromText(rawMessage: string): Date | null {
   const time = rawMessage.match(/(\d{1,2})[:時](\d{2})?/);
   const hour = time?.[1] ? Number(time[1]) : 10;
   const minute = time?.[2] ? Number(time[2]) : 0;
-  const base = new Date();
-  if (/明後日/.test(rawMessage)) base.setDate(base.getDate() + 2);
-  else if (/明日/.test(rawMessage)) base.setDate(base.getDate() + 1);
+  const base = tokyoDateParts();
+  if (/明後日/.test(rawMessage)) base.day += 2;
+  else if (/明日/.test(rawMessage)) base.day += 1;
   const md = rawMessage.match(/(\d{1,2})月(\d{1,2})日/);
   if (md) {
-    base.setMonth(Number(md[1]) - 1);
-    base.setDate(Number(md[2]));
+    base.month = Number(md[1]);
+    base.day = Number(md[2]);
   }
   if (!time && !/(今日|明日|明後日|\d{1,2}月\d{1,2}日)/.test(rawMessage)) return null;
-  base.setHours(hour, minute, 0, 0);
-  return base;
+  return fromTokyoWallClock(base.year, base.month, base.day, hour, minute);
 }
 
 function extractCompanyName(rawMessage: string) {
@@ -711,6 +713,8 @@ function extractCompanyName(rawMessage: string) {
     .replace(/^(今日|本日|明日|明後日|\d{1,2}月\d{1,2}日)(の|に)?/, "")
     .replace(/^\d{1,2}[:時]\d{0,2}分?(に)?/, "")
     .trim();
+  const beforePurpose = cleaned.match(/^(.+?)(?:さん|社|会社)?と.+?(?:予定|商談|打ち合わせ|会議|訪問|面談|ミーティング)/);
+  if (beforePurpose?.[1]) return beforePurpose[1].trim();
   const direct = cleaned.match(/(?:^|[に、。]\s*)([^に、。\s]+?)(?:さん|社|会社)?との(?:予定|商談|打ち合わせ|会議|訪問|面談|ミーティング)/);
   if (direct?.[1]) return direct[1].trim();
   const withTo = cleaned.match(/(?:^|[に、。]\s*)([^に、。\s]+?)(?:さん|社|会社)?と(?:予定|商談|打ち合わせ|会議|訪問|面談|ミーティング)/);
@@ -765,6 +769,21 @@ function normalizeTaskPriorityFromText(value: unknown, rawMessage: string): "hig
   if (/(高|重要|急ぎ|至急)/.test(rawMessage)) return "high";
   if (/(低|後で|低め)/.test(rawMessage)) return "low";
   return "medium";
+}
+
+function tokyoDateParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+  return { year: value("year"), month: value("month"), day: value("day") };
+}
+
+function fromTokyoWallClock(year: number, month: number, day: number, hour: number, minute: number) {
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, 0, 0));
 }
 
 function detectActivityAction(body: Record<string, unknown>, rawMessage: string): ActivityCommandAction {

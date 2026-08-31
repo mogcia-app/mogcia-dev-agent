@@ -127,16 +127,18 @@ export async function handleDesktopConversation(auth: DesktopAuth, body: Record<
 async function resumeConversation(auth: DesktopAuth, conversation: DesktopConversation, rawMessage: string, body: Record<string, unknown>) {
   const confirmation = readConfirmation(body.confirmation, rawMessage);
   if (confirmation === "cancel" || isCancel(rawMessage)) {
-    await updateConversation(auth, conversation.id, { status: "cancelled", lastUserMessage: rawMessage, lastAssistantMessage: "操作をキャンセルしました。" });
-    return envelope(conversation, { handled: true, kind: conversation.intent, message: "操作をキャンセルしました。", items: [], draft: null }, "cancelled");
+    const cancelled = { ...conversation, confirmationRequired: false, confirmationPayload: null, missingFields: [], candidateEntities: [] };
+    await updateConversation(auth, conversation.id, { status: "cancelled", confirmationRequired: false, confirmationPayload: null, missingFields: [], candidateEntities: [], lastUserMessage: rawMessage, lastAssistantMessage: "操作をキャンセルしました。" });
+    return envelope(cancelled, { handled: true, kind: conversation.intent, message: "操作をキャンセルしました。", items: [], draft: null }, "cancelled");
   }
 
   if (conversation.confirmationRequired && confirmation === "confirm") {
     return executeConfirmed(auth, conversation, rawMessage, body);
   }
   if (conversation.confirmationRequired && confirmation === "reject") {
-    await updateConversation(auth, conversation.id, { status: "cancelled", lastUserMessage: rawMessage, lastAssistantMessage: "実行せずにキャンセルしました。" });
-    return envelope(conversation, { handled: true, kind: conversation.intent, message: "実行せずにキャンセルしました。", items: [], draft: null }, "cancelled");
+    const cancelled = { ...conversation, confirmationRequired: false, confirmationPayload: null, missingFields: [], candidateEntities: [] };
+    await updateConversation(auth, conversation.id, { status: "cancelled", confirmationRequired: false, confirmationPayload: null, missingFields: [], candidateEntities: [], lastUserMessage: rawMessage, lastAssistantMessage: "実行せずにキャンセルしました。" });
+    return envelope(cancelled, { handled: true, kind: conversation.intent, message: "実行せずにキャンセルしました。", items: [], draft: null }, "cancelled");
   }
   if (confirmation === "confirm" && !conversation.confirmationRequired) {
     throw new DesktopApiError("CONFIRMATION_REQUIRED", "確認待ちの操作がありません。", 409, { retryable: false });
@@ -494,25 +496,24 @@ function mergeTimeIntoIso(iso: string, rawMessage: string) {
   if (!time) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  date.setHours(Number(time[1]), time[2] ? Number(time[2]) : 0, 0, 0);
-  return date.toISOString();
+  const tokyoDate = tokyoDatePartsFromDate(date);
+  return fromTokyoWallClock(tokyoDate.year, tokyoDate.month, tokyoDate.day, Number(time[1]), time[2] ? Number(time[2]) : 0).toISOString();
 }
 
 function parseDateFromText(rawMessage: string): Date | null {
   const time = rawMessage.match(/(\d{1,2})[:時](\d{2})?/);
   const hour = time?.[1] ? Number(time[1]) : 10;
   const minute = time?.[2] ? Number(time[2]) : 0;
-  const base = new Date();
-  if (/明後日/.test(rawMessage)) base.setDate(base.getDate() + 2);
-  else if (/明日/.test(rawMessage)) base.setDate(base.getDate() + 1);
+  const base = tokyoDateParts();
+  if (/明後日/.test(rawMessage)) base.day += 2;
+  else if (/明日/.test(rawMessage)) base.day += 1;
   const md = rawMessage.match(/(\d{1,2})月(\d{1,2})日/);
   if (md) {
-    base.setMonth(Number(md[1]) - 1);
-    base.setDate(Number(md[2]));
+    base.month = Number(md[1]);
+    base.day = Number(md[2]);
   }
   if (!time && !/(今日|明日|明後日|\d{1,2}月\d{1,2}日)/.test(rawMessage)) return null;
-  base.setHours(hour, minute, 0, 0);
-  return base;
+  return fromTokyoWallClock(base.year, base.month, base.day, hour, minute);
 }
 
 function calendarConfirmationMessage(draft: CalendarDraft) {
@@ -599,6 +600,25 @@ function hasStructuredCandidateSelection(body: Record<string, unknown>) {
 
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/\s+/g, "").replace(/株式会社|有限会社|合同会社|社$/g, "");
+}
+
+function tokyoDateParts() {
+  return tokyoDatePartsFromDate(new Date());
+}
+
+function tokyoDatePartsFromDate(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+  return { year: value("year"), month: value("month"), day: value("day") };
+}
+
+function fromTokyoWallClock(year: number, month: number, day: number, hour: number, minute: number) {
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, 0, 0));
 }
 
 function withMessage(result: DesktopCommandResult, message: string): DesktopCommandResult {
