@@ -23,15 +23,32 @@ export async function PATCH(request: Request) {
       if (body.action === "mark_all_read") return markAllAgentNotificationsRead(auth.userId);
       const notificationId = typeof body.notificationId === "string" ? body.notificationId : "";
       if (!notificationId) throw new Error("通知IDが必要です。");
+      const handlingStatus = body.handlingStatus === "read" || body.handlingStatus === "done" || body.handlingStatus === "snoozed"
+        ? body.handlingStatus
+        : body.handlingStatus === null ? null : undefined;
+      const handlingMemo = typeof body.handlingMemo === "string" ? body.handlingMemo.trim().slice(0, 2000) : undefined;
+      const snoozedUntil = parseOptionalDate(body.snoozedUntil);
       return updateAgentNotificationStatus(auth.userId, notificationId, {
         read: typeof body.read === "boolean" ? body.read : undefined,
-        completed: typeof body.completed === "boolean" ? body.completed : undefined
+        completed: typeof body.completed === "boolean" ? body.completed : undefined,
+        handlingStatus,
+        handlingMemo,
+        snoozedUntil
       });
     });
     return desktopSuccess(data);
   } catch (error) {
     return desktopFailure(error);
   }
+}
+
+function parseOptionalDate(value: unknown): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string") throw new Error("延期日時の形式が正しくありません。");
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("延期日時の形式が正しくありません。");
+  return date;
 }
 
 export async function DELETE(request: Request) {

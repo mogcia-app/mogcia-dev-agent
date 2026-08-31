@@ -180,11 +180,23 @@ export async function listAgentNotifications(userId: string, count = 40, options
     .filter((notification) => options?.includeTest || notification.environment !== "test");
 }
 
-export async function updateAgentNotificationStatus(userId: string, notificationId: string, patch: { read?: boolean; completed?: boolean }) {
+export async function updateAgentNotificationStatus(userId: string, notificationId: string, patch: {
+  read?: boolean;
+  completed?: boolean;
+  handlingStatus?: "read" | "done" | "snoozed" | null;
+  handlingMemo?: string;
+  snoozedUntil?: Date | null;
+}) {
   const ref = getAdminDb().collection(agentNotificationsCollection).doc(notificationId);
   const snapshot = await ref.get();
   if (!snapshot.exists || snapshot.data()?.userId !== userId) throw new Error("通知が見つかりません。");
-  await ref.update({ ...patch, updatedAt: FieldValue.serverTimestamp() });
+  const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  if (patch.read !== undefined) update.read = patch.read;
+  if (patch.completed !== undefined) update.completed = patch.completed;
+  if (patch.handlingStatus !== undefined) update.handlingStatus = patch.handlingStatus;
+  if (patch.handlingMemo !== undefined) update.handlingMemo = patch.handlingMemo;
+  if (patch.snoozedUntil !== undefined) update.snoozedUntil = patch.snoozedUntil ? Timestamp.fromDate(patch.snoozedUntil) : null;
+  await ref.update(update);
   return { id: notificationId };
 }
 
