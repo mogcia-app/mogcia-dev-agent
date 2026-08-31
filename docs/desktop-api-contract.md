@@ -62,6 +62,10 @@ Desktop device token APIs:
 - `/api/desktop/companies/search`
 - `/api/desktop/companies/[companyId]`
 - `/api/desktop/products`
+- `/api/desktop/leads`
+- `/api/desktop/templates`
+- `/api/desktop/analyses`
+- `/api/desktop/sales-audio`
 - `/api/desktop/activity-logs`
 - `/api/desktop/memos/parse`
 - `/api/desktop/memos/commit`
