@@ -1015,6 +1015,10 @@ function relativeDate(date: Date): string {
 async function companyApi<T = { id: string }>(user: Exclude<AuthTokenUser, null>, path: string, method = "GET", body?: unknown): Promise<T> {
   const token = await user.getIdToken();
   const response = await fetch(path, { method, headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(response.ok ? "APIの応答形式が正しくありません。" : "APIが見つからないか、処理に失敗しました。");
+  }
   const payload = await response.json() as { success: boolean; data?: T; error?: { message?: string } };
   if (!response.ok || !payload.success || !payload.data) throw new Error(payload.error?.message || "処理に失敗しました。");
   return payload.data;
