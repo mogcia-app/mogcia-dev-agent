@@ -6,7 +6,7 @@ import { arrayOfStrings, assertFreshUpdate, BusinessApiError, cleanPatchBody, de
 import type { LeadStatus } from "@/types/lead";
 
 const COLLECTION = "leads";
-const leadStatuses = ["new", "contacting", "document_sent", "sent", "appointment", "meeting", "considering", "hold", "won", "lost"] as const;
+const leadStatuses = ["new", "contacted", "contacting", "document_sent", "sent", "appointment", "meeting", "considering", "hold", "won", "lost"] as const;
 
 export type LeadListOptions = {
   limit?: number;

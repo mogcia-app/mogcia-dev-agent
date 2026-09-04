@@ -1,8 +1,8 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type DocumentData } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { requireUserFromRequest } from "@/lib/server/auth";
-import { listActivitiesByCompanyId } from "@/lib/server/business/activity-service";
+import { createActivity, listActivitiesByCompanyId, updateActivity } from "@/lib/server/business/activity-service";
 import type { BusinessAuth } from "@/lib/server/business/api";
 import { listCalendarEvents } from "@/lib/server/business/calendar-service";
 import { getCompanyById } from "@/lib/server/business/company-service";
@@ -516,9 +516,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                 priority: "prospectScoreよりprospectRankを先に判定し、ランクに合うスコアを付けること。",
                 ranks: {
                   A: "契約直前。契約書、見積、申込、開始日、社内稟議、決裁者確認まで進んでいる。次は契約・入金・導入準備に近い。score 85-100",
-                  "B+": "高確度。前向きで、次回アクション日時が決まっている。予算・決裁者・導入時期のどれかもかなり見えている。score 70-84",
-                  B: "通常見込み。検討意思と課題適合はあるが、決裁・予算・時期がまだ弱い。score 55-69",
-                  "B-": "低め見込み。興味はあるが温度感が薄い。資料を見る、また連絡ください止まり、次回時期が曖昧。score 35-54",
+                  "B+": "高確度。顧客本人の前向きな発言が複数あり、次回アクション日時に加えて予算・決裁者・導入時期のどれかも具体的。score 70-84",
+                  B: "通常見込み。検討意思や課題適合を示す顧客発言はあるが、決裁・予算・時期がまだ弱い。score 55-69",
+                  "B-": "低め見込み。資料を見る、また連絡ください、訪問予定のみなど、次回接点はあるが顧客の主体的な関心・検討意思が弱い。score 35-54",
                   C: "見込みなし。明確に不要、予算なし、対象外、連絡拒否、課題不一致。score 0-34"
                 },
                 nextActionUrgency: {
@@ -531,10 +531,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                 }
               },
               temperatureRule: {
-                high: "顧客が前向きで、課題・予算・時期・次アクションのいずれかが具体的。日本語表示は「高め」。",
-                middle: "関心や検討意思はあるが、決裁・予算・時期・次アクションの一部が弱い。日本語表示は「普通」。",
-                low: "反応が薄い、必要性が弱い、拒否や対象外に近い。日本語表示は「低め」。",
-                instruction: "temperatureReasonには、顧客発言・次回アクション・懸念点を根拠にして短く具体的な日本語で書くこと。"
+                high: "顧客側から導入意欲、課題感、予算、決裁、時期、社内共有、次回商談化などの明確な前向き発言が複数ある場合のみ。営業側が提案しただけ、訪問予定があるだけ、資料送付だけの場合は高めにしない。日本語表示は「高め」。",
+                middle: "一定の会話継続や確認意思はあるが、前向き発言・課題・予算・時期・決裁の根拠が不足している。日本語表示は「普通」。",
+                low: "反応が薄い、必要性が弱い、拒否や対象外に近い、または営業側の提案に対する明確な賛同がない。日本語表示は「低め」。",
+                instruction: "temperatureReasonには、顧客本人の発言だけを主根拠にして短く具体的な日本語で書くこと。根拠が薄い場合は「関心は未確認」「温度感は断定不可」と書き、高め・前向きと断定しないこと。"
               },
               meetingPreparationInstruction: [
                 "meetingPreparationは、テレアポで打ち合わせが確定した後に営業担当がそのまま使う案件専用の商談準備資料として作ること。",
@@ -560,7 +560,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                   ? [
                       `トークスクリプト・電話文面で営業担当が名乗る場合は、必ず名字「${salesRepFamilyName}」を使ってください。`,
                       "商談後分析として、prospectRankをA/B+/B/B-/Cで厳密に判定してください。",
-                      "summaryは商談内容を2〜3文で要約してください。文字起こし本文、挨拶の全文、会話の長い引用、逐語録の貼り付けは禁止です。要約には「誰と何を話し、何が分かり、次に何をするか」だけを書いてください。",
+                      "summaryは商談内容を2〜3文で要約してください。文字起こし本文、挨拶の全文、会話の長い引用、逐語録の貼り付けは禁止です。要約には「誰と何を話し、何が分かり、次に何をするか」だけを書いてください。顧客の関心度・温度感は、明確な顧客発言がある場合だけ書き、根拠が薄い場合は書かないでください。",
                       "record.diagnosisSheetがある場合は、人間が商談終了後に入力した評価として重視してください。ただし、会話ログと矛盾する場合は矛盾点をrankReasonやmissingInformationに含めてください。",
                       "営業が次に動けるよう、良かった点、ダメだった点・弱かった点、顧客が前向きだった発言、迷っていた発言、決まりそうな条件、足りない情報、成約のために必要なもの、失注リスクを具体的に出してください。",
                       "良かった点は、営業側のヒアリング、提案、切り返し、次回アクション設定ができていたかを評価してください。",
@@ -574,7 +574,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
                     ].join("\n")
                   : `テレアポ後分析として、日程調整電話の候補日をavailableScheduleSlotsから3つ、5分程度の台本、1時間商談の要点台本、必要資料候補を重視してください。トークスクリプト・電話文面で営業担当が名乗る場合は、必ず名字「${salesRepFamilyName}」を使ってください。商談後専用項目は空配列または最小限で構いません。`
               ,
-              summaryRule: "summaryは2〜3文の日本語要約のみ。文字起こし本文、長い引用、挨拶全文、会話ログの貼り付けは禁止。顧客名、商材、分かった課題、温度感、次の動きに絞ること。"
+              summaryRule: "summaryは2〜3文の日本語要約のみ。文字起こし本文、長い引用、挨拶全文、会話ログの貼り付けは禁止。顧客名、商材、分かった事実、次の動きに絞ること。顧客の関心度・温度感・前向きさは、顧客本人の明確な発言がある場合だけ書くこと。訪問予定、資料送付、営業側の提案だけを根拠に「関心は高め」「前向き」と書かないこと。"
             })
           }
         ]
@@ -593,6 +593,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
       aiAdviceModel: model,
       updatedAt: FieldValue.serverTimestamp()
     });
+    await upsertLeadSummaryActivity(businessAuth, recordId, record, advice);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -608,6 +609,47 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
     );
     return NextResponse.json({ error: error instanceof Error ? error.message : "advice_failed" }, { status: 500 });
   }
+}
+
+async function upsertLeadSummaryActivity(auth: BusinessAuth, recordId: string, record: DocumentData | undefined, advice: unknown) {
+  const leadId = typeof record?.leadId === "string" ? record.leadId.trim() : "";
+  const summary = readAdviceSummary(advice);
+  if (!leadId || !summary) return;
+
+  const isMeeting = record?.salesDomain === "meeting";
+  const activityBody = {
+    leadId,
+    companyId: typeof record?.companyId === "string" ? record.companyId : null,
+    type: isMeeting ? "meeting" : "telemarketing",
+    title: isMeeting ? "商談音声の要約" : "営業リスト音声の要約",
+    content: summary,
+    productId: typeof record?.productId === "string" ? record.productId : null,
+    productName: typeof record?.productName === "string" ? record.productName : null,
+    audioId: recordId,
+    transcriptId: recordId,
+    analysisId: recordId,
+    occurredAt: toDate(record?.recordedAt) ?? new Date(),
+    force: true
+  };
+
+  const existingSnapshot = await auth.db.collection("activities").where("analysisId", "==", recordId).limit(10).get();
+  const existing = existingSnapshot.docs.find((entry) => {
+    const data = entry.data();
+    return data.leadId === leadId && (data.audioId === recordId || data.transcriptId === recordId || data.analysisId === recordId);
+  });
+
+  if (existing) {
+    await updateActivity(auth, { id: existing.id, ...activityBody });
+    return;
+  }
+
+  await createActivity(auth, activityBody);
+}
+
+function readAdviceSummary(advice: unknown): string {
+  if (!advice || typeof advice !== "object") return "";
+  const summary = (advice as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary.trim() : "";
 }
 
 type CalendarEventLike = {

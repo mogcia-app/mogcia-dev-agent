@@ -1,8 +1,11 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { callCloudRunWorker } from "@/lib/cloud-run/worker";
+import { callCloudRunWorker, isCloudRunConfigured } from "@/lib/cloud-run/worker";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { requireUserFromRequest } from "@/lib/server/auth";
+import { processTeleapoAudio } from "@/lib/server/teleapo/process-audio";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ recordId: string }> }) {
   try {
@@ -23,19 +26,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ rec
       updatedAt: FieldValue.serverTimestamp()
     });
 
-    await callCloudRunWorker({
-      path: "/teleapo/process",
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recordId,
-          audioFilePath: data?.audioFilePath ?? null,
-          audioDownloadUrl: data?.audioDownloadUrl ?? null,
-          transcriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe"
-        })
+    const processInput = {
+      recordId,
+      audioFilePath: data?.audioFilePath ?? null,
+      audioDownloadUrl: data?.audioDownloadUrl ?? null,
+      transcriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe"
+    };
+
+    if (isCloudRunConfigured()) {
+      try {
+        await callCloudRunWorker({
+          path: "/teleapo/process",
+          init: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(processInput)
+          }
+        });
+        return NextResponse.json({ ok: true });
+      } catch (error) {
+        console.warn("Cloud Run teleapo process failed. Falling back to local processing.", error);
       }
-    });
+    }
+
+    await processTeleapoAudio(processInput);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

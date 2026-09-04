@@ -129,7 +129,7 @@ service cloud.firestore {
 
     function validLead(data) {
       return data.companyName is string
-        && data.status in ["new", "contacting", "document_sent", "appointment", "meeting", "considering", "hold", "won", "lost"]
+        && data.status in ["new", "contacted", "contacting", "document_sent", "sent", "appointment", "meeting", "considering", "hold", "won", "lost"]
         && data.createdBy is string;
     }
 

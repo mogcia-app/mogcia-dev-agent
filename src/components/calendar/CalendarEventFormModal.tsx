@@ -225,6 +225,7 @@ function shouldReplaceTitleWithRelatedName(title: string, relatedName?: string):
 
 function leadStatusLabel(status: string): string {
   return ({
+    contacted: "連絡済み",
     appointment: "アポ獲得",
     document_sent: "資料請求",
     sent: "送付済",

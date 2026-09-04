@@ -98,7 +98,7 @@ export function SalesAnalysisListPageClient() {
       });
   }, [filter, query, records, user]);
   const dealGroups = useMemo(() => buildDealGroups(visibleRecords), [visibleRecords]);
-  const selectedDeal = dealGroups.find((deal) => deal.id === dealId) ?? null;
+  const selectedDeal = dealId ? dealGroups.find((deal) => deal.id === dealId || decodeDealId(deal.id) === dealId) ?? null : null;
 
   if (recordId && selectedRecord) {
     return (
@@ -276,12 +276,10 @@ function DealAnalysisWorkspace({ deal, user }: { deal: DealGroup; user: User | n
           </div>
         </div>
         {notice ? <p className="mt-4 text-sm font-medium text-[#EC6F8B]">{notice}</p> : null}
-        <dl className="mt-6 grid gap-x-8 gap-y-3 border-y border-[#EFE8EA] py-4 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="mt-6 grid gap-x-8 gap-y-3 border-y border-[#EFE8EA] py-4 sm:grid-cols-3 lg:grid-cols-4">
           <StrategyFact label="見込み" value={`${deal.currentRank}${deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}`} />
           <StrategyFact label="前回比" value={scoreDelta === null ? "—" : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`} />
           <StrategyFact label="フェーズ" value={phaseLabel(latest)} />
-          <StrategyFact label="最終接触" value={formatDate(deal.latestRecord.recordedAt.toDate())} />
-          <StrategyFact label="商談" value={`${deal.records.length}件`} />
           <StrategyFact label="担当営業" value={deal.ownerName} />
         </dl>
       </section>
@@ -665,32 +663,35 @@ function createDealId(record: TeleapoRecord): string {
   return [record.companyId || record.customerName || "unknown-company", record.productId || record.productName || "unknown-product"].map(encodeURIComponent).join("__");
 }
 
+function decodeDealId(value: string): string {
+  try {
+    return value.split("__").map(decodeURIComponent).join("__");
+  } catch {
+    return value;
+  }
+}
+
 function DealCard({ deal, isDeleting, onDelete }: { deal: DealGroup; isDeleting: boolean; onDelete: () => Promise<void> }) {
   const scoreDelta = deal.currentScore !== null && deal.previousScore !== null ? deal.currentScore - deal.previousScore : null;
   return (
-    <article className="grid gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] lg:grid-cols-[1fr_auto]">
-      <Link className="min-w-0" href={`/sales/analysis?dealId=${deal.id}` as Route}>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#EC6F8B] ring-1 ring-[#F0E7E9]">案件</span>
-            <span className="inline-flex items-center gap-1 rounded-none bg-[#EC6F8B] px-2.5 py-1 text-xs font-medium text-white">
-              <Sparkles className="h-3.5 w-3.5" />
-              {deal.currentRank}{deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}
-            </span>
-            {scoreDelta !== null ? <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9]">前回比 {scoreDelta > 0 ? "+" : ""}{scoreDelta}</span> : null}
-          </div>
-          <h3 className="mt-3 truncate text-base font-medium text-[#2B2B2B]">{deal.companyName}</h3>
-          <p className="mt-1 text-sm font-semibold text-[#777]">{deal.productName} / {deal.contactName}</p>
-          <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{deal.latestAdviceRecord?.aiAdvice?.summary || deal.latestRecord.transcriptText || "案件の接触履歴と分析を確認できます。"}</p>
+    <article className="relative grid cursor-pointer gap-3 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] lg:grid-cols-[1fr_auto]">
+      <Link aria-label={`${deal.companyName}の案件分析を開く`} className="absolute inset-0 z-10" href={`/sales/analysis?dealId=${deal.id}` as Route} />
+      <div className="pointer-events-none min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#EC6F8B] ring-1 ring-[#F0E7E9]">案件</span>
+          <span className="inline-flex items-center gap-1 rounded-none bg-[#EC6F8B] px-2.5 py-1 text-xs font-medium text-white">
+            <Sparkles className="h-3.5 w-3.5" />
+            {deal.currentRank}{deal.currentScore !== null ? ` / ${deal.currentScore}` : ""}
+          </span>
+          {scoreDelta !== null ? <span className="rounded-none bg-white px-2.5 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9]">前回比 {scoreDelta > 0 ? "+" : ""}{scoreDelta}</span> : null}
         </div>
-      </Link>
-      <div className="grid content-between gap-3 text-sm font-medium text-[#8A8186] lg:min-w-52 lg:text-right">
-        <Link className="grid gap-3" href={`/sales/analysis?dealId=${deal.id}` as Route}>
-          <span className="inline-flex items-center gap-2 lg:justify-end"><CalendarDays className="h-4 w-4 text-[#EC6F8B]" />最終 {formatDate(deal.latestRecord.recordedAt.toDate())}</span>
-          <span className="inline-flex items-center gap-2 lg:justify-end"><FileText className="h-4 w-4 text-[#EC6F8B]" />{deal.records.length}件の接触</span>
-        </Link>
+        <h3 className="mt-3 truncate text-base font-medium text-[#2B2B2B]">{deal.companyName}</h3>
+        <p className="mt-1 text-sm font-semibold text-[#777]">{deal.productName} / {deal.contactName}</p>
+        <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#6F676B]">{deal.latestAdviceRecord?.aiAdvice?.summary || deal.latestRecord.transcriptText || "案件の接触履歴と分析を確認できます。"}</p>
+      </div>
+      <div className="grid content-between gap-3 text-sm font-medium text-[#8A8186] lg:min-w-28 lg:text-right">
         <button
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#B65F6F] transition hover:bg-[#FFF0F3] disabled:opacity-50"
+          className="relative z-20 inline-flex h-9 items-center justify-center gap-2 rounded-none border border-[#F0DEE2] bg-white px-3 text-xs font-medium text-[#B65F6F] transition hover:bg-[#FFF0F3] disabled:opacity-50"
           disabled={isDeleting}
           onClick={() => void onDelete()}
           type="button"

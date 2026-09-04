@@ -240,7 +240,7 @@ function leadDraftPayload(draft: LeadDraft) {
 }
 
 function isLeadStatus(value: unknown): value is LeadStatus {
-  return value === "new" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost";
+  return value === "new" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost";
 }
 
 function isActivityType(value: unknown): value is ActivityType {

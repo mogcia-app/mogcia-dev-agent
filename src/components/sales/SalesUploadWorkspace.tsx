@@ -1822,6 +1822,7 @@ function formatCompanyContact(contact?: { name?: string; role?: string } | null)
 
 function leadStatusText(status: Lead["status"]): string {
   if (status === "new") return "新規";
+  if (status === "contacted") return "連絡済み";
   if (status === "contacting") return "対応中";
   if (status === "document_sent") return "資料送付";
   if (status === "sent") return "送付済";

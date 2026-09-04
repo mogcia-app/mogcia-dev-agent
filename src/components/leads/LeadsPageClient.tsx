@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Timestamp } from "firebase/firestore";
-import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Search, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, FileText, LinkIcon, Mail, MessageSquarePlus, Mic2, Music, Phone, Plus, Search, Sparkles, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -13,7 +13,7 @@ import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, leadStatusTone, toDatetimeLocalInput } from "@/lib/lead-utils";
+import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, toDatetimeLocalInput } from "@/lib/lead-utils";
 import { createLead, createManualActivity, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
@@ -32,7 +32,6 @@ type TabKey = "activity" | "meetings" | "tasks" | "files" | "notes";
 const tabs: Array<[TabKey, string]> = [["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新しい順"], ["nextAction", "次回予定が近い順"], ["lastActivity", "最終活動日が新しい順"], ["companyName", "会社名順"]];
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
-const leadFilterTabs: Array<[LeadStatus | "all", string]> = [["all", "すべて"], ["appointment", leadStatusLabels.appointment], ["document_sent", leadStatusLabels.document_sent], ["sent", leadStatusLabels.sent], ["contacting", leadStatusLabels.contacting], ["hold", leadStatusLabels.hold], ["won", leadStatusLabels.won], ["lost", leadStatusLabels.lost]];
 const ALL_MONTHS = "all";
 const UNSET_MONTH = "unset";
 
@@ -53,7 +52,6 @@ export function LeadsPageClient() {
   const params = useSearchParams();
   const selectedId = params.get("leadId") ?? params.get("id");
   const selectedTab = readTabParam(params.get("tab"));
-  const initialStatus = readStatusParam(params.get("status"));
   const [user, setUser] = useState<User | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -63,7 +61,6 @@ export function LeadsPageClient() {
   const [records, setRecords] = useState<TeleapoRecord[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<LeadStatus | "all">(initialStatus);
   const [monthFilter, setMonthFilter] = useState(ALL_MONTHS);
   const [productId, setProductId] = useState("all");
   const [assigneeId, setAssigneeId] = useState("all");
@@ -77,6 +74,7 @@ export function LeadsPageClient() {
   const [nextActionOpen, setNextActionOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [summarizingRecordId, setSummarizingRecordId] = useState<string | null>(null);
   const [audioUploadProgress, setAudioUploadProgress] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,14 +140,13 @@ export function LeadsPageClient() {
     const needle = query.trim().toLowerCase();
     return leads
       .filter((lead) => monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter)
-      .filter((lead) => status === "all" ? true : lead.status === status)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
       .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
       .sort((a, b) => compareLeads(a, b, sort));
-  }, [assigneeId, leads, monthFilter, productId, query, sort, status]);
+  }, [assigneeId, leads, monthFilter, productId, query, sort]);
 
-  const monthTabs = useMemo(() => buildMonthTabs(leads, status), [leads, status]);
+  const monthTabs = useMemo(() => buildMonthTabs(leads), [leads]);
 
   const selectedLead = selectedId ? leads.find((lead) => lead.id === selectedId) ?? null : null;
   const selectedRecords = useMemo(() => {
@@ -159,6 +156,13 @@ export function LeadsPageClient() {
       .sort((a, b) => b.recordedAt.toMillis() - a.recordedAt.toMillis());
   }, [records, selectedLead]);
   const selectedTasks = useMemo(() => selectedLead ? tasks.filter((task) => task.leadId === selectedLead.id || (selectedLead.companyId && task.companyId === selectedLead.companyId)) : [], [selectedLead, tasks]);
+  const audioLeadIds = useMemo(() => {
+    const ids = new Set<string>();
+    records.forEach((record) => {
+      if ((record.audioFilePath || record.audioDownloadUrl) && record.leadId) ids.add(record.leadId);
+    });
+    return ids;
+  }, [records]);
 
   const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: user ? getUserDisplayName(user) : "ログインユーザー" }), [user]);
 
@@ -177,36 +181,10 @@ export function LeadsPageClient() {
     setError(null);
     try {
       const id = await createLead(draft, currentUser);
-      if (audioFile) {
-        const recordId = await createTeleapoRecord({
-          leadId: id,
-          companyId: draft.companyId || null,
-          userId: user.uid,
-          userName: currentUser.name,
-          salesDomain: "teleapo",
-          customerName: draft.companyName.trim(),
-          contactName: draft.contactName.trim(),
-          productId: draft.productId || null,
-          productName: draft.productName.trim(),
-          industry: draft.industry.trim(),
-          role: draft.contactRole.trim(),
-          phone: draft.phone.trim(),
-          leadSource: draft.source.trim(),
-          memo: draft.notes.trim(),
-          recordedAt: Timestamp.now(),
-          transcriptionStatus: "uploaded",
-          aiAdviceStatus: "idle"
-        });
-        const uploaded = await uploadTeleapoFile({ userId: user.uid, recordId, file: audioFile, onProgress: setAudioUploadProgress });
-        await updateTeleapoRecord(recordId, {
-          audioFilePath: uploaded.path,
-          audioDownloadUrl: uploaded.url,
-          transcriptionStatus: "uploaded"
-        });
-      }
+      if (audioFile) await saveLeadAudio(id, draft, audioFile);
       setDraft(createEmptyLeadDraft());
       setCreateOpen(false);
-      setToast(audioFile ? "営業リストと音声を登録しました" : "営業リストを登録しました");
+      setToast(audioFile ? "営業リストと音声を登録し、要約まで作成しました" : "営業リストを登録しました");
       setRoute({ id, tab: "activity" });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "営業リストを保存できませんでした。");
@@ -214,6 +192,36 @@ export function LeadsPageClient() {
       setSaving(false);
       setAudioUploadProgress(0);
     }
+  };
+
+  const saveLeadAudio = async (leadId: string, leadDraft: LeadDraft, audioFile: File) => {
+    if (!user) return;
+    const recordId = await createTeleapoRecord({
+      leadId,
+      companyId: leadDraft.companyId || null,
+      userId: user.uid,
+      userName: currentUser.name,
+      salesDomain: "teleapo",
+      customerName: leadDraft.companyName.trim(),
+      contactName: leadDraft.contactName.trim(),
+      productId: leadDraft.productId || null,
+      productName: leadDraft.productName.trim(),
+      industry: leadDraft.industry.trim(),
+      role: leadDraft.contactRole.trim(),
+      phone: leadDraft.phone.trim(),
+      leadSource: leadDraft.source.trim(),
+      memo: leadDraft.notes.trim(),
+      recordedAt: Timestamp.now(),
+      transcriptionStatus: "uploaded",
+      aiAdviceStatus: "idle"
+    });
+    const uploaded = await uploadTeleapoFile({ userId: user.uid, recordId, file: audioFile, onProgress: setAudioUploadProgress });
+    await updateTeleapoRecord(recordId, {
+      audioFilePath: uploaded.path,
+      audioDownloadUrl: uploaded.url,
+      transcriptionStatus: "uploaded"
+    });
+    await processAndSummarizeRecord(recordId, true);
   };
 
   const openCreateLead = () => {
@@ -226,19 +234,22 @@ export function LeadsPageClient() {
     setEditingLead(lead);
   };
 
-  const saveLeadEdit = async () => {
+  const saveLeadEdit = async (audioFile?: File | null) => {
     if (!editingLead || !user || !draft.companyName.trim()) return;
     setSaving(true);
+    setAudioUploadProgress(0);
     setError(null);
     try {
       await updateLead(editingLead.id, draft, currentUser);
+      if (audioFile) await saveLeadAudio(editingLead.id, draft, audioFile);
       setEditingLead(null);
       setDraft(createEmptyLeadDraft());
-      setToast("営業リストを更新しました");
+      setToast(audioFile ? "営業リストと音声を更新し、要約まで作成しました" : "営業リストを更新しました");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "営業リストを保存できませんでした。");
     } finally {
       setSaving(false);
+      setAudioUploadProgress(0);
     }
   };
 
@@ -258,6 +269,31 @@ export function LeadsPageClient() {
     }
   };
 
+  const processAndSummarizeRecord = async (recordId: string, forceProcess = false) => {
+    if (!user) return;
+    const token = await user.getIdToken();
+    if (forceProcess) {
+      const processResponse = await fetch(`/api/teleapo/${recordId}/process`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (!processResponse.ok) throw new Error(await readApiError(processResponse, "音声の文字起こしに失敗しました。"));
+    }
+    const adviceResponse = await fetch(`/api/teleapo/${recordId}/advice`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    if (!adviceResponse.ok) throw new Error(await readApiError(adviceResponse, "音声の要約作成に失敗しました。"));
+  };
+
+  const summarizeRecord = async (record: TeleapoRecord) => {
+    if (!user) return;
+    setSummarizingRecordId(record.id);
+    setError(null);
+    try {
+      await processAndSummarizeRecord(record.id, record.transcriptionStatus !== "completed");
+      setToast("音声の要約を作成しました");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "音声の要約作成に失敗しました。");
+    } finally {
+      setSummarizingRecordId(null);
+    }
+  };
+
   const openNextAction = () => {
     if (!selectedLead) return;
     setNextActionDraft({
@@ -268,12 +304,11 @@ export function LeadsPageClient() {
   };
 
   const saveNextAction = async () => {
-    if (!selectedLead || !user || (!nextActionDraft.nextActionTitle.trim() && !nextActionDraft.nextActionAt)) return;
+    if (!selectedLead || !user) return;
     setSaving(true);
     setError(null);
     try {
       const fallbackTitle = nextActionDraft.nextActionTitle.trim() || (nextActionDraft.nextActionAt ? "次回対応" : "");
-      if (!fallbackTitle) return;
       await updateLead(selectedLead.id, {
         ...leadToDraft(selectedLead),
         nextActionAt: nextActionDraft.nextActionAt,
@@ -336,15 +371,6 @@ export function LeadsPageClient() {
                 <Search className="h-4 w-4" />
                 <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-[#8A8186]">ステータス</span>
-                <div className="flex max-w-full gap-1 overflow-x-auto">
-                  {leadFilterTabs.map(([value, label]) => {
-                    const count = leads.filter((lead) => (monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter) && (value === "all" ? true : lead.status === value)).length;
-                    return <button className={`shrink-0 rounded-none border px-3 py-2 text-xs font-medium ${status === value ? value === "lost" ? "border-[#111] bg-[#111] text-white" : "border-[#EC6F8B] bg-[#FFF0F3] text-[#B84563]" : "border-[#EEEAE8] bg-white text-neutral-500"}`} key={value} onClick={() => setStatus(value)} type="button">{label} <span className="ml-1 text-[11px] opacity-70">{count}</span></button>;
-                  })}
-                </div>
-              </div>
             </div>
           </div>
           <div className="overflow-x-auto pb-1">
@@ -353,7 +379,7 @@ export function LeadsPageClient() {
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
             {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
-            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "activity" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
+            {filtered.map((lead) => <LeadRow hasAudio={audioLeadIds.has(lead.id)} key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "activity" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
           </div>
         </section>
 
@@ -367,17 +393,17 @@ export function LeadsPageClient() {
             <NextActionPanel lead={selectedLead} nextAction={nextActionDisplay(selectedLead, calendarEvents)} onNextAction={openNextAction} />
             <LeadSummaryStrip lead={selectedLead} />
             {selectedLead.status === "lost" ? <LostReasonCard key={selectedLead.id} lead={selectedLead} saving={saving} onSave={(lostReason) => void saveLostReason(selectedLead, lostReason)} /> : null}
-            <LeadMemoCard activities={activities} lead={selectedLead} />
+            <LeadMemoCard lead={selectedLead} />
             <div className="bg-white">
               <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
                 {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
               </div>
               <div className="pt-5">
-                {selectedTab === "activity" ? <ActivityTab activities={activities} records={selectedRecords} /> : null}
-                {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} /> : null}
+                {selectedTab === "activity" ? <ActivityTab activities={activities} records={selectedRecords} summarizingRecordId={summarizingRecordId} onSummarizeRecord={summarizeRecord} /> : null}
+                {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} summarizingRecordId={summarizingRecordId} onSummarizeRecord={summarizeRecord} /> : null}
                 {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
                 {selectedTab === "files" ? <EmptyState icon={UploadCloud} title="ファイルはまだありません" description="会社化後も参照できるファイル基盤として次フェーズで接続します。" /> : null}
-                {selectedTab === "notes" ? <NotesTab activities={activities} lead={selectedLead} /> : null}
+                {selectedTab === "notes" ? <NotesTab lead={selectedLead} /> : null}
               </div>
             </div>
           </div>
@@ -385,7 +411,7 @@ export function LeadsPageClient() {
       </div> : null}
 
       {createOpen ? <LeadModal allowAudio audioUploadProgress={audioUploadProgress} draft={draft} mode="create" onChange={setDraft} onClose={() => setCreateOpen(false)} onSave={saveLead} products={products} saving={saving} /> : null}
-      {editingLead ? <LeadModal draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} products={products} saving={saving} /> : null}
+      {editingLead ? <LeadModal allowAudio audioUploadProgress={audioUploadProgress} draft={draft} mode="edit" onChange={setDraft} onClose={() => setEditingLead(null)} onSave={saveLeadEdit} products={products} saving={saving} /> : null}
       {activityOpen && selectedLead ? <ActivityModal draft={activityDraft} onChange={setActivityDraft} onClose={() => setActivityOpen(false)} onSave={saveActivity} saving={saving} /> : null}
       {nextActionOpen && selectedLead ? <NextActionModal draft={nextActionDraft} onChange={setNextActionDraft} onClose={() => setNextActionOpen(false)} onSave={saveNextAction} saving={saving} /> : null}
       {emailOpen && selectedLead ? <EmailPrepModal calendars={calendarEvents.filter((event) => isRelatedToLead(event, selectedLead)).sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis()).slice(0, 8)} lead={selectedLead} templates={templates} onClose={() => setEmailOpen(false)} /> : null}
@@ -393,12 +419,22 @@ export function LeadsPageClient() {
   );
 }
 
-function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
+function LeadRow({ lead, nextAction, hasAudio, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; hasAudio: boolean; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
   const lost = lead.status === "lost";
+  const chasing = lead.status === "contacting";
   const statusStyle = leadStatusCellStyle(lead.status);
   return (
-    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}`} role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
-      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>{formatLeadMonth(lead)}</span></div>
+    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : chasing ? "border-[#FFD6E2] bg-[#FFF4F7] hover:bg-[#FFEAF0]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}` } role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
+      <div className="min-w-0 text-left">
+        <span className={`flex min-w-0 items-center gap-2 text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>
+          {hasAudio ? (
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${lost ? "bg-white text-[#EC6F8B]" : "bg-[#EC6F8B] text-white"}`} title="音声データあり">
+              <Music className="h-4 w-4" />
+            </span>
+          ) : null}
+          <span className="truncate">{formatLeadMonth(lead)}</span>
+        </span>
+      </div>
       <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.productName || "未設定"}</div>
       <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#2B2B2B]"}`}>{lead.companyName}</span></div>
       <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
@@ -431,7 +467,6 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="break-words text-2xl font-semibold tracking-normal text-[#111827]">{lead.companyName}</h2>
-            <span className={`rounded-lg px-3 py-1 text-xs font-medium ${leadStatusTone(lead.status)}`}>{leadStatusLabels[lead.status]}</span>
             <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#F0E7E9] bg-white px-2 text-xs font-medium text-[#6F676B]">
               <span>ステータス</span>
               <select className="bg-transparent text-xs font-medium text-[#2B2B2B] outline-none disabled:opacity-50" disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)}>
@@ -453,7 +488,7 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange 
 }
 
 function NextActionPanel({ lead, nextAction, onNextAction }: { lead: Lead; nextAction: NextActionView; onNextAction: () => void }) {
-  const needsFollow = lead.status === "appointment" || lead.status === "document_sent" || lead.status === "sent" || lead.status === "contacting";
+  const needsFollow = lead.status === "appointment" || lead.status === "contacted" || lead.status === "document_sent" || lead.status === "sent" || lead.status === "contacting";
   return (
     <section className="flex flex-col gap-4 rounded-none bg-[#FFF4F7] p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-4">
@@ -511,19 +546,17 @@ function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean;
   );
 }
 
-function LeadMemoCard({ lead, activities }: { lead: Lead; activities: Activity[] }) {
-  const latestActivityMemo = activities.find((activity) => activity.content?.trim());
-  if (!lead.notes?.trim() && !latestActivityMemo?.content?.trim()) return null;
+function LeadMemoCard({ lead }: { lead: Lead }) {
+  if (!lead.notes?.trim()) return null;
   return (
     <section className="rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
       <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><CalendarDays className="h-5 w-5 text-[#EC6F8B]" />メモ</h3>
-      {latestActivityMemo?.content?.trim() ? <div className="mt-4 rounded-none bg-[#FFF8FA] p-4"><p className="text-xs font-medium text-[#EC6F8B]">最新の活動メモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{latestActivityMemo.content}</p></div> : null}
-      {lead.notes?.trim() ? <div className="mt-4 rounded-none bg-[#F9FAFB] p-4"><p className="text-xs font-medium text-[#6B7280]">登録時メモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p></div> : null}
+      <div className="mt-4 rounded-none bg-[#F9FAFB] p-4"><p className="text-xs font-medium text-[#6B7280]">営業リストのメモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p></div>
     </section>
   );
 }
 
-function ActivityTab({ activities, records }: { activities: Activity[]; records: TeleapoRecord[] }) {
+function ActivityTab({ activities, records, summarizingRecordId, onSummarizeRecord }: { activities: Activity[]; records: TeleapoRecord[]; summarizingRecordId: string | null; onSummarizeRecord: (record: TeleapoRecord) => void }) {
   const items = [
     ...activities.filter((activity) => activity.title !== "見込み客を登録しました" && activity.title !== "営業リストを登録しました").map((activity) => ({ id: `activity-${activity.id}`, at: activity.occurredAt, kind: "activity" as const, activity })),
     ...records.map((record) => ({ id: `record-${record.id}`, at: record.recordedAt, kind: "record" as const, record }))
@@ -533,7 +566,7 @@ function ActivityTab({ activities, records }: { activities: Activity[]; records:
     <div className="relative pl-9">
       <span className="absolute bottom-4 left-3 top-3 w-px bg-[#F0E7E9]" />
       <div className="grid gap-4">
-        {items.map((item) => item.kind === "activity" ? <ActivityItem activity={item.activity} key={item.id} /> : <RecordItem key={item.id} record={item.record} />)}
+        {items.map((item) => item.kind === "activity" ? <ActivityItem activity={item.activity} key={item.id} /> : <RecordItem isSummarizing={summarizingRecordId === item.record.id} key={item.id} record={item.record} onSummarize={() => onSummarizeRecord(item.record)} />)}
       </div>
     </div>
   );
@@ -554,20 +587,21 @@ function ActivityItem({ activity }: { activity: Activity }) {
   );
 }
 
-function RecordItem({ record }: { record: TeleapoRecord }) {
+function RecordItem({ record, isSummarizing, onSummarize }: { record: TeleapoRecord; isSummarizing: boolean; onSummarize: () => void }) {
   const href = `/sales/analysis?dealId=${[record.companyId || record.customerName || "unknown-company", record.productId || record.productName || "unknown-product"].map(encodeURIComponent).join("__")}` as Route;
+  const canSummarize = Boolean(record.audioFilePath || record.audioDownloadUrl || record.transcriptionStatus === "completed");
+  const needsTranscription = record.transcriptionStatus !== "completed";
   return (
     <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]"><Mic2 className="h-4 w-4" /></span>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
-        <span className="text-xs font-bold text-[#8A8186]">{record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span>
-        {record.audioDownloadUrl ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">音声あり</span> : null}
-        {record.aiAdvice ? <span className="rounded-none bg-white px-2 py-1 text-xs font-bold text-[#6F676B] ring-1 ring-[#F0E7E9]">AI分析あり</span> : null}
       </div>
       <h3 className="mt-2 font-black text-[#2B2B2B]">{record.meetingTitle || record.productName || record.customerName}</h3>
       {record.audioDownloadUrl ? <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} /> : null}
+      {record.aiAdvice?.summary ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-normal leading-6 text-[#6F676B]">{record.aiAdvice.summary}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">
+        {!record.aiAdvice ? <button className="inline-flex h-9 items-center gap-2 rounded-none bg-[#EC6F8B] px-3 text-xs font-bold text-white disabled:opacity-50" disabled={!canSummarize || isSummarizing} onClick={onSummarize} type="button"><Sparkles className="h-4 w-4" />{isSummarizing ? "作成中..." : needsTranscription ? "音声から要約" : "要約を作成"}</button> : null}
         <Link className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-3 text-xs font-bold text-[#EC6F8B]" href={href}><FileText className="h-4 w-4" />AI分析を見る</Link>
         {record.transcriptText || record.conversationLogs.length ? <Link className="inline-flex h-9 items-center gap-2 rounded-none border border-[#F0E7E9] bg-white px-3 text-xs font-bold text-[#6F676B]" href={href}>文字起こしを見る</Link> : null}
       </div>
@@ -575,10 +609,10 @@ function RecordItem({ record }: { record: TeleapoRecord }) {
   );
 }
 
-function MeetingsTab({ records }: { records: TeleapoRecord[] }) {
+function MeetingsTab({ records, summarizingRecordId, onSummarizeRecord }: { records: TeleapoRecord[]; summarizingRecordId: string | null; onSummarizeRecord: (record: TeleapoRecord) => void }) {
   const meetings = records.filter((record) => record.salesDomain === "meeting");
   if (!meetings.length) return <EmptyState icon={CalendarDays} title="商談はまだありません" description="商談文字起こしをアップロードすると、ここに表示されます。" />;
-  return <div className="grid gap-3">{meetings.map((record) => <RecordItem key={record.id} record={record} />)}</div>;
+  return <div className="grid gap-3">{meetings.map((record) => <RecordItem isSummarizing={summarizingRecordId === record.id} key={record.id} record={record} onSummarize={() => onSummarizeRecord(record)} />)}</div>;
 }
 
 function TasksTab({ tasks }: { tasks: Task[] }) {
@@ -586,21 +620,11 @@ function TasksTab({ tasks }: { tasks: Task[] }) {
   return <div className="grid gap-3">{tasks.map((task) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={task.id}><p className="font-bold text-[#2B2B2B]">{task.title}</p><p className="mt-1 text-sm font-semibold text-[#777]">{task.assigneeName || "担当者未設定"} / {task.status}</p></div>)}</div>;
 }
 
-function NotesTab({ lead, activities }: { lead: Lead; activities: Activity[] }) {
-  const memoActivities = activities.filter((activity) => activity.content?.trim());
+function NotesTab({ lead }: { lead: Lead }) {
   return (
     <div className="grid gap-4">
-      {lead.notes?.trim() ? <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4"><p className="text-xs font-bold text-[#6B7280]">登録時メモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{lead.notes}</p></section> : null}
-      {memoActivities.length ? memoActivities.map((activity) => (
-        <section className="rounded-none border border-[#F0E7E9] bg-white p-4" key={activity.id}>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
-            <time className="text-xs font-medium text-[#8A8186]">{activity.occurredAt.toDate().toLocaleDateString("ja-JP")}</time>
-          </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm font-normal leading-7 text-[#2B2B2B]">{activity.content}</p>
-        </section>
-      )) : null}
-      {!lead.notes?.trim() && !memoActivities.length ? <EmptyState icon={StickyNote} title="メモはまだありません" description="活動ログにメモを残すと、ここに時系列で表示されます。" /> : null}
+      {lead.notes?.trim() ? <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4"><p className="text-xs font-bold text-[#6B7280]">営業リストのメモ</p><p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{lead.notes}</p></section> : null}
+      {!lead.notes?.trim() ? <EmptyState icon={StickyNote} title="メモはまだありません" description="営業リストの登録・編集で保存したメモを表示します。" /> : null}
     </div>
   );
 }
@@ -619,7 +643,7 @@ function LeadModal({ draft, mode, products, saving, audioUploadProgress = 0, all
         <IndustrySelect label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
         <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <MonthSelect label="実施月" value={draft.appointmentAt} onChange={(appointmentAt) => onChange({ ...draft, appointmentAt })} />
-        <SelectBox label="ステータス" value={draft.status === "document_sent" || draft.status === "sent" ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
+        <SelectBox label="ステータス" value={draft.status === "contacted" || draft.status === "document_sent" || draft.status === "sent" ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
         {allowAudio ? (
           <div className="sm:col-span-2">
@@ -667,11 +691,11 @@ function NextActionModal({ draft, saving, onChange, onSave, onClose }: { draft: 
       <div className="grid gap-4">
         <Input label="次回予定" value={draft.nextActionTitle} onChange={(nextActionTitle) => onChange({ ...draft, nextActionTitle })} />
         <Input label="予定日時" type="datetime-local" value={draft.nextActionAt} onChange={(nextActionAt) => onChange({ ...draft, nextActionAt })} />
-        <p className="text-xs font-normal text-[#8A8186]">日時だけでも保存できます。内容が空の場合は「次回対応」としてタスクに追加します。</p>
+        <p className="text-xs font-normal text-[#8A8186]">日時だけでも保存できます。両方空で保存すると次回予定をクリアします。内容が空で日時だけある場合は「次回対応」として保存します。</p>
       </div>
       <div className="mt-6 flex justify-end gap-3">
         <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || (!draft.nextActionTitle.trim() && !draft.nextActionAt)} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
       </div>
     </Modal>
   );
@@ -795,10 +819,9 @@ function leadMonthKey(lead: Lead): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildMonthTabs(leads: Lead[], status: LeadStatus | "all") {
-  const scoped = leads.filter((lead) => status === "all" ? true : lead.status === status);
+function buildMonthTabs(leads: Lead[]) {
   const counts = new Map<string, { label: string; count: number; sort: number }>();
-  scoped.forEach((lead) => {
+  leads.forEach((lead) => {
     const key = leadMonthKey(lead);
     const date = lead.appointmentAt?.toDate();
     const current = counts.get(key);
@@ -813,7 +836,7 @@ function buildMonthTabs(leads: Lead[], status: LeadStatus | "all") {
     .sort((a, b) => b.sort - a.sort);
   const unset = counts.get(UNSET_MONTH);
   return [
-    { value: ALL_MONTHS, label: "すべて", count: scoped.length, sort: Number.MAX_SAFE_INTEGER },
+    { value: ALL_MONTHS, label: "すべて", count: leads.length, sort: Number.MAX_SAFE_INTEGER },
     ...monthTabs,
     ...(unset ? [{ value: UNSET_MONTH, label: "未設定", count: unset.count, sort: unset.sort }] : [])
   ];
@@ -935,11 +958,6 @@ function leadMonthSortValue(lead: Lead): number {
   return lead.appointmentAt?.toMillis() ?? 0;
 }
 
-function readStatusParam(value: string | null): LeadStatus | "all" {
-  if (value === "new" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost") return value;
-  return "all";
-}
-
 function readTabParam(value: string | null): TabKey {
   if (value === "meetings" || value === "tasks" || value === "files" || value === "notes") return value;
   return "activity";
@@ -947,11 +965,21 @@ function readTabParam(value: string | null): TabKey {
 
 function leadStatusCellStyle(status: LeadStatus) {
   if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
+  if (status === "contacted") return { backgroundColor: "#EAF7F2", borderColor: "#BEE7D8", color: "#2F7D62" };
   if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };
-  if (status === "contacting") return { backgroundColor: "#6E3F4D", borderColor: "#6E3F4D", color: "#FFFFFF" };
+  if (status === "contacting") return { backgroundColor: "#FFD6E2", borderColor: "#FFD6E2", color: "#9F2F55" };
   if (status === "hold") return { backgroundColor: "#FFE45C", borderColor: "#E8C72D", color: "#6B5200" };
   if (status === "considering") return { backgroundColor: "#2F80ED", borderColor: "#2F80ED", color: "#FFFFFF" };
   if (status === "won") return { backgroundColor: "#22A06B", borderColor: "#22A06B", color: "#FFFFFF" };
   if (status === "lost") return { backgroundColor: "#242424", borderColor: "#242424", color: "#FFFFFF" };
   return { backgroundColor: "#F7F7F7", borderColor: "#D9D9D9", color: "#555555" };
+}
+
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as { error?: string };
+    return data.error || fallback;
+  } catch {
+    return fallback;
+  }
 }
