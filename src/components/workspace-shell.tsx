@@ -1,5 +1,5 @@
 "use client";
-import { Bot, Building2, CalendarDays, ChartNoAxesCombined, Home, LayoutTemplate, ListChecks, LogOut, Package, Settings, UploadCloud, UserRoundSearch, type LucideIcon } from "lucide-react";
+import { Bot, Building2, CalendarDays, Home, LayoutTemplate, LogOut, Package, Settings, UserRoundSearch, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
@@ -12,8 +12,8 @@ import { LoadingCard, PageProgress } from "@/components/ui/loading";
 type NavItem = { href: string; label: string; icon: LucideIcon };
 const groups: Array<{ label: string; items: NavItem[] }> = [
   { label: "今日", items: [{ href: "/home", label: "ホーム", icon: Home }] },
-  { label: "仕事", items: [{ href: "/agent", label: "Agent", icon: Bot }, { href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/tasks", label: "タスク", icon: ListChecks }, { href: "/leads", label: "営業リスト", icon: UserRoundSearch }] },
-  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/sales/upload", label: "商談を追加", icon: UploadCloud }, { href: "/sales/analysis", label: "商談分析", icon: ChartNoAxesCombined }, { href: "/products", label: "商材", icon: Package }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] }
+  { label: "仕事", items: [{ href: "/agent", label: "Agent", icon: Bot }, { href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/leads", label: "営業リスト", icon: UserRoundSearch }] },
+  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/products", label: "商材", icon: Package }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] }
 ];
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
@@ -25,7 +25,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   if (checking) return <main className="grid min-h-screen place-items-center bg-[#F8F4F3] px-6"><LoadingCard variant="auth" title="認証しています" description="アカウントを確認しています..." /></main>;
   if (!user) return null;
   const mobileItems = groups.flatMap((group) => group.items).slice(0, 5);
-  const edgeToEdge = pathname === "/agent" || pathname === "/tasks" || pathname === "/leads";
+  const edgeToEdge = pathname === "/leads";
   return <div className="min-h-screen max-w-full touch-pan-y overflow-x-hidden overscroll-x-none bg-[#F8F4F3] text-[#1F1F22] lg:grid lg:grid-cols-[68px_1fr] lg:items-stretch">
     {signingOut ? <PageProgress /> : null}
     <aside className="flex border-b border-[#E9DAD8] bg-white/95 px-4 py-3 shadow-sm lg:min-h-screen lg:self-stretch lg:flex-col lg:border-b-0 lg:border-r lg:px-2 lg:py-4">

@@ -1,11 +1,6 @@
-import { Suspense } from "react";
-import { TasksPageClient } from "@/components/tasks/TasksPageClient";
-import { LoadingCard } from "@/components/ui/loading";
+import { redirect } from "next/navigation";
 
-export default function TasksPage() {
-  return (
-    <Suspense fallback={<LoadingCard compact title="タスクを読み込み中です" description="今日のタスクを確認しています..." />}>
-      <TasksPageClient />
-    </Suspense>
-  );
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ taskId?: string }> }) {
+  const { taskId } = await searchParams;
+  redirect(taskId ? `/home?taskId=${encodeURIComponent(taskId)}` : "/home#tasks");
 }

@@ -3,18 +3,23 @@
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { subscribeCalendarEvents } from "@/lib/calendar";
+import { companyContactEvents, companyWithCalendarContact } from "@/lib/company-calendar";
 import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, deleteCompanyMemo, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, updateCompanyMemo, uploadCompanyFile } from "@/lib/companies";
 import { subscribeCompanyActivities } from "@/lib/leads";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
 import { getUserDisplayName } from "@/lib/user-display";
 import type { Company, CompanyActivityLog, CompanyFile, CompanyMeeting, CompanyMemo } from "@/types/company";
+import type { CalendarEvent } from "@/types/calendar";
 import type { Activity } from "@/types/lead";
 import type { Task } from "@/types/task";
 
 export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   const [user, setUser] = useState<User | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const [logs, setLogs] = useState<CompanyActivityLog[]>([]);
   const [commonActivities, setCommonActivities] = useState<Activity[]>([]);
   const [meetings, setMeetings] = useState<CompanyMeeting[]>([]);
@@ -33,6 +38,13 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   useEffect(() => {
     if (!user) return undefined;
     return subscribeCompaniesMaster((next) => { setCompanies(next); setLoading(false); }, (nextError) => { setError(nextError.message); setLoading(false); });
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const unsubscribe = subscribeCalendarEvents(user, setCalendarEvents, () => setCalendarEvents([]));
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => { unsubscribe(); window.clearInterval(timer); };
   }, [user]);
 
   useEffect(() => {
@@ -55,13 +67,17 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   }, [logLimit, selectedCompanyId]);
 
   const currentUser = useMemo(() => ({ id: user?.uid ?? "", name: getUserDisplayName(user) }), [user]);
+  const companiesWithCalendar = useMemo(() => companies.map((company) => companyWithCalendarContact(company, calendarEvents, now)), [companies, calendarEvents, now]);
+  const selectedCalendarEvents = useMemo(() => selectedCompanyId ? companyContactEvents(calendarEvents, selectedCompanyId) : [], [calendarEvents, selectedCompanyId]);
   const isAdmin = isAdminUser(user?.uid);
 
   return {
     user,
     currentUser,
     isAdmin,
-    companies,
+    companies: companiesWithCalendar,
+    calendarEvents: selectedCalendarEvents,
+    now,
     logs,
     commonActivities,
     meetings,

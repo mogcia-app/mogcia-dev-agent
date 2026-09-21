@@ -44,7 +44,11 @@ export async function deleteCompanyService(auth: BusinessAuth, companyId: string
   const ref = companyRef(auth, companyId).collection(SERVICES).doc(serviceId);
   const snapshot = await ref.get();
   if (!snapshot.exists) throw new BusinessApiError("NOT_FOUND", "サービスが見つかりません。", 404);
-  await ref.delete();
+  const credentials = await companyRef(auth, companyId).collection(CREDENTIALS).where("serviceId", "==", serviceId).get();
+  const batch = auth.db.batch();
+  batch.delete(ref);
+  credentials.docs.forEach((entry) => batch.delete(entry.ref));
+  await batch.commit();
   return { id: serviceId, deleted: true };
 }
 
@@ -115,6 +119,8 @@ async function assertCompanyExists(auth: BusinessAuth, companyId: string) {
 function buildCompanyServicePayload(auth: BusinessAuth, body: Record<string, unknown>, serviceName: string) {
   return {
     serviceName,
+    category: optionalString(body.category, 80) || "other",
+    accountName: optionalString(body.accountName, 300),
     productId: nullableString(body.productId, 160),
     status: normalizeServiceStatus(body.status),
     startedAt: parseDate(body.startedAt),
@@ -138,6 +144,8 @@ function buildCompanyServicePayload(auth: BusinessAuth, body: Record<string, unk
 function buildCompanyServiceUpdatePayload(auth: BusinessAuth, body: Record<string, unknown>) {
   return {
     ...(body.serviceName !== undefined ? { serviceName: requireString(body.serviceName, "サービス名", 200) } : {}),
+    ...(body.category !== undefined ? { category: optionalString(body.category, 80) || "other" } : {}),
+    ...(body.accountName !== undefined ? { accountName: optionalString(body.accountName, 300) } : {}),
     ...(body.productId !== undefined ? { productId: nullableString(body.productId, 160) } : {}),
     ...(body.status !== undefined ? { status: normalizeServiceStatus(body.status) } : {}),
     ...(body.startedAt !== undefined ? { startedAt: parseDate(body.startedAt) } : {}),
@@ -160,6 +168,7 @@ function buildCompanyServiceUpdatePayload(auth: BusinessAuth, body: Record<strin
 
 function buildCompanyCredentialPayload(auth: BusinessAuth, body: Record<string, unknown>, label: string, secret: string) {
   return {
+    serviceId: nullableString(body.serviceId, 160),
     serviceType: optionalString(body.serviceType, 80) || "other",
     label,
     url: nullableString(body.url, 500),
@@ -171,6 +180,7 @@ function buildCompanyCredentialPayload(auth: BusinessAuth, body: Record<string, 
 
 function buildCompanyCredentialUpdatePayload(auth: BusinessAuth, body: Record<string, unknown>) {
   return {
+    ...(body.serviceId !== undefined ? { serviceId: nullableString(body.serviceId, 160) } : {}),
     ...(body.serviceType !== undefined ? { serviceType: optionalString(body.serviceType, 80) || "other" } : {}),
     ...(body.label !== undefined ? { label: requireString(body.label, "名称", 200) } : {}),
     ...(body.url !== undefined ? { url: nullableString(body.url, 500) } : {}),
@@ -184,6 +194,8 @@ function serializeCompanyService(id: string, data: DocumentData) {
   const service = serializeDoc(id, data);
   return {
     ...service,
+    category: service.category ?? "other",
+    accountName: service.accountName ?? "",
     productId: service.productId ?? null,
     status: service.status ?? "active",
     startedAt: service.startedAt ?? null,
@@ -208,6 +220,7 @@ function serializeCompanyCredential(id: string, data: DocumentData) {
   const credential = serializeDoc(id, safeData);
   return {
     ...credential,
+    serviceId: credential.serviceId ?? null,
     serviceType: credential.serviceType ?? "other",
     label: credential.label ?? "",
     url: credential.url ?? null,

@@ -35,7 +35,7 @@ export async function PATCH(request: Request) {
       const storagePath = String(snapshot.data()?.audioFilePath ?? "");
       const [audioDownloadUrl] = await getAdminStorageBucket().file(storagePath).getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
       await ref.set({ audioDownloadUrl, audioDurationSec: durationSec, transcriptionStatus: "uploaded", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      return { recordId, targetURL: `/sales/upload?recordId=${recordId}`, message: "音声を保存しました。解析内容を確認できます。" };
+      return { recordId, targetURL: "/sales/companies", message: "音声を保存しました。" };
     }, recordId);
     return desktopSuccess(data);
   } catch (error) { return desktopFailure(error); }

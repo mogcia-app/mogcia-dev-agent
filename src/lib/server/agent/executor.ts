@@ -473,7 +473,7 @@ async function resolveLeadOrCompany(context: ExecutionContext, entities: Record<
 async function executePendingAction(pendingAction: AgentPendingAction, user: AgentUser) {
   if (pendingAction.type === "create_task") {
     const result = await tools.createTask(pendingAction.payload, user);
-    return { ...result, cards: [{ ...pendingTaskCard(pendingAction.payload), id: result.data.id, href: `/tasks?taskId=${result.data.id}`, tone: "success" as const }] };
+    return { ...result, cards: [{ ...pendingTaskCard(pendingAction.payload), id: result.data.id, href: `/home?taskId=${result.data.id}`, tone: "success" as const }] };
   }
   if (pendingAction.type === "update_task") {
     const result = await tools.updateTask(pendingAction.payload, user);
@@ -577,7 +577,7 @@ function taskCard(task: DocumentData): AgentResultCard {
     type: "task",
     title: String(task.title ?? "タスク"),
     subtitle: [statusLabel(task.status), priorityLabel(task.priority)].filter(Boolean).join(" / "),
-    href: `/tasks?taskId=${task.id}`,
+    href: `/home?taskId=${task.id}`,
     tone: task.status === "completed" ? "success" : tools.dateMillis(task.dueDate) && tools.dateMillis(task.dueDate) < Date.now() ? "warning" : "default",
     meta: [
       { label: "期限", value: formatDate(task.dueDate) },
@@ -650,7 +650,7 @@ function meetingCard(record: DocumentData): AgentResultCard {
     type: "analysis",
     title: String(record.customerName ?? "商談・テレアポ"),
     subtitle: [record.salesDomain, record.productName, record.callResult].filter(Boolean).join(" / "),
-    href: "/sales/analysis",
+    href: "/sales/companies",
     body: String(record.summary ?? ""),
     meta: [
       { label: "記録日", value: formatDate(record.recordedAt) },
