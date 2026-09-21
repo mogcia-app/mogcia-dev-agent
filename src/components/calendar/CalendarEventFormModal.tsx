@@ -12,6 +12,7 @@ const durationOptions = [30, 60, 90, 120, 150, 180, 210, 240, 300, 360].map((min
   value: String(minutes),
   label: minutes < 60 ? `${minutes}分` : minutes % 60 === 0 ? `${minutes / 60}時間` : `${Math.floor(minutes / 60)}時間${minutes % 60}分`
 }));
+const weekdayOptions = [[1, "月"], [2, "火"], [3, "水"], [4, "木"], [5, "金"], [6, "土"], [0, "日"]] as const;
 
 type RelatedOption = {
   value: string;
@@ -66,7 +67,8 @@ export function CalendarEventFormModal({ currentMember, members, companies, lead
     setSaving(true);
     setError(null);
     try {
-      await onSubmit({ ...draft, title, reminder: "0", recurrence: "none" });
+      if (draft.recurrence === "weekly" && (!draft.recurrenceWeekdays.length || !draft.recurrenceEndDate)) throw new Error("繰り返す曜日と終了日を指定してください。");
+      await onSubmit({ ...draft, title, reminder: "0" });
       onClose();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "予定を保存できませんでした。");
@@ -90,11 +92,12 @@ export function CalendarEventFormModal({ currentMember, members, companies, lead
             }} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-3"><Field label="日付"><input className="task-input" type="date" value={draft.startDate} onChange={(event) => { const startDate = event.target.value; setDraft((current) => ({ ...current, startDate, endDate: startDate })); }} /></Field><Field label="開始時刻"><input className="task-input" disabled={draft.allDay} step={1800} type="time" value={draft.startTime} onChange={(event) => setValue("startTime", event.target.value)} /></Field><Field label="所要時間"><select className="task-input" disabled={draft.allDay} value={String(draft.durationMinutes)} onChange={(event) => setValue("durationMinutes", Number(event.target.value))}>{durationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field></div>
+          {!initialDraft ? <section className="rounded-xl border border-[#F0E7E9] bg-[#FFFBFC] p-4"><label className="flex items-center gap-2 text-sm font-medium text-[#655D62]"><input checked={draft.recurrence === "weekly"} onChange={(event) => setDraft((current) => ({ ...current, recurrence: event.target.checked ? "weekly" : "none", recurrenceWeekdays: current.recurrenceWeekdays.length ? current.recurrenceWeekdays : [new Date(`${current.startDate}T00:00`).getDay()] }))} type="checkbox" />毎週繰り返す</label>{draft.recurrence === "weekly" ? <div className="mt-4 grid gap-4"><div><p className="mb-2 text-xs font-medium text-[#8A8186]">曜日（複数選択可）</p><div className="flex flex-wrap gap-2">{weekdayOptions.map(([value, label]) => { const active = draft.recurrenceWeekdays.includes(value); return <button className={`grid h-9 w-9 place-items-center rounded-full border text-sm font-medium ${active ? "border-[#F47E96] bg-[#F47E96] text-white" : "border-[#E5E7EB] bg-white text-[#655D62]"}`} key={value} onClick={() => setDraft((current) => ({ ...current, recurrenceWeekdays: active ? current.recurrenceWeekdays.filter((day) => day !== value) : [...current.recurrenceWeekdays, value] }))} type="button">{label}</button>; })}</div></div><Field label="繰り返し終了日"><input className="task-input" min={draft.startDate} type="date" value={draft.recurrenceEndDate} onChange={(event) => setValue("recurrenceEndDate", event.target.value)} /></Field><p className="text-xs leading-5 text-[#8A8186]">開始日から終了日まで、選択した曜日の予定を一括で登録します。</p></div> : null}</section> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {isAdmin ? <Field label="担当者"><SearchSelect options={memberOptions.map((member) => ({ value: member.id, label: member.name }))} value={draft.assigneeId} onChange={(value) => { const member = memberOptions.find((entry) => entry.id === value); setDraft((current) => ({ ...current, assigneeId: value, assigneeName: member?.name ?? value, attendeeIds: current.attendeeIds.filter((id) => id !== value), attendeeMemberNames: members.filter((entry) => current.attendeeIds.includes(entry.id) && entry.id !== value).map((entry) => entry.name) })); }} /></Field> : <Field label="担当者"><div className="flex h-11 items-center rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-3 text-sm text-[#4B5563]">{currentMember.name}</div></Field>}
             <MultiSelect label="同行者" options={members.filter((member) => member.id !== draft.assigneeId).map((member) => ({ value: member.id, label: member.name }))} placeholder="同行者を選択" values={draft.attendeeIds} onChange={(attendeeIds) => setDraft((current) => ({ ...current, attendeeIds, attendeeMemberNames: members.filter((member) => attendeeIds.includes(member.id)).map((member) => member.name) }))} />
           </div>
-          <Field label="メモ（任意）"><textarea className="task-input min-h-16 resize-y" value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけ入力" /></Field>
+          <Field label="メモ"><textarea className="task-input resize-y" style={{ minHeight: "6rem" }} value={draft.description} onChange={(event) => setValue("description", event.target.value)} placeholder="必要なことだけ入力" /></Field>
         </div>
         <div className="mt-5 flex justify-end gap-2"><button className="h-10 rounded-lg border border-[#E5E7EB] px-4 text-sm font-medium text-[#6F676B]" onClick={onClose} type="button">キャンセル</button><button className="h-10 rounded-lg bg-[#F47E96] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={saving || (!draft.relatedName.trim() && !initialDraft?.title.trim())} onClick={() => void save()} type="button">{saving ? "保存中..." : "保存"}</button></div>
       </section>

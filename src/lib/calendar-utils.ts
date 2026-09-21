@@ -173,7 +173,9 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
     location: "",
     meetingUrl: "",
     reminder: "0",
-    recurrence: "none"
+    recurrence: "none",
+    recurrenceWeekdays: [now.getDay()],
+    recurrenceEndDate: ""
   };
 }
 
@@ -222,7 +224,12 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
     externalCalendarId: null,
     externalEventId: null,
     reminderMinutes: [],
-    recurrence: null,
+    recurrence: draft.recurrence === "weekly" ? {
+      frequency: "weekly" as const,
+      interval: 1,
+      weekdays: draft.recurrenceWeekdays,
+      endDate: draft.recurrenceEndDate ? parseDateTime(draft.recurrenceEndDate, "23:59") : null
+    } : null,
     visibility: "team" as const
   };
 }

@@ -10,11 +10,11 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { KnowledgeDocument } from "./KnowledgeDocument";
 import { KnowledgeTree } from "./KnowledgeTree";
 
-export function KnowledgeWorkspace() {
+export function KnowledgeWorkspace({ initialQuery = "" }: { initialQuery?: string }) {
   const [user, setUser] = useState<User | null>(null);
   const [nodes, setNodes] = useState<KnowledgeNode[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

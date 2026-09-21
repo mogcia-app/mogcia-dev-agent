@@ -22,6 +22,18 @@ export function companyWithCalendarContact(company: Company, events: CalendarEve
     ...company,
     lastContactAt: latestPast ? Timestamp.fromMillis(latestPast) : null,
     nextActionAt: nextEvent?.startAt ?? company.nextActionAt,
-    nextActionTitle: nextEvent?.title ?? company.nextActionTitle
+    nextActionTitle: nextEvent ? formatNextEventDate(nextEvent) : company.nextActionTitle
   };
+}
+
+function formatNextEventDate(event: CalendarEvent): string {
+  const date = event.startAt.toDate();
+  if (event.allDay) return date.toLocaleDateString("ja-JP");
+  return date.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }

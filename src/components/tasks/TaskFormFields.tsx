@@ -3,7 +3,7 @@
 import { CalendarDays, Clock3, X } from "lucide-react";
 import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import type { TaskDraft, TaskStatus } from "@/types/task";
-import type { CompanyOption, ProductOption } from "@/types/workspace-records";
+import type { CompanyOption, ProductOption, ProjectOption } from "@/types/workspace-records";
 
 type DraftKey = keyof TaskDraft;
 
@@ -25,12 +25,14 @@ export function TaskFormFields({
   draft,
   companies,
   products,
+  projects,
   readOnly,
   onChange
 }: {
   draft: TaskDraft;
   companies: CompanyOption[];
   products: ProductOption[];
+  projects: ProjectOption[];
   readOnly: boolean;
   onChange: (draft: TaskDraft) => void;
 }) {
@@ -43,6 +45,11 @@ export function TaskFormFields({
     const product = products.find((entry) => entry.id === value);
     onChange({ ...draft, productId: value, productName: product?.name ?? "" });
   };
+  const onProjectChange = (value: string) => {
+    const project = projects.find((entry) => entry.id === value);
+    onChange({ ...draft, projectId: value, projectName: project?.name ?? "", ...(project?.companyId ? { companyId: project.companyId, companyName: project.companyName ?? "" } : {}) });
+  };
+  const availableProjects = draft.companyId ? projects.filter((project) => !project.companyId || project.companyId === draft.companyId) : projects;
   const setDueDate = (value: string) => onChange({ ...draft, dueDate: value, dueTime: draft.dueTime || "18:00" });
   const clearDue = () => onChange({ ...draft, dueDate: "", dueTime: "" });
 
@@ -68,6 +75,9 @@ export function TaskFormFields({
           <SearchSelect clearable disabled={readOnly || products.length === 0} emptyLabel="商材が未登録です。" options={products.map((product) => ({ value: product.id, label: product.name, description: product.tagline }))} placeholder={products.length === 0 ? "未登録" : "未選択"} value={draft.productId} onChange={onProductChange} />
         </Field>
       </div>
+      <Field label="プロジェクト">
+        <SearchSelect clearable disabled={readOnly || availableProjects.length === 0} emptyLabel="選択できるプロジェクトがありません。" options={availableProjects.filter((project) => project.status !== "archived").map((project) => ({ value: project.id, label: project.name, description: project.companyName || (project.type === "product" ? "自社商材" : "社内") }))} placeholder={availableProjects.length === 0 ? "未登録" : "未選択"} value={draft.projectId} onChange={onProjectChange} />
+      </Field>
       {draft.source === "ai" ? (
         <Field label="AI作成理由">
           <textarea className="task-input min-h-44 resize-y" disabled={readOnly} value={draft.aiReason} onChange={(event) => setValue("aiReason", event.target.value)} placeholder="AIが作成した理由や元情報" />

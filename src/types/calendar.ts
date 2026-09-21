@@ -92,6 +92,8 @@ export interface CalendarEvent {
     frequency: "daily" | "weekly" | "monthly";
     interval?: number;
     endDate?: Timestamp | null;
+    weekdays?: number[];
+    groupId?: string | null;
   } | null;
   visibility?: "team" | "private";
   createdBy: string;
@@ -133,6 +135,8 @@ export interface CalendarEventDraft {
   meetingUrl: string;
   reminder: string;
   recurrence: "none" | "daily" | "weekly" | "monthly";
+  recurrenceWeekdays: number[];
+  recurrenceEndDate: string;
 }
 
 export interface CalendarFilters {

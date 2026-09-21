@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, Archive, ArrowLeft, Bookmark, Building2, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { CompanyProjectsTab } from "@/components/projects/CompanyProjectsTab";
 import { SkeletonList } from "@/components/ui/loading";
 import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
@@ -24,10 +25,10 @@ import type { Task, TaskDraft } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
 
 type SortKey = "lastContact" | "updated" | "name";
-type TabKey = "overview" | "timeline" | "services" | "tasks" | "files" | "notes";
+type TabKey = "overview" | "timeline" | "projects" | "services" | "tasks" | "files" | "notes";
 type NextActionDraft = { nextActionTitle: string };
 
-const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["tasks", "タスク"], ["files", "ファイル"], ["services", "サービス"], ["notes", "メモ"]];
+const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["projects", "プロジェクト"], ["tasks", "タスク"], ["files", "ファイル"], ["services", "サービス"], ["notes", "メモ"]];
 const sortOptions: Array<[SortKey, string]> = [["lastContact", "最終接触日が新しい順"], ["updated", "更新日が新しい順"], ["name", "会社名順"]];
 
 const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
@@ -207,12 +208,13 @@ export function CompaniesPageClient() {
         ) : (
         <section className="min-w-0">
             <div className="space-y-5">
-              <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onBack={showCompanyList} onDelete={() => { void store.deleteCompany(selectedCompany.id); showCompanyList(); }} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} onStatusChange={async (status) => { await store.updateCompany(selectedCompany.id, { status }); flash("ステータスを更新しました"); }} />
+              <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onDelete={() => { void store.deleteCompany(selectedCompany.id); showCompanyList(); }} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} onStatusChange={async (status) => { await store.updateCompany(selectedCompany.id, { status }); flash("ステータスを更新しました"); }} />
               <CompanySummaryCards company={selectedCompany} tasks={store.tasks} />
               <CompanyDetailTabs selectedTab={selectedTab} onSelect={selectDetailTab} />
               <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"}>
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => selectDetailTab("timeline")} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onNextAction={openNextAction} onCreateTask={async (title) => { await createTask(companyTaskDraft(selectedCompany, title, store.currentUser.id, store.currentUser.name), { id: store.currentUser.id, uid: store.currentUser.id, name: store.currentUser.name }); flash("タスクを追加しました"); }} onToggleTask={toggleCompanyTask} onDeleteTask={deleteCompanyTask} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
+                  {selectedTab === "projects" ? <CompanyProjectsTab companyId={selectedCompany.id} companyName={selectedCompany.name} tasks={store.tasks} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} onToggle={toggleCompanyTask} onDelete={deleteCompanyTask} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
@@ -245,7 +247,7 @@ function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { 
   </button>;
 }
 
-function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite, onEdit, onLog, onDelete, onStatusChange }: { company: Company; favorite: boolean; canDelete: boolean; onBack: () => void; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void; onStatusChange: (status: Company["status"]) => Promise<void> }) {
+function CompanyDetailHeader({ company, favorite, canDelete, onFavorite, onEdit, onLog, onDelete, onStatusChange }: { company: Company; favorite: boolean; canDelete: boolean; onFavorite: () => void; onEdit: () => void; onLog: () => void; onDelete: () => void; onStatusChange: (status: Company["status"]) => Promise<void> }) {
   const [menu, setMenu] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const changeStatus = async (status: Company["status"]) => {
@@ -262,7 +264,6 @@ function CompanyDetailHeader({ company, favorite, canDelete, onBack, onFavorite,
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 pr-0 xl:pr-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button aria-label="会社一覧に戻る" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#F7CAD2] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]" onClick={onBack} title="会社一覧に戻る" type="button"><ArrowLeft className="h-4 w-4" /></button>
             <h2 className="break-words text-xl font-medium tracking-normal text-[#111827]">{company.name}</h2>
             <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#EC6F8B] hover:bg-[#FFF0F3]" onClick={onFavorite} type="button" aria-label="お気に入り"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
           </div>
@@ -352,7 +353,7 @@ function QuickTaskCard({ tasks, onCreate, onToggle, onDelete }: { tasks: Task[];
   };
   return <SideCard icon={<CheckCircle2 className="h-5 w-5" />} title="タスク">
     <div className="flex gap-2">
-      <input aria-label="タスク内容" className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-3 text-sm outline-none focus:border-[#EC6F8B]" placeholder="タスクを入力" value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void save(); }} />
+      <input aria-label="タスク内容" className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-3 text-sm outline-none focus:border-[#EC6F8B]" placeholder="タスクを入力" value={title} onChange={(event) => setTitle(event.target.value)} />
       <button className="h-10 shrink-0 rounded-lg bg-[#EC6F8B] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !title.trim()} onClick={() => void save()} type="button">{saving ? "保存中" : "追加"}</button>
     </div>
     {error ? <p className="mt-2 text-xs text-red-600" role="alert">{error}</p> : null}

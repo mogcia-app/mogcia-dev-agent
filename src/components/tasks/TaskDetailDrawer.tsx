@@ -6,13 +6,14 @@ import { taskToDraft } from "@/lib/task-utils";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { MemberOption, Task, TaskDraft } from "@/types/task";
-import type { CompanyOption, ProductOption } from "@/types/workspace-records";
+import type { CompanyOption, ProductOption, ProjectOption } from "@/types/workspace-records";
 
 export function TaskDetailDrawer({
   task,
   members,
   companies,
   products,
+  projects,
   canEdit,
   canDelete,
   isAdmin,
@@ -27,6 +28,7 @@ export function TaskDetailDrawer({
   members: MemberOption[];
   companies: CompanyOption[];
   products: ProductOption[];
+  projects: ProjectOption[];
   canEdit: boolean;
   canDelete: boolean;
   isAdmin: boolean;
@@ -72,7 +74,7 @@ export function TaskDetailDrawer({
           </div>
           <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#FFF2F5]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
         </div>
-        {editing ? <TaskFormFields companies={companies} draft={draft} onChange={setDraft} products={products} readOnly={!canEdit} /> : <TaskReadView task={task} />}
+        {editing ? <TaskFormFields companies={companies} draft={draft} onChange={setDraft} products={products} projects={projects} readOnly={!canEdit} /> : <TaskReadView task={task} />}
         {!canEdit ? <p className="mt-4 rounded-xl bg-[#FFF7F8] px-4 py-3 text-sm font-semibold text-[#8A6A70]">他メンバーのタスクは閲覧のみです。</p> : null}
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <div className="flex gap-2">
@@ -91,7 +93,7 @@ export function TaskDetailDrawer({
 function TaskReadView({ task }: { task: Task }) {
   const priority = task.priority === "high" ? "高" : task.priority === "low" ? "低" : "中";
   const status = task.status === "in_progress" ? "作業中" : task.status === "waiting" ? "待機中" : "未着手";
-  return <div className="space-y-6"><div>{task.description ? <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-[#4F474B]">{task.description}</p> : <p className="text-sm text-[#9A9296]">説明はありません。</p>}</div><dl className="grid gap-4 rounded-xl border border-[#EFE3E6] bg-[#FCFBFB] p-4 sm:grid-cols-2"><Detail icon={CheckCircle2} label="状態" value={status} /><Detail icon={CalendarDays} label="期限" value={task.dueDate ? task.dueDate.toDate().toLocaleDateString("ja-JP") : "期限なし"} /><Detail icon={CheckCircle2} label="優先度" value={priority} /><Detail icon={UserRound} label="担当" value={getUserDisplayNameById(task.assigneeId, task.assigneeName)} />{task.companyName ? <Detail icon={Building2} label="会社" value={task.companyName} /> : null}{task.productName ? <Detail icon={Package} label="商材" value={task.productName} /> : null}</dl>{task.aiReason ? <section className="rounded-xl border border-[#F0DEE2] bg-[#FFF9FA] p-4"><p className="text-xs font-medium text-[#EC6F8B]">MOGCIA</p><p className="mt-2 text-sm font-medium leading-6 text-[#5E565A]">{task.aiReason}</p></section> : null}</div>;
+  return <div className="space-y-6"><div>{task.description ? <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-[#4F474B]">{task.description}</p> : <p className="text-sm text-[#9A9296]">説明はありません。</p>}</div><dl className="grid gap-4 rounded-xl border border-[#EFE3E6] bg-[#FCFBFB] p-4 sm:grid-cols-2"><Detail icon={CheckCircle2} label="状態" value={status} /><Detail icon={CalendarDays} label="期限" value={task.dueDate ? task.dueDate.toDate().toLocaleDateString("ja-JP") : "期限なし"} /><Detail icon={CheckCircle2} label="優先度" value={priority} /><Detail icon={UserRound} label="担当" value={getUserDisplayNameById(task.assigneeId, task.assigneeName)} />{task.companyName ? <Detail icon={Building2} label="会社" value={task.companyName} /> : null}{task.productName ? <Detail icon={Package} label="商材" value={task.productName} /> : null}{task.projectName ? <Detail icon={Package} label="プロジェクト" value={task.projectName} /> : null}</dl>{task.aiReason ? <section className="rounded-xl border border-[#F0DEE2] bg-[#FFF9FA] p-4"><p className="text-xs font-medium text-[#EC6F8B]">MOGCIA</p><p className="mt-2 text-sm font-medium leading-6 text-[#5E565A]">{task.aiReason}</p></section> : null}</div>;
 }
 
 function Detail({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) { return <div className="flex gap-3"><Icon className="mt-0.5 h-4 w-4 text-[#A3999D]" /><div><dt className="text-xs font-semibold text-[#9A9296]">{label}</dt><dd className="mt-1 text-sm font-medium text-[#3D383A]">{value}</dd></div></div>; }

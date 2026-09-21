@@ -49,6 +49,22 @@ export async function createCalendarEvent(auth: BusinessAuth, body: Record<strin
   const duplicates = await findTimeDuplicates(auth.db, COLLECTION, { title, companyId: nullableString(body.companyId), startsAt: startAt.toDate() });
   if (duplicates.length && !force) return { id: null, calendarEventId: null, requiresConfirmation: true, duplicates };
   const payload = await buildCalendarPayload(auth, body, title, startAt, endAt);
+  const recurrence = weeklyRecurrence(body.recurrence);
+  if (recurrence) {
+    if (recurrence.endDate.toMillis() < startAt.toMillis()) throw new BusinessApiError("VALIDATION_ERROR", "繰り返し終了日は開始日以降にしてください。", 400);
+    const occurrences = weeklyOccurrences(startAt, endAt, recurrence.weekdays, recurrence.endDate);
+    if (!occurrences.length) throw new BusinessApiError("VALIDATION_ERROR", "指定期間内に対象の曜日がありません。", 400);
+    const groupId = auth.db.collection(COLLECTION).doc().id;
+    const batch = auth.db.batch();
+    const ids: string[] = [];
+    occurrences.forEach(({ occurrenceStart, occurrenceEnd }) => {
+      const ref = auth.db.collection(COLLECTION).doc();
+      ids.push(ref.id);
+      batch.set(ref, { ...payload, startAt: occurrenceStart, endAt: occurrenceEnd, recurrence: { frequency: "weekly", interval: 1, weekdays: recurrence.weekdays, endDate: recurrence.endDate, groupId } });
+    });
+    await batch.commit();
+    return { id: ids[0], calendarEventId: ids[0], ids, count: ids.length, recurrenceGroupId: groupId, requiresConfirmation: false };
+  }
   const ref = await auth.db.collection(COLLECTION).add(payload);
   return { id: ref.id, calendarEventId: ref.id, requiresConfirmation: false };
 }
@@ -203,10 +219,46 @@ async function buildCalendarPayload(auth: BusinessAuth, body: Record<string, unk
     externalCalendarId: nullableString(body.externalCalendarId, 160),
     externalEventId: nullableString(body.externalEventId, 160),
     reminderMinutes: Array.isArray(body.reminderMinutes) ? body.reminderMinutes.filter((item): item is number => typeof item === "number" && Number.isFinite(item)) : [],
-    recurrence: null,
+    recurrence: normalizeRecurrence(body.recurrence),
     ...defaultBusinessFields(auth),
     updatedAt: FieldValue.serverTimestamp()
   };
+}
+
+function weeklyRecurrence(value: unknown): { weekdays: number[]; endDate: Timestamp } | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  if (source.frequency !== "weekly") return null;
+  const weekdays = Array.from(new Set((Array.isArray(source.weekdays) ? source.weekdays : []).filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6))).sort();
+  const endDate = parseDate(source.endDate);
+  if (!weekdays.length || !endDate) throw new BusinessApiError("VALIDATION_ERROR", "繰り返す曜日と終了日を指定してください。", 400);
+  return { weekdays, endDate };
+}
+
+function normalizeRecurrence(value: unknown) {
+  const weekly = weeklyRecurrence(value);
+  return weekly ? { frequency: "weekly", interval: 1, weekdays: weekly.weekdays, endDate: weekly.endDate, groupId: null } : null;
+}
+
+function weeklyOccurrences(startAt: Timestamp, endAt: Timestamp, weekdays: number[], until: Timestamp) {
+  const duration = Math.max(60_000, endAt.toMillis() - startAt.toMillis());
+  const results: Array<{ occurrenceStart: Timestamp; occurrenceEnd: Timestamp }> = [];
+  let cursor = startAt.toMillis();
+  const last = until.toMillis();
+  while (cursor <= last && results.length < 180) {
+    const date = new Date(cursor);
+    if (weekdays.includes(tokyoWeekday(date))) {
+      results.push({ occurrenceStart: Timestamp.fromMillis(cursor), occurrenceEnd: Timestamp.fromMillis(cursor + duration) });
+    }
+    cursor += 24 * 60 * 60 * 1000;
+  }
+  if (cursor <= last) throw new BusinessApiError("VALIDATION_ERROR", "繰り返し予定は180件以内になるよう終了日を短くしてください。", 400);
+  return results;
+}
+
+function tokyoWeekday(date: Date): number {
+  const label = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tokyo", weekday: "short" }).format(date);
+  return ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>)[label] ?? date.getUTCDay();
 }
 
 function relatedEntityFromBody(body: Record<string, unknown>, previous: Record<string, unknown> = {}) {

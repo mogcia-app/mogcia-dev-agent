@@ -91,6 +91,7 @@ export function TasksPageClient() {
         onSave={async (task, draft) => { await taskStore.updateTask(task, draft); flash("タスクを更新しました"); }}
         onToggle={async (task, completed) => { await taskStore.completeTask(task, completed); flash(completed ? "タスクを完了しました" : "タスクを未完了に戻しました"); }}
         products={workspaceOptions.products}
+        projects={workspaceOptions.projects}
         task={selectedTask}
       />
       {createOpen ? (
@@ -104,6 +105,7 @@ export function TasksPageClient() {
             flash("タスクを登録しました");
           }}
           products={workspaceOptions.products}
+          projects={workspaceOptions.projects}
         />
       ) : null}
     </div>
