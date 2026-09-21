@@ -21,14 +21,22 @@ export type DesktopAuditAction =
   | "analysis_upload_complete"
   | "calendar_read"
   | "calendar_create"
+  | "calendar_update"
+  | "calendar_delete"
   | "task_read"
   | "task_create"
   | "activity_create"
+  | "activity_read"
+  | "activity_update"
+  | "activity_delete"
   | "notification_read"
   | "notification_update"
   | "notification_delete"
   | "feedback_create"
   | "agent_chat"
+  | "agent_knowledge_read"
+  | "agent_knowledge_search"
+  | "agent_knowledge_recent"
   | "sync"
   | "memo_parse"
   | "memo_commit";
@@ -80,9 +88,17 @@ export interface DesktopCompanyResult {
   id: string;
   name: string;
   industry?: string;
+  status?: string;
   primaryContactName?: string;
   internalOwnerName?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  productNames?: string[];
+  nextActionTitle?: string | null;
+  nextActionAt?: string | null;
   lastContactAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface DesktopTask {

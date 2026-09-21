@@ -62,6 +62,7 @@ export function normalizeLead(id: string, data: DocumentData): Lead {
     lastActivityAt: nullableTs(data.lastActivityAt),
     assignedUserId: optionalStr(data.assignedUserId),
     assignedUserName: optionalStr(data.assignedUserName),
+    preInfo: str(data.preInfo || data.notes),
     notes: str(data.notes),
     lostReason: str(data.lostReason),
     companyId: optionalStr(data.companyId),
@@ -233,6 +234,7 @@ function leadDraftPayload(draft: LeadDraft) {
     nextActionTitle: draft.nextActionTitle.trim() || null,
     assignedUserId: draft.assignedUserId || null,
     assignedUserName: draft.assignedUserName.trim() || null,
+    preInfo: draft.preInfo.trim(),
     notes: draft.notes.trim(),
     lostReason: draft.lostReason.trim(),
     companyId: draft.companyId || null
@@ -240,7 +242,7 @@ function leadDraftPayload(draft: LeadDraft) {
 }
 
 function isLeadStatus(value: unknown): value is LeadStatus {
-  return value === "new" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost";
+  return value === "new" || value === "prospect" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost";
 }
 
 function isActivityType(value: unknown): value is ActivityType {

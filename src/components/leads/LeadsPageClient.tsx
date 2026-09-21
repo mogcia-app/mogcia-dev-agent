@@ -145,7 +145,7 @@ export function LeadsPageClient() {
       .filter((lead) => monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter)
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
-      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
+      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.preInfo, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
       .sort((a, b) => compareLeads(a, b, sort));
   }, [assigneeId, leads, monthFilter, productId, query, sort]);
 
@@ -351,6 +351,7 @@ export function LeadsPageClient() {
             <LeadSummaryStrip lead={selectedLead} />
             {selectedLead.status === "lost" ? <LostReasonCard key={selectedLead.id} lead={selectedLead} saving={saving} onSave={(lostReason) => void saveLostReason(selectedLead, lostReason)} /> : null}
             <LeadPreInfoCard lead={selectedLead} />
+            <LeadNotesCard lead={selectedLead} />
             <div className="bg-white">
               <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
                 {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
@@ -500,10 +501,20 @@ function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean;
 }
 
 function LeadPreInfoCard({ lead }: { lead: Lead }) {
-  if (!lead.notes?.trim()) return null;
+  if (!lead.preInfo?.trim()) return null;
   return (
     <section className="rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
       <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#EC6F8B]" />事前情報</h3>
+      <p className="mt-4 whitespace-pre-wrap rounded-none bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.preInfo}</p>
+    </section>
+  );
+}
+
+function LeadNotesCard({ lead }: { lead: Lead }) {
+  if (!lead.notes?.trim() || lead.notes === lead.preInfo) return null;
+  return (
+    <section className="rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#8A8186]" />メモ</h3>
       <p className="mt-4 whitespace-pre-wrap rounded-none bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p>
     </section>
   );
@@ -585,8 +596,9 @@ function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }:
         <IndustrySelect label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
         <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <MonthSelect label="実施月" value={draft.appointmentAt} onChange={(appointmentAt) => onChange({ ...draft, appointmentAt })} />
-        <SelectBox label="ステータス" value={draft.status === "contacted" || draft.status === "document_sent" || draft.status === "sent" ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
-        <div className="sm:col-span-2"><Text label="事前情報" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
+        <SelectBox label="ステータス" value={leadCreateStatusOptions.some(([status]) => status === draft.status) ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
+        <div className="sm:col-span-2"><Text label="事前情報" value={draft.preInfo} onChange={(preInfo) => onChange({ ...draft, preInfo })} /></div>
+        <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
       </div>
       <div className="mt-6 flex justify-end gap-3">
         <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
@@ -868,6 +880,7 @@ function leadToDraft(lead: Lead): LeadDraft {
     nextActionTitle: lead.nextActionTitle ?? "",
     assignedUserId: lead.assignedUserId ?? "",
     assignedUserName: lead.assignedUserName ?? "",
+    preInfo: lead.preInfo ?? lead.notes ?? "",
     notes: lead.notes ?? "",
     lostReason: lead.lostReason ?? "",
     companyId: lead.companyId ?? ""
@@ -900,6 +913,7 @@ function readTabParam(value: string | null): TabKey {
 }
 
 function leadStatusCellStyle(status: LeadStatus) {
+  if (status === "prospect") return { backgroundColor: "#FFF0F3", borderColor: "#F7CAD2", color: "#B84563" };
   if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
   if (status === "contacted") return { backgroundColor: "#EAF7F2", borderColor: "#BEE7D8", color: "#2F7D62" };
   if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };

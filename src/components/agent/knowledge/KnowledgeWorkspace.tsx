@@ -56,6 +56,10 @@ export function KnowledgeWorkspace() {
   }, [reload, user]);
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
+  useEffect(() => {
+    if (!user || !selected || selected.type !== "document") return;
+    void api("/api/agent/knowledge/recent", "POST", { nodeId: selected.id }).catch(() => undefined);
+  }, [api, selected, user]);
   const searchResults = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return needle ? nodes.filter((node) => `${node.title}\n${node.content}`.toLocaleLowerCase().includes(needle)).slice(0, 30) : [];

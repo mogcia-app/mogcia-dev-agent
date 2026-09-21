@@ -132,9 +132,23 @@ export function toDesktopCalendarEvent(event: DocumentData) {
     productNames: Array.isArray(event.productNames) ? event.productNames : event.productName ? [event.productName] : [],
     attendeeIds: Array.isArray(event.attendeeIds) ? event.attendeeIds : [],
     attendeeNames: Array.isArray(event.attendeeNames) ? event.attendeeNames : [],
+    description: String(event.description ?? ""),
+    allDay: Boolean(event.allDay),
+    assigneeId: event.assigneeId ?? null,
+    assigneeName: event.assigneeName ?? null,
+    relatedEntity: event.relatedEntity ?? null,
+    relatedType: event.relatedType ?? null,
+    relatedId: event.relatedId ?? null,
+    relatedName: event.relatedName ?? null,
+    relatedContactName: event.relatedContactName ?? null,
     eventType: event.eventType,
     meetingMethod: event.meetingMethod,
-    durationMinutes: resolveDurationMinutes(event.durationMinutes, event.startAt, event.endAt)
+    durationMinutes: resolveDurationMinutes(event.durationMinutes, event.startAt, event.endAt),
+    location: event.location ?? null,
+    meetingUrl: event.meetingUrl ?? null,
+    visibility: event.visibility === "private" ? "private" : "team",
+    source: event.source ?? "manual",
+    updatedAt: isoDate(event.updatedAt)
   };
 }
 

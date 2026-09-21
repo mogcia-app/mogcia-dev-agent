@@ -6,7 +6,7 @@ import { arrayOfStrings, assertFreshUpdate, BusinessApiError, cleanPatchBody, de
 import type { LeadStatus } from "@/types/lead";
 
 const COLLECTION = "leads";
-const leadStatuses = ["new", "contacted", "contacting", "document_sent", "sent", "appointment", "meeting", "considering", "hold", "won", "lost"] as const;
+const leadStatuses = ["new", "prospect", "contacted", "contacting", "document_sent", "sent", "appointment", "meeting", "considering", "hold", "won", "lost"] as const;
 
 export type LeadListOptions = {
   limit?: number;
@@ -135,6 +135,7 @@ export function buildLeadPayload(auth: BusinessAuth, body: Record<string, unknow
     lastActivityAt: parseDate(body.lastActivityAt),
     assignedUserId: nullableString(body.assignedUserId, 160),
     assignedUserName: nullableString(body.assignedUserName, 160),
+    preInfo: optionalString(body.preInfo, 5000),
     notes: optionalString(body.notes, 5000),
     lostReason: optionalString(body.lostReason, 2000),
     companyId: nullableString(body.companyId, 160),
@@ -152,6 +153,7 @@ export function serializeLead(id: string, data: DocumentData): DocumentData {
     companyId: nullableString(data.companyId, 160),
     assignedUserId: nullableString(data.assignedUserId, 160),
     assignedUserName: nullableString(data.assignedUserName, 160),
+    preInfo: optionalString(data.preInfo ?? data.notes, 5000),
     nextActionTitle: nullableString(data.nextActionTitle, 200),
     lostReason: optionalString(data.lostReason, 2000)
   };
@@ -163,11 +165,23 @@ export function toDesktopLeadPayload(lead: DocumentData) {
     name: String(lead.companyName ?? lead.name ?? ""),
     companyName: String(lead.companyName ?? ""),
     contactName: String(lead.contactName ?? ""),
+    contactRole: String(lead.contactRole ?? ""),
+    phone: String(lead.phone ?? ""),
+    email: String(lead.email ?? ""),
+    website: String(lead.website ?? ""),
+    industry: String(lead.industry ?? ""),
     status: String(lead.status ?? "new"),
     productName: lead.productName ?? null,
+    prospectRank: String(lead.prospectRank ?? ""),
+    assignedUserId: lead.assignedUserId ?? null,
+    assignedUserName: lead.assignedUserName ?? null,
     companyId: lead.companyId ?? null,
     nextActionTitle: lead.nextActionTitle ?? null,
     nextActionAt: isoDate(lead.nextActionAt),
+    appointmentAt: isoDate(lead.appointmentAt),
+    lastActivityAt: isoDate(lead.lastActivityAt),
+    notes: String(lead.notes ?? ""),
+    preInfo: String(lead.preInfo ?? lead.notes ?? ""),
     updatedAt: isoDate(lead.updatedAt)
   };
 }
@@ -193,6 +207,7 @@ function buildLeadUpdatePayload(auth: BusinessAuth, body: Record<string, unknown
     ...(body.lastActivityAt !== undefined ? { lastActivityAt: parseDate(body.lastActivityAt) } : {}),
     ...(body.assignedUserId !== undefined ? { assignedUserId: nullableString(body.assignedUserId, 160) } : {}),
     ...(body.assignedUserName !== undefined ? { assignedUserName: nullableString(body.assignedUserName, 160) } : {}),
+    ...(body.preInfo !== undefined ? { preInfo: optionalString(body.preInfo, 5000) } : {}),
     ...(body.notes !== undefined ? { notes: optionalString(body.notes, 5000) } : {}),
     ...(body.lostReason !== undefined ? { lostReason: optionalString(body.lostReason, 2000) } : {}),
     ...(body.companyId !== undefined ? { companyId: nullableString(body.companyId, 160) } : {}),

@@ -176,9 +176,11 @@ export function toDesktopActivityPayload(activity: DocumentData) {
     companyName: activity.companyName ?? null,
     leadId: activity.leadId ?? null,
     productName: activity.productName ?? null,
+    leadStatus: activity.leadStatus ?? null,
     occurredAt: timestampToIso(activity.occurredAt),
     nextActionTitle: activity.nextActionTitle ?? null,
-    nextActionAt: timestampToIso(activity.nextActionAt)
+    nextActionAt: timestampToIso(activity.nextActionAt),
+    updatedAt: timestampToIso(activity.updatedAt)
   };
 }
 

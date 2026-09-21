@@ -36,6 +36,7 @@ export async function createLeadForUser(input: Record<string, unknown>, user: { 
     lastActivityAt: null,
     assignedUserId: nullableString(input.assignedUserId),
     assignedUserName: nullableString(input.assignedUserName),
+    preInfo: stringValue(input.preInfo),
     notes: stringValue(input.notes),
     companyId: nullableString(input.companyId),
     createdBy: user.uid,
@@ -65,6 +66,7 @@ export async function updateLeadForUser(leadId: string, input: Record<string, un
     nextActionTitle: nullableString(input.nextActionTitle),
     assignedUserId: nullableString(input.assignedUserId),
     assignedUserName: nullableString(input.assignedUserName),
+    preInfo: stringValue(input.preInfo),
     notes: stringValue(input.notes),
     companyId: nullableString(input.companyId),
     updatedAt: FieldValue.serverTimestamp()
@@ -122,7 +124,7 @@ function nullableString(value: unknown): string | null {
 }
 
 function validLeadStatus(value: unknown): string {
-  return value === "contacting" || value === "document_sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
+  return value === "prospect" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
 }
 
 function validActivityType(value: unknown): string {

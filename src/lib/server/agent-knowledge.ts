@@ -22,6 +22,50 @@ export async function listKnowledgeNodes(): Promise<KnowledgeNode[]> {
   return snapshot.docs.map((doc) => toKnowledgeNode(doc.id, doc.data()));
 }
 
+export async function searchKnowledgeNodes(query: string, limit = 30) {
+  const keyword = query.trim().toLocaleLowerCase();
+  if (!keyword) return [];
+  const nodes = await listKnowledgeNodes();
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  return nodes
+    .filter((node) => `${node.title}\n${node.content}`.toLocaleLowerCase().includes(keyword))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, Math.min(Math.max(limit, 1), 100))
+    .map((node) => ({
+      id: node.id,
+      title: node.title,
+      type: node.type,
+      parentId: node.parentId,
+      path: knowledgeNodePath(node, byId),
+      excerpt: node.type === "document" ? knowledgeExcerpt(node.content, keyword) : "",
+      updatedAt: node.updatedAt
+    }));
+}
+
+export async function listRecentKnowledgeNodes(userId: string, limit = 20) {
+  const snapshot = await getAdminDb().collection("agentKnowledgeRecent").doc(userId).collection("items").orderBy("openedAt", "desc").limit(Math.min(Math.max(limit, 1), 100)).get();
+  const nodes = await listKnowledgeNodes();
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  return snapshot.docs.flatMap((entry) => {
+    const node = byId.get(entry.id);
+    if (!node) return [];
+    const openedAt = entry.data().openedAt;
+    return [{ ...node, path: knowledgeNodePath(node, byId), openedAt: openedAt instanceof Timestamp ? openedAt.toDate().toISOString() : new Date(0).toISOString() }];
+  });
+}
+
+export async function recordRecentKnowledgeNode(userId: string, nodeId: string) {
+  const node = await collection().doc(nodeId).get();
+  if (!node.exists || node.data()?.type !== "document") throw new Error("ドキュメントが見つかりません。");
+  await getAdminDb().collection("agentKnowledgeRecent").doc(userId).collection("items").doc(nodeId).set({ nodeId, openedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { nodeId };
+}
+
+export async function deleteRecentKnowledgeNode(userId: string, nodeId: string) {
+  await getAdminDb().collection("agentKnowledgeRecent").doc(userId).collection("items").doc(nodeId).delete();
+  return { nodeId, deleted: true };
+}
+
 export function cleanTitle(value: unknown): string {
   const title = typeof value === "string" ? value.trim() : "";
   if (!title || title.length > 160) throw new Error("名前は1〜160文字にしてください。");
@@ -137,4 +181,25 @@ export async function createKnowledgePaths(input: unknown, uid: string): Promise
   }
   if (count) await batch.commit();
   return count;
+}
+
+function knowledgeNodePath(node: KnowledgeNode, byId: Map<string, KnowledgeNode>) {
+  const parts = [node.title];
+  const visited = new Set([node.id]);
+  let parentId = node.parentId;
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = byId.get(parentId);
+    if (!parent) break;
+    parts.unshift(parent.title);
+    parentId = parent.parentId;
+  }
+  return parts.join("/");
+}
+
+function knowledgeExcerpt(content: string, keyword: string) {
+  const normalized = content.toLocaleLowerCase();
+  const index = normalized.indexOf(keyword);
+  if (index < 0) return content.replace(/\s+/g, " ").trim().slice(0, 180);
+  return content.slice(Math.max(0, index - 70), index + keyword.length + 110).replace(/\s+/g, " ").trim();
 }

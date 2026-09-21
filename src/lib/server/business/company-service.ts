@@ -163,9 +163,17 @@ export function toDesktopCompanyPayload(company: DocumentData) {
     id: String(company.id ?? ""),
     name: String(company.name ?? ""),
     industry: String(company.industry ?? ""),
+    status: String(company.status ?? "lead"),
     primaryContactName: String(company.primaryContactName ?? ""),
     internalOwnerName: String(company.internalOwnerName ?? ""),
-    lastContactAt: isoDate(company.lastContactAt)
+    phone: String(company.phone ?? ""),
+    email: String(company.email ?? ""),
+    website: String(company.website ?? ""),
+    productNames: Array.isArray(company.productNames) ? company.productNames : [],
+    nextActionTitle: company.nextActionTitle ?? null,
+    nextActionAt: isoDate(company.nextActionAt),
+    lastContactAt: isoDate(company.lastContactAt),
+    updatedAt: isoDate(company.updatedAt)
   };
 }
 

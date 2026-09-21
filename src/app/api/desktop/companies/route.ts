@@ -1,8 +1,23 @@
 import { desktopFailure, desktopSuccess, requireString } from "@/lib/desktop/api";
 import { authenticateDesktopRequest, withDesktopAudit } from "@/lib/desktop/auth";
-import { createCompany } from "@/lib/server/business/company-service";
+import { createCompany, listCompanies, toDesktopCompanyPayload } from "@/lib/server/business/company-service";
 import type { BusinessAuth } from "@/lib/server/business/api";
 import { getUserDisplayNameById } from "@/lib/user-display";
+
+export async function GET(request: Request) {
+  try {
+    const auth = await authenticateDesktopRequest(request, "readCompanies");
+    const url = new URL(request.url);
+    const limitValue = Number(url.searchParams.get("limit") ?? 400);
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? Math.min(Math.floor(limitValue), 500) : 400;
+    const data = await withDesktopAudit({ userId: auth.userId, deviceId: auth.device.id }, "company_search", async () => ({
+      companies: (await listCompanies(toBusinessAuth(auth), { limit })).map(toDesktopCompanyPayload)
+    }));
+    return desktopSuccess(data);
+  } catch (error) {
+    return desktopFailure(error);
+  }
+}
 
 export async function POST(request: Request) {
   try {

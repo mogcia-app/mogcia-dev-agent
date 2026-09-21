@@ -523,6 +523,7 @@ async function createLeadFromCommand(auth: DesktopAuth, body: Record<string, unk
     nextActionTitle: optionalString(body.nextActionTitle, "次回対応", 200) || null,
     assignedUserId: optionalString(body.assignedUserId, "担当者ID", 160) || auth.userId,
     assignedUserName: optionalString(body.assignedUserName, "担当者名", 160) || getUserDisplayNameById(auth.userId),
+    preInfo: optionalString(body.preInfo, "事前情報", 5000),
     notes: optionalString(body.notes, "メモ", 5000),
     companyId: optionalString(body.companyId, "会社ID", 160) || null
   });
@@ -816,5 +817,5 @@ function normalizeActivityLogType(value: unknown): "phone" | "email" | "visit" |
 }
 
 function normalizeLeadStatus(value: unknown) {
-  return value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
+  return value === "prospect" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
 }

@@ -90,6 +90,57 @@ Web-only or Dev Agent APIs must not be used by the official Desktop business UI:
 - `/api/development/*`
 - Web page-specific APIs unless explicitly documented
 
+## Business Screen Endpoints
+
+The following Desktop endpoints are the supported contracts for native business screens. They use Desktop device token authentication and the shared Business Services.
+
+### Calendar
+
+- `GET /api/desktop/calendar?from=<ISO-8601>&to=<ISO-8601>&limit=<1-1000>`
+  - `from` and `to` are optional inclusive `startAt` bounds.
+  - When a bound is supplied, the default limit is 500; otherwise it remains 120 for compatibility.
+  - Visibility is filtered by the same shared member/private-event rules as the Business Calendar service.
+- `POST /api/desktop/calendar` creates an event.
+- `PATCH /api/desktop/calendar` updates an event using `id` or `calendarEventId`.
+- `DELETE /api/desktop/calendar` deletes an event using `id` or `calendarEventId`.
+
+### Leads
+
+- `GET /api/desktop/leads` lists leads.
+- `GET /api/desktop/leads/:leadId` returns `{ lead, company, activities, tasks, calendarEvents, deletionImpact }`.
+- Related tasks and calendar events include direct lead relations and relations through the lead's linked `companyId`.
+
+### Activities
+
+- `GET /api/desktop/activity-logs?leadId=...&companyId=...&includeLegacy=true&limit=100`
+- `POST /api/desktop/activity-logs`
+  - At least one of `leadId` or `companyId` is required; both may be supplied.
+  - Canonical `type` values are `call`, `email`, `document`, `meeting`, `telemarketing`, `note`, `status_change`, and `other`.
+- `PATCH /api/desktop/activity-logs` updates an activity using `id` or `activityId`.
+- `DELETE /api/desktop/activity-logs` deletes an activity using `id` or `activityId`.
+
+### Companies
+
+- `GET /api/desktop/companies?limit=<1-500>` lists companies.
+- `POST /api/desktop/companies` creates a company.
+- `GET /api/desktop/companies/search?q=...` searches companies.
+- `GET /api/desktop/companies/:companyId` returns the company aggregate.
+
+### Agent Knowledge
+
+- `GET /api/desktop/agent/knowledge` returns all folder/document nodes for tree construction.
+- `GET /api/desktop/agent/knowledge/search?q=...&limit=30` searches titles and Markdown content and returns paths and excerpts.
+- `GET /api/desktop/agent/knowledge/recent?limit=20` returns the current user's recently opened documents.
+- `POST /api/desktop/agent/knowledge/recent` with `{ "nodeId": "..." }` records an opened document.
+- `DELETE /api/desktop/agent/knowledge/recent` with `{ "nodeId": "..." }` removes one recent entry.
+
+### Lead information fields
+
+- `preInfo` stores information gathered before contact or a meeting.
+- `notes` stores ordinary internal notes.
+- Existing records without `preInfo` expose their legacy `notes` value as `preInfo` for compatibility; new writes keep the fields separate.
+- Lead status `prospect` is displayed as `見込み`. It means the lead has been qualified as a viable prospect. `hold` remains `連絡待ち` for a lead waiting on an external response or timing.
+
 ## Business Logic Boundary
 
 Desktop API routes should only handle:
