@@ -176,7 +176,6 @@ function KnowledgeDetail({ item, favorite, canEdit, canDelete, onFavorite, onEdi
           <h2 className="mt-3 text-base font-medium text-[#2B2B2B]">{item.title}</h2>
           <div className="mt-4 flex flex-wrap gap-5 text-sm font-semibold text-[#777]">
             <span>{getUserDisplayNameById(item.createdBy, item.createdByName)}</span>
-            <span>更新: {item.updatedAt.toDate().toLocaleDateString("ja-JP")}</span>
             <span className="inline-flex items-center gap-1"><Eye className="h-4 w-4" />閲覧: {item.viewCount}</span>
           </div>
         </div>

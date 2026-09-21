@@ -55,6 +55,12 @@ export function KnowledgeWorkspace() {
     void Promise.resolve().then(reload).catch((nextError) => setError(nextError instanceof Error ? nextError.message : "読み込めませんでした。")).finally(() => setLoading(false));
   }, [reload, user]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
   useEffect(() => {
     if (!user || !selected || selected.type !== "document") return;
@@ -123,7 +129,7 @@ export function KnowledgeWorkspace() {
 
   return <section className="min-h-[calc(100vh-120px)]">
     <PageHeader title="Agent" description="システム構成と開発ドキュメントをツリーで管理します" actions={<button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-4 text-sm font-medium text-white" onClick={() => openImport(true)} type="button"><Sparkles className="h-4 w-4" />AIで構成を作成</button>} />
-    {error ? <p className="mb-3 mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}{notice ? <p className="mb-3 mt-4 rounded-md bg-green-50 p-3 text-sm text-green-700" role="status">{notice}</p> : null}
+    {error ? <p className="mb-3 mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}{notice ? <p className="mb-3 mt-4 rounded-md border border-[#F7CAD2] bg-[#FFF0F3] p-3 text-sm text-[#D94F6E]" role="status">{notice}</p> : null}
     <div className="mb-3 mt-4 flex items-center justify-between lg:hidden"><button className="inline-flex items-center gap-1 rounded-md border border-[#E5E7EB] bg-white px-3 py-2 text-xs" onClick={() => setMobilePanel(true)} type="button"><Menu className="h-4 w-4" />システムツリー</button></div>
     <div className="mt-5 grid min-h-[72vh] min-w-0 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white lg:grid-cols-[290px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]"><aside className="hidden min-w-0 overflow-y-auto border-r border-[#E5E7EB] bg-[#FCFBFA] lg:block"><div className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#FCFBFA] p-3">{controls}</div><div className="p-3">{tree}</div></aside><main className="min-w-0 overflow-y-auto bg-white">{loading ? <p className="p-8 text-sm text-[#8A8186]">読み込み中...</p> : <KnowledgeDocument key={`${selected?.id ?? "none"}:${selected?.updatedAt ?? ""}`} node={selected} onSave={saveDocument} saving={saving} />}</main></div>
     {mobilePanel ? <div className="fixed inset-0 z-50 bg-black/30" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobilePanel(false); }}><aside className="h-full w-[min(90vw,360px)] overflow-y-auto bg-[#FCFBFA] shadow-xl"><div className="flex justify-end border-b p-2"><button aria-label="閉じる" onClick={() => setMobilePanel(false)} type="button"><X className="h-5 w-5" /></button></div><div className="border-b p-3">{controls}</div><div className="p-3">{tree}</div></aside></div> : null}
