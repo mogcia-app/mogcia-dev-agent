@@ -5,6 +5,7 @@ import { listAgentNotifications } from "@/lib/server/agent/repository";
 import { type BusinessAuth } from "@/lib/server/business/api";
 import { listCalendarEvents, toDesktopSyncCalendarEvent } from "@/lib/server/business/calendar-service";
 import { listCompanies, toDesktopCompanyPayload } from "@/lib/server/business/company-service";
+import { listProjects } from "@/lib/server/business/project-service";
 import { listTasks, toDesktopTaskPayload } from "@/lib/server/business/task-service";
 import { getUserDisplayNameById } from "@/lib/user-display";
 
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
         syncItem("tasks", "タスク", () => loadTasks(auth)),
         syncItem("notifications", "通知", async () => ({ notifications: await listAgentNotifications(auth.userId, 20) })),
         syncItem("companies", "会社", () => loadCompanies(auth)),
+        syncItem("projects", "プロジェクト", () => loadProjects(auth)),
         syncItem("ai", "AI提案", () => loadAiSuggestions(auth))
       ]);
       return {
@@ -29,6 +31,7 @@ export async function GET(request: Request) {
         calendarEvents: itemPayload<{ events: unknown[] }>(items, "calendar")?.events ?? [],
         tasks: itemPayload<{ tasks: unknown[] }>(items, "tasks")?.tasks ?? [],
         companies: itemPayload<{ companies: unknown[] }>(items, "companies")?.companies ?? [],
+        projects: itemPayload<{ projects: unknown[] }>(items, "projects")?.projects ?? [],
         notifications: itemPayload<{ notifications: unknown[] }>(items, "notifications")?.notifications ?? [],
         aiSuggestions: itemPayload<{ suggestions: unknown[] }>(items, "ai")?.suggestions ?? [],
         partialErrors: items
@@ -70,6 +73,11 @@ async function loadCompanies(auth: Awaited<ReturnType<typeof authenticateDesktop
 async function loadTasks(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
   const tasks = await listTasks(toBusinessAuth(auth), { assigneeId: auth.userId, includeCompleted: false, limit: 20 });
   return { tasks: tasks.map(toDesktopTaskPayload) };
+}
+
+async function loadProjects(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
+  const projects = await listProjects(toBusinessAuth(auth));
+  return { projects: projects.filter((project) => project.status === "active") };
 }
 
 async function loadAiSuggestions(auth: Awaited<ReturnType<typeof authenticateDesktopRequest>>) {
