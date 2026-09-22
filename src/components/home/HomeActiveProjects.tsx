@@ -1,44 +1,33 @@
 "use client";
 
 import { Building2, ChevronRight, Folder, Plus, X } from "lucide-react";
-import Link from "next/link";
-import type { Route } from "next";
 import { useMemo, useState } from "react";
 import { createProject } from "@/lib/projects";
 import type { ProjectDraft } from "@/types/project";
-import type { Task } from "@/types/task";
 import type { CompanyOption, ProductOption, ProjectOption } from "@/types/workspace-records";
 
-export function HomeActiveProjects({ projects, tasks, companies, products, loading }: { projects: ProjectOption[]; tasks: Task[]; companies: CompanyOption[]; products: ProductOption[]; loading: boolean }) {
+export function HomeActiveProjects({ projects, companies, products, loading }: { projects: ProjectOption[]; companies: CompanyOption[]; products: ProductOption[]; loading: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const activeProjects = useMemo(() => projects.filter((project) => project.status === "active"), [projects]);
-  const rows = (expanded ? activeProjects : activeProjects.slice(0, 6)).map((project) => {
-    const related = tasks.filter((task) => task.projectId === project.id && task.status !== "cancelled");
-    return { project, completed: related.filter((task) => task.status === "completed").length, total: related.length };
-  });
+  const rows = expanded ? activeProjects : activeProjects.slice(0, 6);
 
   return <section className="overflow-hidden rounded-2xl border border-[#E8E3E1] bg-white shadow-[0_10px_32px_rgba(31,31,34,0.04)]">
     <header className="flex flex-col gap-4 border-b border-[#EEE8EA] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <div className="flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFF0F3] text-[#F05D82]"><Folder className="h-6 w-6" /></span><div><h2 className="text-xl font-semibold text-[#171923]">進行中のプロジェクト</h2><p className="mt-1 text-sm text-[#7A8190]">現在進行中の仕事を一覧で確認できます。</p></div></div>
+      <div className="flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFF0F3] text-[#F05D82]"><Folder className="h-6 w-6" /></span><div><h2 className="text-xl font-semibold text-[#171923]">進行中の仕事（プロジェクト）</h2><p className="mt-1 text-sm text-[#7A8190]">複数のタスクをまとめる仕事の単位です。</p></div></div>
       <div className="flex items-center justify-end gap-4">{activeProjects.length > 6 ? <button className="inline-flex h-10 items-center gap-1 text-sm font-medium text-[#252A35]" onClick={() => setExpanded((value) => !value)} type="button">{expanded ? "閉じる" : "すべて見る"}<ChevronRight className={`h-4 w-4 transition ${expanded ? "rotate-90" : ""}`} /></button> : null}<button className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#F45E87] px-5 text-sm font-medium text-white shadow-sm hover:bg-[#EB527B]" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />プロジェクトを追加</button></div>
     </header>
-    {loading ? <div className="grid gap-2 p-6">{Array.from({ length: 4 }).map((_, index) => <div className="h-14 animate-pulse rounded-lg bg-[#F7F5F5]" key={index} />)}</div> : rows.length ? <div className="overflow-x-auto"><div className="min-w-[960px]"><div className="grid grid-cols-[minmax(180px,.9fr)_minmax(250px,1.35fr)_120px_minmax(170px,1fr)_140px_130px_28px] gap-4 bg-[#FCFAFB] px-5 py-3 text-xs font-medium text-[#697184]"><span>会社 / 関連先</span><span>プロジェクト名</span><span>ステータス</span><span>現在のフェーズ</span><span>目安時期</span><span>タスク</span><span /></div><div className="divide-y divide-[#EEE8EA]">{rows.map(({ project, completed, total }) => <ProjectRow completed={completed} key={project.id} project={project} total={total} />)}</div></div></div> : <div className="px-6 py-12 text-center"><Folder className="mx-auto h-9 w-9 text-[#D7C8CD]" /><p className="mt-3 text-sm text-[#7A8190]">現在進行中のプロジェクトはありません</p></div>}
+    {loading ? <div className="grid gap-2 p-6">{Array.from({ length: 4 }).map((_, index) => <div className="h-14 animate-pulse rounded-lg bg-[#F7F5F5]" key={index} />)}</div> : rows.length ? <div><div className="grid grid-cols-[minmax(150px,.8fr)_minmax(220px,1.4fr)_minmax(160px,1fr)] gap-4 bg-[#FCFAFB] px-5 py-3 text-xs font-medium text-[#697184]"><span>会社 / 関連先</span><span>仕事のまとまり</span><span>現在の段階</span></div><div className="divide-y divide-[#EEE8EA]">{rows.map((project) => <ProjectRow key={project.id} project={project} />)}</div></div> : <div className="px-6 py-12 text-center"><Folder className="mx-auto h-9 w-9 text-[#D7C8CD]" /><p className="mt-3 text-sm text-[#7A8190]">現在進行中のプロジェクトはありません</p></div>}
     {createOpen ? <CreateProjectModal companies={companies} products={products} onClose={() => setCreateOpen(false)} /> : null}
   </section>;
 }
 
-function ProjectRow({ project, completed, total }: { project: ProjectOption; completed: number; total: number }) {
-  const percent = total ? Math.round((completed / total) * 100) : 0;
-  return <Link className="grid grid-cols-[minmax(180px,.9fr)_minmax(250px,1.35fr)_120px_minmax(170px,1fr)_140px_130px_28px] items-center gap-4 px-5 py-4 transition hover:bg-[#FFFBFC]" href={`/projects/${project.id}` as Route}>
+function ProjectRow({ project }: { project: ProjectOption }) {
+  return <div className="grid grid-cols-[minmax(150px,.8fr)_minmax(220px,1.4fr)_minmax(160px,1fr)] items-center gap-4 px-5 py-4">
     <span className="flex min-w-0 items-center gap-2 text-sm text-[#354052]"><Building2 className="h-4 w-4 shrink-0 text-[#697184]" /><span className="truncate">{project.companyName || project.productName || "社内"}</span></span>
     <div className="min-w-0"><p className="truncate text-[15px] font-semibold text-[#171923]">{project.name}</p></div>
-    <span className="inline-flex w-fit items-center gap-2 rounded-xl bg-[#FFF0F4] px-3 py-1.5 text-xs font-medium text-[#E34870]"><span className="h-2 w-2 rounded-full bg-[#F05D82]" />進行中</span>
     <span className="truncate text-sm text-[#354052]">{project.phase || "未設定"}</span>
-    <span className="text-sm text-[#354052]">{project.targetDate ? project.targetDate.toDate().toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" }) : "未定"}</span>
-    <span><span className="text-sm text-[#354052]">{completed} / {total}</span><span className="mt-2 block h-2 w-full overflow-hidden rounded-full bg-[#EAEBEF]"><span className="block h-full rounded-full bg-[#F05D82]" style={{ width: `${percent}%` }} /></span></span>
-    <ChevronRight className="h-5 w-5 text-[#687083]" />
-  </Link>;
+  </div>;
 }
 
 function CreateProjectModal({ companies, products, onClose }: { companies: CompanyOption[]; products: ProductOption[]; onClose: () => void }) {

@@ -27,7 +27,7 @@ export function HomePageClient({ initialTaskId, initialCreateOpen = false }: { i
       <div className="flex flex-wrap gap-2"><button className="inline-flex h-11 items-center gap-2 bg-[#EC6F8B] px-5 text-sm font-medium text-white" onClick={() => setScheduleCreateOpen(true)} type="button"><Plus className="h-4 w-4" />予定を追加</button><Link className="inline-flex h-11 items-center gap-2 border border-[#E5E7EB] bg-white px-4 text-sm text-[#374151]" href={"/home?newTask=1#tasks" as Route}><ListChecks className="h-4 w-4" />タスクを追加</Link><Link className="inline-flex h-11 items-center gap-2 border border-[#E5E7EB] bg-white px-4 text-sm text-[#374151]" href={"/leads" as Route}><Building2 className="h-4 w-4" />営業リスト</Link></div>
     </header>
     <div className="mt-5"><HomeWeeklySchedule createOpen={scheduleCreateOpen} onCreateClose={() => setScheduleCreateOpen(false)} onCreateOpen={() => setScheduleCreateOpen(true)} /></div>
-    <div className="mt-5"><HomeActiveProjects companies={options.companies} loading={tasks.loading} products={options.products} projects={options.projects} tasks={tasks.tasks} /></div>
+    <div className="mt-5"><HomeActiveProjects companies={options.companies} loading={tasks.loading} products={options.products} projects={options.projects} /></div>
     <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]"><HomeTasksPanel initialCreateOpen={initialCreateOpen} initialTaskId={initialTaskId} options={options} store={tasks} /><HomeAgent /></div>
   </section>;
 }
