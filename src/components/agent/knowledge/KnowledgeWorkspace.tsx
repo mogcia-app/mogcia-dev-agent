@@ -150,7 +150,6 @@ export function KnowledgeWorkspace({ initialQuery = "" }: { initialQuery?: strin
 
   </section>;
 }
-
 function renderPreview(nodes: TreeDraftNode[], depth = 0): React.ReactNode {
   return nodes.map((node, index) => <div key={`${depth}-${index}-${node.title}`}><div className="truncate py-1 text-sm" style={{ paddingLeft: depth * 18 }}>{node.type === "folder" ? "▾ 📁" : "  📄"} {node.title}</div>{renderPreview(node.children, depth + 1)}</div>);
 }

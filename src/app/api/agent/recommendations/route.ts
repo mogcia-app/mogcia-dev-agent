@@ -16,7 +16,7 @@ export async function GET(request: Request) {
         title: task.title,
         message: task.companyName ? `${task.companyName} の次回対応を確認してください。` : "未完了タスクを確認してください。",
         targetId: task.id,
-        targetURL: "/tasks",
+        targetURL: `/home?taskId=${encodeURIComponent(task.id)}#tasks`,
         status: "active"
       }));
     return businessSuccess({ recommendations });

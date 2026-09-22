@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import type { Route } from "next";
 import { CalendarDays, Edit2, FolderKanban, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useProjects } from "@/hooks/useProjects";
@@ -36,7 +34,7 @@ export function CompanyProjectsTab({ companyId, companyName, tasks }: { companyI
     {message ? <p className="rounded-lg bg-[#FFF0F3] px-4 py-3 text-sm text-[#C94F6B]">{message}</p> : null}
     {error ? <p className="text-sm text-red-600">{error}</p> : null}
     {loading ? <p className="py-10 text-center text-sm text-[#8A8186]">読み込み中...</p> : rows.length ? <div className="grid gap-3 md:grid-cols-2">{rows.map((project) => <article className="rounded-xl border border-[#E5E7EB] bg-white p-4" key={project.id}>
-      <div className="flex items-start justify-between gap-3"><Link className="min-w-0 font-semibold text-[#111827] hover:text-[#EC6F8B]" href={`/projects/${project.id}` as Route}>{project.name}</Link><span className="shrink-0 rounded-full bg-[#FFF0F3] px-2.5 py-1 text-xs text-[#EC6F8B]">{statusLabels[project.status]}</span></div>
+      <div className="flex items-start justify-between gap-3"><p className="min-w-0 font-semibold text-[#111827]">{project.name}</p><span className="shrink-0 rounded-full bg-[#FFF0F3] px-2.5 py-1 text-xs text-[#EC6F8B]">{statusLabels[project.status]}</span></div>
       <p className="mt-2 text-xs text-[#8A8186]">{typeLabels[project.type]}{project.phase ? ` ・ ${project.phase}` : ""}</p>
       {project.productName ? <p className="mt-1 text-xs font-medium text-[#C94F6A]">商材: {project.productName}</p> : null}
       <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#6B7280]">{project.description || "説明はありません。"}</p>

@@ -35,7 +35,6 @@ function remarkGithubAlerts() {
     visit(tree);
   };
 }
-
 export function MarkdownBody({ content }: { content: string }) {
   return <div className="max-w-none break-words text-sm leading-7 text-[#374151] [&_a]:text-[#B84563] [&_a]:underline [&_code]:rounded [&_code]:bg-[#F6F4F4] [&_code]:px-1 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-7 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_hr]:my-7 [&_hr]:border-[#E5E7EB] [&_li]:ml-5 [&_li]:list-item [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-[#F6F4F4] [&_pre]:p-4 [&_pre_code]:bg-transparent [&_table]:block [&_table]:overflow-x-auto [&_table]:border-collapse [&_td]:border [&_td]:border-[#E5E7EB] [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-[#E5E7EB] [&_th]:bg-[#F9FAFB] [&_th]:px-3 [&_th]:py-2 [&_ul_li]:list-disc">
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkGithubAlerts]} components={{

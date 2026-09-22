@@ -237,7 +237,6 @@ export function AgentPageClient() {
 
   return (
     <section>
-      <nav aria-label="Agent機能" className="mb-4 flex gap-5 border-b border-[#E5E7EB] text-sm"><span className="border-b-2 border-[#EC6F8B] pb-2 font-semibold text-[#B84563]">Chat</span><Link className="pb-2 text-[#6F676B]" href={"/agent/knowledge" as Route}>Knowledge</Link></nav>
       <PageHeader
         title="Dev Agent"
         description="開発依頼だけをDevelopmentJobへ登録する専用画面です。通常業務の登録・更新は各業務画面から行います。"

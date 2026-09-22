@@ -44,7 +44,6 @@ export function KnowledgeTree({ nodes, searching = false, selectedId, onSelect, 
     {nodes.length === 0 ? <p className="px-3 py-5 text-sm text-[#8A8186]">フォルダまたはドキュメントを作成してください。</p> : null}
   </div>;
 }
-
 function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
   return <button className="block w-full rounded px-2 py-2 text-left text-xs text-[#374151] hover:bg-[#FFF0F3]" onClick={onClick} type="button">{label}</button>;
 }
