@@ -220,9 +220,8 @@ function TemplateDetailDrawer({ template, onClose, onCopy, onEdit, onFavorite, o
           <p className="text-sm font-semibold text-[#655D62]">本文</p>
           <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-semibold leading-7 text-[#2B2B2B]">{template.content}</pre>
         </div>
-        <div className="grid gap-3 text-sm md:grid-cols-2">
+        <div className="grid gap-3 text-sm">
           <Info label="作成者" value={template.createdByName || "未設定"} />
-          <Info label="最終更新" value={formatDate(template.updatedAt.toDate())} />
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-[#F0E7E9] pt-4">
           <button className="h-10 rounded-lg border border-[#F7CAD2] px-4 text-sm font-medium text-[#D94F6E]" onClick={onDelete} type="button">削除</button>
@@ -264,8 +263,4 @@ function Info({ label, value }: { label: string; value: string }) {
 function sortTemplates(left: BusinessTemplate, right: BusinessTemplate, sort: SortKey) {
   if (sort === "name") return left.title.localeCompare(right.title, "ja");
   return right.updatedAt.toMillis() - left.updatedAt.toMillis();
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -187,7 +187,7 @@ export function CompaniesPageClient() {
         {!selectedCompany ? (
         <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
           <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-medium text-[#777]">
-            <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・担当者・サービス・状態で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・サービス・状態で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             <Search className="h-4 w-4" />
           </label>
           <div className="mt-4 flex items-center justify-between gap-3">
@@ -197,8 +197,8 @@ export function CompaniesPageClient() {
             </div>
           </div>
           <div className="mt-4 overflow-x-auto">
-            <div className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1.1fr_1fr_110px] gap-4 border-b border-[#F0E7E9] px-3 py-3 text-xs font-medium text-[#8A8186]">
-              <span>会社</span><span>先方担当者</span><span>利用サービス</span><span>最終接触</span><span>次回予定</span>
+            <div className="grid min-w-[680px] grid-cols-[1.5fr_1.1fr_1fr_110px] gap-4 border-b border-[#F0E7E9] px-3 py-3 text-xs font-medium text-[#8A8186]">
+              <span>会社</span><span>利用サービス</span><span>最終接触</span><span>次回予定</span>
             </div>
             {store.loading ? <CompanySkeleton /> : null}
             {!store.loading && filtered.length === 0 ? <EmptyCompanies hasQuery={Boolean(q)} onCreate={() => setCreateOpen(true)} /> : null}
@@ -213,7 +213,7 @@ export function CompaniesPageClient() {
               <CompanyDetailTabs selectedTab={selectedTab} onSelect={selectDetailTab} />
               <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"}>
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => selectDetailTab("timeline")} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onNextAction={openNextAction} onCreateTask={async (title) => { await createTask(companyTaskDraft(selectedCompany, title, store.currentUser.id, store.currentUser.name), { id: store.currentUser.id, uid: store.currentUser.id, name: store.currentUser.name }); flash("タスクを追加しました"); }} onToggleTask={toggleCompanyTask} onDeleteTask={deleteCompanyTask} /> : null}
-                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
+                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "projects" ? <CompanyProjectsTab companyId={selectedCompany.id} companyName={selectedCompany.name} tasks={store.tasks} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} onToggle={toggleCompanyTask} onDelete={deleteCompanyTask} /> : null}
@@ -234,13 +234,11 @@ export function CompaniesPageClient() {
 }
 
 function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
-  const primaryContact = getPrimaryContactLabel(company);
-  return <button className={`grid min-w-[760px] w-full grid-cols-[1.5fr_1fr_1.1fr_1fr_110px] items-center gap-4 border-b border-[#F0E7E9] px-3 py-4 text-left transition ${active ? "bg-[#FFF0F3]" : "bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
+  return <button className={`grid min-w-[680px] w-full grid-cols-[1.5fr_1.1fr_1fr_110px] items-center gap-4 border-b border-[#F0E7E9] px-3 py-4 text-left transition ${active ? "bg-[#FFF0F3]" : "bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
     <span className="flex min-w-0 items-center gap-2">
       <Bookmark className={`h-4 w-4 shrink-0 text-[#EC6F8B] ${favorite ? "fill-current" : ""}`} onClick={(event) => { event.stopPropagation(); onFavorite(); }} />
-      <span className="min-w-0"><span className="block truncate font-medium text-[#2B2B2B]">{company.name}</span><span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{primaryContact || "先方担当者未設定"}</span></span>
+      <span className="min-w-0 truncate font-medium text-[#2B2B2B]">{company.name}</span>
     </span>
-    <span className="truncate text-sm font-semibold text-[#655D62]">{primaryContact || "未設定"}</span>
     <span className="truncate text-sm font-semibold text-[#655D62]">{company.productNames?.join(" / ") || "未設定"}</span>
     <span className="text-sm font-semibold text-[#655D62]">{company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span>
     <span className={`truncate text-sm font-medium ${company.nextActionTitle ? "text-[#655D62]" : "text-[#D94F6E]"}`}>{company.nextActionTitle || "未設定 ⚠"}</span>
@@ -385,7 +383,7 @@ type UnifiedCompanyTimelineItem =
   | { id: string; occurredAt: Timestamp; kind: "calendar"; event: CalendarEvent }
   | { id: string; occurredAt: Timestamp; kind: "analysis"; record: TeleapoRecord };
 
-function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, onMore }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; onMore: () => void }) {
+function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, hasMore, onMore }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; hasMore: boolean; onMore: () => void }) {
   const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
   const legacyItems: UnifiedCompanyTimelineItem[] = logs
     .filter((log) => log.source !== "system" && log.type !== "status_change" && log.type !== "memo" && !commonLegacyIds.has(log.id))
@@ -424,7 +422,7 @@ function TimelineTab({ logs, calendarEvents, now, commonActivities, records, com
         ))}
       </div>
       )}
-      {logs.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-medium text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
+      {hasMore ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-medium text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
   );
 }
@@ -533,8 +531,10 @@ function ServicesTab({ company, products, user }: { company: Company; products: 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(null);
+  const [accessFieldsOpen, setAccessFieldsOpen] = useState(false);
   const [formSecretVisible, setFormSecretVisible] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [expandedServices, setExpandedServices] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const load = useCallback(async () => {
@@ -549,7 +549,7 @@ function ServicesTab({ company, products, user }: { company: Company; products: 
   }, [company.id, user]);
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
   const credentialFor = (service: CompanyServiceValue) => credentials.find((item) => item.serviceId === service.id) ?? credentials.find((item) => !item.serviceId && item.label === service.serviceName);
-  const reset = () => { setForm(empty); setEditingId(null); setEditingCredentialId(null); setFormSecretVisible(false); setFormOpen(false); };
+  const reset = () => { setForm(empty); setEditingId(null); setEditingCredentialId(null); setAccessFieldsOpen(false); setFormSecretVisible(false); setFormOpen(false); };
   const save = async () => {
     if (!form.serviceName.trim() || !user) return;
     setSaving(true);
@@ -566,7 +566,7 @@ function ServicesTab({ company, products, user }: { company: Company; products: 
   };
   const edit = (service: CompanyServiceValue) => {
     const credential = credentialFor(service);
-    setEditingId(service.id); setEditingCredentialId(credential?.id ?? null); setFormSecretVisible(false); setFormOpen(true);
+    setEditingId(service.id); setEditingCredentialId(credential?.id ?? null); setAccessFieldsOpen(Boolean(service.accountName || credential)); setFormSecretVisible(false); setFormOpen(true);
     setForm({ serviceName: service.serviceName, accountName: service.accountName || credential?.username || "", secret: "", productId: service.productId ?? "", status: service.status, startedAt: dateInput(service.startedAt), endedAt: dateInput(service.endedAt), price: service.price?.toString() ?? "", billingCycle: service.billingCycle, ownerUserId: service.ownerUserId ?? "", ownerUserName: service.ownerUserName ?? "", adminUrl: service.adminUrl ?? "", productionUrl: service.productionUrl ?? credential?.url ?? "", repositoryUrl: service.repositoryUrl ?? "", hosting: service.hosting ?? "", domain: service.domain ?? "", maintenanceStatus: service.maintenanceStatus ?? "", renewedAt: dateInput(service.renewedAt), memo: service.memo ?? "" });
   };
   const remove = async (service: CompanyServiceValue) => {
@@ -594,23 +594,17 @@ function ServicesTab({ company, products, user }: { company: Company; products: 
   };
   return <div className="w-full space-y-4">
     <StatusBanner message={error} type="error" />
-    <div className="flex items-center justify-between gap-3"><p className="text-sm text-[#6B7280]">URL、ログイン情報、料金をまとめて管理</p>{!formOpen ? <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#EC6F8B] px-3.5 text-sm font-medium text-white" onClick={() => { reset(); setFormOpen(true); }} type="button"><Plus className="h-4 w-4" />追加</button> : null}</div>
+    <div className="flex items-center justify-between gap-3"><p className="text-sm text-[#6B7280]">利用中のサービス、URL、料金などを管理</p>{!formOpen ? <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#EC6F8B] px-3.5 text-sm font-medium text-white" onClick={() => { reset(); setFormOpen(true); }} type="button"><Plus className="h-4 w-4" />追加</button> : null}</div>
     {formOpen ? <section className="rounded-lg border border-[#E5E7EB] bg-[#FFFBFC] p-4"><h4 className="font-semibold text-[#2B2B2B]">{editingId ? "サービスを編集" : "サービスを追加"}</h4><div className="mt-3 grid gap-3 sm:grid-cols-2">
       <div className="sm:col-span-2"><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>名称 <span className="text-[#EC6F8B]">*</span></span><input className="task-input border-[#E5E7EB] bg-white" list="company-service-options" placeholder="例：Instagram、公式サイト" value={form.serviceName} onChange={(event) => { const serviceName = event.target.value; const product = products.find((item) => item.name === serviceName); setForm({ ...form, serviceName, productId: product?.id ?? "" }); }} /><datalist id="company-service-options">{products.map((item) => <option key={item.id} value={item.name} />)}</datalist></label></div>
       <div className="sm:col-span-2"><Input label="URL" type="url" placeholder="https://" value={form.productionUrl} onChange={(productionUrl) => setForm({ ...form, productionUrl })} /></div>
-      <Input label="アカウント名・ログインID" placeholder="メールアドレスやユーザー名" value={form.accountName} onChange={(accountName) => setForm({ ...form, accountName })} />
-      <label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>{editingCredentialId ? "パスワード" : "パスワード（任意）"}</span><span className="flex"><input className="task-input min-w-0 flex-1 rounded-r-none border-[#E5E7EB] bg-white" type={formSecretVisible ? "text" : "password"} value={form.secret} onChange={(event) => setForm({ ...form, secret: event.target.value })} /><button className="shrink-0 rounded-r-lg border border-l-0 border-[#E5E7EB] bg-white px-3 text-xs text-[#EC6F8B]" onClick={() => setFormSecretVisible((current) => !current)} type="button">{formSecretVisible ? "隠す" : "表示"}</button></span>{editingCredentialId && !form.secret ? <button className="w-fit text-xs font-medium text-[#EC6F8B]" onClick={() => void showCurrentSecretInForm()} type="button">保存済みパスワードを表示</button> : null}</label>
+      <div className="sm:col-span-2">{accessFieldsOpen ? <div className="grid gap-3 rounded-lg border border-[#E5E7EB] bg-white p-3 sm:grid-cols-2"><Input label="アカウント名・ログインID" placeholder="メールアドレスやユーザー名" value={form.accountName} onChange={(accountName) => setForm({ ...form, accountName })} /><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>{editingCredentialId ? "パスワード" : "パスワード（任意）"}</span><span className="flex"><input className="task-input min-w-0 flex-1 rounded-r-none border-[#E5E7EB] bg-white" type={formSecretVisible ? "text" : "password"} value={form.secret} onChange={(event) => setForm({ ...form, secret: event.target.value })} /><button className="shrink-0 rounded-r-lg border border-l-0 border-[#E5E7EB] bg-white px-3 text-xs text-[#EC6F8B]" onClick={() => setFormSecretVisible((current) => !current)} type="button">{formSecretVisible ? "隠す" : "表示"}</button></span>{editingCredentialId && !form.secret ? <button className="w-fit text-xs font-medium text-[#EC6F8B]" onClick={() => void showCurrentSecretInForm()} type="button">保存済みパスワードを表示</button> : null}</label></div> : <button className="text-sm font-medium text-[#EC6F8B]" onClick={() => setAccessFieldsOpen(true)} type="button"><Plus className="mr-1 inline h-4 w-4" />ログイン情報がある場合のみ追加</button>}</div>
       <Input label="料金" type="number" placeholder="例：10000" value={form.price} onChange={(price) => setForm({ ...form, price })} />
       <Select label="料金の単位" value={form.billingCycle} options={[["monthly", "月額"], ["yearly", "年額"], ["one_time", "一括"], ["other", "その他"]]} onChange={(billingCycle) => setForm({ ...form, billingCycle })} />
       <Select label="状態" value={form.status} options={[["active", "利用中"], ["paused", "一時停止"], ["ended", "終了"]]} onChange={(status) => setForm({ ...form, status })} />
       <Input label="メモ" placeholder="管理内容や補足" value={form.memo} onChange={(memo) => setForm({ ...form, memo })} />
     </div><div className="mt-4 flex justify-end gap-2"><button className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm" onClick={reset} type="button">キャンセル</button><button className="h-9 rounded-lg bg-[#EC6F8B] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !form.serviceName.trim()} onClick={() => void save()} type="button">{saving ? "保存中..." : "保存"}</button></div></section> : null}
-    {services.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{services.map((service) => { const credential = credentialFor(service); return <article className="rounded-lg border border-[#E5E7EB] bg-white p-4" key={service.id}>
-      <div className="flex items-start justify-between gap-3"><h4 className="min-w-0 truncate font-semibold text-[#2B2B2B]">{service.serviceName}</h4><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${service.status === "active" ? "bg-[#ECFDF3] text-[#15803D]" : service.status === "paused" ? "bg-[#FFF8E6] text-[#B7791F]" : "bg-[#F3F4F6] text-[#6B7280]"}`}>{serviceStatusLabel(service.status)}</span></div>
-      <dl className="mt-3 space-y-1.5 text-sm"><div className="flex gap-2"><dt className="w-20 shrink-0 text-[#8A8186]">URL</dt><dd className="min-w-0 truncate">{service.productionUrl ? <a className="text-[#EC6F8B] hover:underline" href={service.productionUrl} rel="noreferrer" target="_blank">開く</a> : "未登録"}</dd></div><div className="flex gap-2"><dt className="w-20 shrink-0 text-[#8A8186]">アカウント</dt><dd className="min-w-0 break-all text-[#4B5563]">{service.accountName || credential?.username || "未登録"}</dd></div><div className="flex gap-2"><dt className="w-20 shrink-0 text-[#8A8186]">料金</dt><dd className="text-[#4B5563]">{service.price !== null ? `¥${service.price.toLocaleString()} / ${billingLabel(service.billingCycle)}` : "未登録"}</dd></div>{service.memo ? <div className="flex gap-2"><dt className="w-20 shrink-0 text-[#8A8186]">メモ</dt><dd className="min-w-0 break-words text-[#4B5563]">{service.memo}</dd></div> : null}</dl>
-      <div className="mt-3 rounded-md bg-[#F9FAFB] px-3 py-2"><p className="break-all text-sm text-[#4B5563]">パスワード: {credential ? revealed[credential.id] ?? "••••••••" : "未登録"}</p>{credential ? <div className="mt-1 flex gap-3 text-xs"><button className="text-[#EC6F8B]" onClick={() => revealed[credential.id] ? setRevealed((current) => { const next = { ...current }; delete next[credential.id]; return next; }) : void accessSecret(credential, "reveal")} type="button">{revealed[credential.id] ? "隠す" : "表示する"}</button><button className="text-[#EC6F8B]" onClick={() => void accessSecret(credential, "copy")} type="button">コピー</button></div> : null}</div>
-      <div className="mt-3 flex justify-end gap-2"><button className="h-8 rounded-md border border-[#E5E7EB] px-3 text-xs text-[#4B5563]" onClick={() => edit(service)} type="button">編集</button><button aria-label={`${service.serviceName}を削除`} className="grid h-8 w-8 place-items-center rounded-md border border-[#E5E7EB] text-[#D94F6E]" onClick={() => void remove(service)} type="button"><Trash2 className="h-3.5 w-3.5" /></button></div>
-    </article>; })}</div> : !formOpen ? <div className="rounded-lg border border-dashed border-[#D9DDE3] p-8 text-center"><p className="text-sm font-medium text-[#4B5563]">管理サービスはまだありません</p><p className="mt-1 text-sm text-[#8A8186]">SNSやWebサイトから登録できます。</p><button className="mt-3 text-sm font-medium text-[#EC6F8B]" onClick={() => setFormOpen(true)} type="button">最初のサービスを追加</button></div> : null}
+    {services.length ? <div className="overflow-x-auto rounded-lg border border-[#E5E7EB] bg-white"><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] gap-4 border-b border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3 text-xs font-medium text-[#8A8186]"><span>サービス</span><span>状態</span><span>URL</span><span>料金</span><span className="text-right">操作</span></div>{services.map((service) => { const credential = credentialFor(service); const expanded = expandedServices.has(service.id); const hasDetails = Boolean(service.accountName || credential?.username || credential || service.memo); return <div className="border-b border-[#EEE8EA] last:border-b-0" key={service.id}><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] items-center gap-4 px-4 py-3"><button className="flex min-w-0 items-center gap-2 text-left disabled:cursor-default" disabled={!hasDetails} onClick={() => setExpandedServices((current) => { const next = new Set(current); if (next.has(service.id)) next.delete(service.id); else next.add(service.id); return next; })} type="button">{hasDetails ? expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-[#8A8186]" /> : <ChevronRight className="h-4 w-4 shrink-0 text-[#8A8186]" /> : <span className="w-4 shrink-0" />}<span className="truncate text-sm font-semibold text-[#2B2B2B]">{service.serviceName}</span></button><span><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${service.status === "active" ? "bg-[#ECFDF3] text-[#15803D]" : service.status === "paused" ? "bg-[#FFF8E6] text-[#B7791F]" : "bg-[#F3F4F6] text-[#6B7280]"}`}>{serviceStatusLabel(service.status)}</span></span><span className="truncate text-sm">{service.productionUrl ? <a className="text-[#EC6F8B] hover:underline" href={service.productionUrl} rel="noreferrer" target="_blank">開く</a> : <span className="text-[#C0B9BC]">—</span>}</span><span className="truncate text-sm text-[#4B5563]">{service.price !== null ? `¥${service.price.toLocaleString()} / ${billingLabel(service.billingCycle)}` : <span className="text-[#C0B9BC]">—</span>}</span><span className="flex justify-end gap-2"><button className="h-8 rounded-md border border-[#E5E7EB] px-3 text-xs text-[#4B5563]" onClick={() => edit(service)} type="button">編集</button><button aria-label={`${service.serviceName}を削除`} className="grid h-8 w-8 place-items-center rounded-md border border-[#E5E7EB] text-[#D94F6E]" onClick={() => void remove(service)} type="button"><Trash2 className="h-3.5 w-3.5" /></button></span></div>{expanded && hasDetails ? <div className="min-w-[720px] border-t border-[#F3EEF0] bg-[#FFFBFC] px-10 py-4"><dl className="grid gap-3 text-sm sm:grid-cols-2">{service.accountName || credential?.username ? <div><dt className="text-xs text-[#8A8186]">アカウント</dt><dd className="mt-1 break-all text-[#4B5563]">{service.accountName || credential?.username}</dd></div> : null}{service.memo ? <div><dt className="text-xs text-[#8A8186]">メモ</dt><dd className="mt-1 break-words text-[#4B5563]">{service.memo}</dd></div> : null}{credential ? <div><dt className="text-xs text-[#8A8186]">パスワード</dt><dd className="mt-1 break-all text-[#4B5563]">{revealed[credential.id] ?? "••••••••"}</dd><div className="mt-1 flex gap-3 text-xs"><button className="text-[#EC6F8B]" onClick={() => revealed[credential.id] ? setRevealed((current) => { const next = { ...current }; delete next[credential.id]; return next; }) : void accessSecret(credential, "reveal")} type="button">{revealed[credential.id] ? "隠す" : "表示する"}</button><button className="text-[#EC6F8B]" onClick={() => void accessSecret(credential, "copy")} type="button">コピー</button></div></div> : null}</dl></div> : null}</div>; })}</div> : !formOpen ? <div className="rounded-lg border border-dashed border-[#D9DDE3] p-8 text-center"><p className="text-sm font-medium text-[#4B5563]">管理サービスはまだありません</p><p className="mt-1 text-sm text-[#8A8186]">SNSやWebサイトから登録できます。</p><button className="mt-3 text-sm font-medium text-[#EC6F8B]" onClick={() => setFormOpen(true)} type="button">最初のサービスを追加</button></div> : null}
   </div>;
 }
 
@@ -844,7 +838,7 @@ function CompanyFormModal({ mode, company, products, onClose, onSubmit }: { mode
 function LogFormModal({ company, currentUser, existingTasks, members, onClose, onSubmit }: { company: Company; currentUser: { id: string; name: string }; existingTasks: Array<{ title: string; status: string }>; members: Array<{ uid: string; name: string; email: string }>; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addLog"]>[1], generateTasks: boolean) => Promise<void> }) {
   const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })].filter((contact) => contact.name || contact.email || contact.phone);
   const now = new Date();
-  const [form, setForm] = useState({ type: "phone" as ActivityLogType, occurredDate: toDateInputValue(now), occurredTime: toTimeInputValue(now), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], content: "", aiTaskRequested: false });
+  const [form, setForm] = useState({ type: "phone" as ActivityLogType, occurredDate: toDateInputValue(now), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], content: "", aiTaskRequested: false });
   const [saving, setSaving] = useState(false);
   const selectedActors = members.filter((member) => form.actorUserIds.includes(member.uid));
   const selectedContacts = contacts.filter((contact) => form.contactIds.includes(contact.id));
@@ -856,7 +850,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
       direction: "unknown",
       title: form.title,
       content: form.content,
-      occurredAt: Timestamp.fromDate(dateTimeFromInputs(form.occurredDate, form.occurredTime)),
+      occurredAt: Timestamp.fromDate(dateFromInput(form.occurredDate)),
       source: "manual",
       actorUserIds: form.actorUserIds,
       actorNames: selectedActors.map((member) => member.name),
@@ -871,10 +865,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
     <Modal title={`${company.name} のログを追加`} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="ログ種類" value={form.type} options={(["phone", "email", "chat", "visit", "meeting", "file", "other"] as ActivityLogType[]).map((type) => [type, activityTypeLabels[type]])} onChange={(type) => setForm({ ...form, type: type as ActivityLogType })} />
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
-          <Input label="日付" value={form.occurredDate} type="date" onChange={(occurredDate) => setForm({ ...form, occurredDate })} />
-          <Input label="時間" value={form.occurredTime} type="time" onChange={(occurredTime) => setForm({ ...form, occurredTime })} />
-        </div>
+        <Input label="日付" value={form.occurredDate} type="date" onChange={(occurredDate) => setForm({ ...form, occurredDate })} />
         <Input label="タイトル" required value={form.title} onChange={(title) => setForm({ ...form, title })} />
         <MultiSelect
           label="社内側"
@@ -961,12 +952,6 @@ function formatContacts(company: Company): string {
     .map((contact) => [formatContactName(contact), formatContactSummary(contact)].filter(Boolean).join(" / "))
     .filter(Boolean);
   return rows.length ? rows.join("\n") : "未設定";
-}
-
-function getPrimaryContactLabel(company: Company): string {
-  const contact = company.contacts?.find((item) => item.id === company.primaryContactId) ?? company.contacts?.[0];
-  if (contact) return formatContactName(contact);
-  return company.primaryContactName ?? "";
 }
 
 function companyStatusLabel(status: Company["status"]): string {
@@ -1118,12 +1103,8 @@ function toDateInputValue(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function toTimeInputValue(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-function dateTimeFromInputs(date: string, time: string): Date {
-  const value = new Date(`${date || toDateInputValue(new Date())}T${time || "00:00"}`);
+function dateFromInput(date: string): Date {
+  const value = new Date(`${date || toDateInputValue(new Date())}T00:00`);
   return Number.isNaN(value.getTime()) ? new Date() : value;
 }
 

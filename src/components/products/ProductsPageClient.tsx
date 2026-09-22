@@ -1,28 +1,32 @@
 "use client";
 
-import { ArrowLeft, CircleDollarSign, Package, Pencil, Plus, Search, Target, Trash2, X } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, ExternalLink, FileText, Package, Pencil, Plus, Search, Target, Trash2, X } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBanner, StatusToast } from "@/components/ui/status";
 import { useProducts } from "@/hooks/useProducts";
 import { productStatusLabels, productTypeLabels, yen } from "@/lib/product-utils";
-import type { Product, ProductStatus, ProductType } from "@/types/product";
+import { addResourceFile } from "@/lib/products";
+import type { Product, ProductResource, ProductStatus, ProductType } from "@/types/product";
 
 type Draft = {
   name: string; tagline: string; summary: string; productType: ProductType; status: ProductStatus;
-  industries: string; problems: string; values: string; initialFee: string; plans: DraftPlan[];
+  industries: string; problems: string; values: string; initialFee: string; plans: DraftPlan[]; resources: DraftResource[];
 };
 type DraftPlan = { id: string; name: string; description: string; monthlyFee: string; isActive: boolean };
+type DraftResource = { id: string; title: string; type: ProductResource["type"]; url: string };
 const statuses: ProductStatus[] = ["active", "draft", "paused", "archived"];
 const types: ProductType[] = ["own_product", "operation_service", "web_production", "custom_development", "sales_package", "other"];
 const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean);
-const blankDraft = (): Draft => ({ name: "", tagline: "", summary: "", productType: "own_product", status: "draft", industries: "", problems: "", values: "", initialFee: "", plans: [] });
+const blankDraft = (): Draft => ({ name: "", tagline: "", summary: "", productType: "own_product", status: "draft", industries: "", problems: "", values: "", initialFee: "", plans: [], resources: [newDraftResource("website")] });
 const draftFrom = (product: Product): Draft => ({
   name: product.name, tagline: product.tagline, summary: product.summary, productType: product.productType,
   status: product.status, industries: product.target.industries.join("\n"), problems: product.problems.join("\n"),
   values: product.values.join("\n"), initialFee: product.pricing.initialFee?.toString() ?? "",
-  plans: product.pricing.plans.map((plan) => ({ id: plan.id, name: plan.name, description: plan.description ?? "", monthlyFee: plan.monthlyFee?.toString() ?? "", isActive: plan.isActive }))
+  plans: product.pricing.plans.map((plan) => ({ id: plan.id, name: plan.name, description: plan.description ?? "", monthlyFee: plan.monthlyFee?.toString() ?? "", isActive: plan.isActive })),
+  resources: product.resources.filter((resource) => !resource.storagePath).map((resource) => ({ id: resource.id, title: resource.title, type: resource.type, url: resource.url ?? "" }))
 });
 
 export function ProductsPageClient() {
@@ -37,7 +41,7 @@ export function ProductsPageClient() {
   const [toast, setToast] = useState<string | null>(null);
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
-    return store.products.filter((product) => (showArchived || product.status !== "archived") && (!needle || `${product.name} ${product.tagline} ${product.summary}`.toLocaleLowerCase().includes(needle)))
+    return store.products.filter((product) => (showArchived || product.status !== "archived") && (!needle || `${product.name} ${product.tagline} ${product.summary} ${product.resources.map((resource) => `${resource.title} ${resource.url ?? ""}`).join(" ")}`.toLocaleLowerCase().includes(needle)))
       .sort((a, b) => (a.sortOrder || Number.MAX_SAFE_INTEGER) - (b.sortOrder || Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name, "ja"));
   }, [store.products, query, showArchived]);
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
@@ -58,7 +62,8 @@ export function ProductsPageClient() {
           name: draft.name.trim(), displayName: draft.name.trim(), tagline: draft.tagline.trim(), summary: draft.summary.trim(),
           productType: draft.productType, status: draft.status, target: { ...product.target, industries: lines(draft.industries) },
           problems: lines(draft.problems), values: lines(draft.values),
-          pricing: { ...product.pricing, initialFee: numberOrNull(draft.initialFee), monthlyFee: null, plans: plansFromDraft(draft.plans) }
+          pricing: { ...product.pricing, initialFee: numberOrNull(draft.initialFee), monthlyFee: null, plans: plansFromDraft(draft.plans) },
+          resources: [...product.resources.filter((resource) => Boolean(resource.storagePath)), ...resourcesFromDraft(draft.resources, store.currentUser.id)]
         });
         notify("商材を保存しました");
       } else {
@@ -66,7 +71,8 @@ export function ProductsPageClient() {
         await store.updateProduct(id, "basic", {
           summary: draft.summary.trim(), target: { industries: lines(draft.industries) } as Product["target"],
           problems: lines(draft.problems), values: lines(draft.values),
-          pricing: { displayType: "estimate", initialFee: numberOrNull(draft.initialFee), monthlyFee: null, plans: plansFromDraft(draft.plans) } as Product["pricing"]
+          pricing: { displayType: "estimate", initialFee: numberOrNull(draft.initialFee), monthlyFee: null, plans: plansFromDraft(draft.plans) } as Product["pricing"],
+          resources: resourcesFromDraft(draft.resources, store.currentUser.id)
         });
         notify("商材を追加しました");
       }
@@ -99,12 +105,15 @@ export function ProductsPageClient() {
         {store.canEdit ? <div className="mt-3 flex justify-end gap-2 border-t border-[#F0E7E9] pt-3"><button className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#E5E7EB] px-3 text-xs text-[#4B5563]" onClick={(event) => { event.stopPropagation(); openEdit(product); }} type="button"><Pencil className="h-3.5 w-3.5" />編集</button>{store.isAdmin ? <button aria-label={`${product.name}を削除`} className="grid h-8 w-8 place-items-center rounded-md border border-[#E5E7EB] text-[#C94F6A]" disabled={busy} onClick={(event) => { event.stopPropagation(); void remove(product); }} type="button"><Trash2 className="h-3.5 w-3.5" /></button> : null}</div> : null}
       </article>)}</div> : <div className="grid min-h-52 place-items-center text-center"><div><p className="text-sm font-medium text-[#374151]">該当する商材はありません</p>{store.canEdit && !query ? <button className="mt-3 text-sm font-medium text-[#EC6F8B]" onClick={openCreate} type="button">最初の商材を追加</button> : null}</div></div>}
     </section>
-    {selectedProduct ? <ProductDetailDrawer canEdit={store.canEdit} onClose={() => setSelectedId(null)} onEdit={() => { setSelectedId(null); openEdit(selectedProduct); }} product={selectedProduct} /> : null}
+    {selectedProduct ? <ProductDetailDrawer canEdit={store.canEdit} onClose={() => setSelectedId(null)} onEdit={() => { setSelectedId(null); openEdit(selectedProduct); }} onUpload={async (file, onProgress) => { const resource = await addResourceFile(selectedProduct, file, store.currentUser, onProgress); await store.updateProduct(selectedProduct.id, "resources", { resources: [...selectedProduct.resources, resource] }); notify("資料を追加しました"); }} product={selectedProduct} /> : null}
     {(creating || editingId) && draft ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }} role="presentation"><div aria-labelledby="product-form-title" aria-modal="true" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl" role="dialog"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold" id="product-form-title">{editingId ? "商材を編集" : "商材を追加"}</h2><button aria-label="閉じる" onClick={closeForm} type="button"><X className="h-5 w-5" /></button></div><div className="mt-4"><ProductForm draft={draft} change={change} /></div><div className="mt-5 flex justify-end gap-2"><button className="h-9 rounded-lg border border-[#E9E1E4] px-4 text-sm" onClick={closeForm} type="button">キャンセル</button><button className="h-9 rounded-lg bg-[#EC6F8B] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={busy || !draft.name.trim()} onClick={() => void save()} type="button">{busy ? "保存中..." : "保存"}</button></div></div></div> : null}
   </div>;
 }
 
-function ProductDetailDrawer({ product, canEdit, onClose, onEdit }: { product: Product; canEdit: boolean; onClose: () => void; onEdit: () => void }) {
+function ProductDetailDrawer({ product, canEdit, onClose, onEdit, onUpload }: { product: Product; canEdit: boolean; onClose: () => void; onEdit: () => void; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const upload = async (file?: File) => { if (!file || uploading) return; setUploading(true); setUploadProgress(0); try { await onUpload(file, setUploadProgress); } finally { setUploading(false); } };
   return <div className="fixed inset-0 z-50 bg-[#1F1F22]/20 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <aside aria-label={`${product.name}の詳細`} className="ml-auto h-full w-full max-w-2xl overflow-y-auto border-l border-[#F0DEE2] bg-white p-5 shadow-2xl">
       <div className="flex items-start justify-between gap-4"><button className="inline-flex h-9 items-center gap-2 text-sm text-[#6B7280] hover:text-[#EC6F8B]" onClick={onClose} type="button"><ArrowLeft className="h-4 w-4" />一覧へ戻る</button><button aria-label="閉じる" className="grid h-9 w-9 place-items-center rounded-lg hover:bg-[#FFF0F3]" onClick={onClose} type="button"><X className="h-5 w-5" /></button></div>
@@ -112,6 +121,7 @@ function ProductDetailDrawer({ product, canEdit, onClose, onEdit }: { product: P
       <section className="mt-6 rounded-xl border border-[#E5E7EB] p-5"><h3 className="font-semibold text-[#25242A]">概要</h3><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#5F585C]">{product.summary || "概要はまだ登録されていません"}</p></section>
       <section className="mt-4 rounded-xl border border-[#E5E7EB] p-5"><h3 className="flex items-center gap-2 font-semibold text-[#25242A]"><CircleDollarSign className="h-4 w-4 text-[#EC6F8B]" />基本料金</h3><p className="mt-3 text-sm text-[#374151]">{product.pricing.initialFee != null ? `初期費用 ${yen(product.pricing.initialFee)}` : "初期費用は未設定"}</p>{product.pricing.plans.length ? <div className="mt-4 grid gap-3">{product.pricing.plans.map((plan) => <article className="rounded-lg bg-[#FCFAFB] p-4" key={plan.id}><h4 className="font-semibold text-[#25242A]">{plan.name}</h4>{plan.description ? <p className="mt-1 text-sm text-[#6B7280]">{plan.description}</p> : null}<p className="mt-3 text-sm text-[#374151]">{plan.monthlyFee != null ? `月額 ${yen(plan.monthlyFee)}` : "月額は要見積もり"}</p></article>)}</div> : <p className="mt-3 text-sm text-[#8A8186]">月額プランは未登録です。</p>}</section>
       <div className="mt-4"><DetailCard icon={Target} label="対象業種" value={product.target.industries.length ? product.target.industries.join("、") : "未設定"} /></div>
+      <section className="mt-4 rounded-xl border border-[#E5E7EB] p-5"><div className="flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 font-semibold text-[#25242A]"><FileText className="h-4 w-4 text-[#EC6F8B]" />HP・資料</h3>{canEdit ? <label className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-lg border border-[#F7CAD2] px-3 text-sm text-[#C94F6A]">{uploading ? `${uploadProgress}%` : "資料をアップロード"}<input className="hidden" disabled={uploading} onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ""; }} type="file" /></label> : null}</div>{product.resources.length ? <div className="mt-3 grid gap-2">{product.resources.map((resource) => resource.url ? <a className="flex items-center justify-between gap-3 rounded-lg border border-[#F0E7E9] px-3 py-2.5 text-sm text-[#374151] hover:border-[#F7CAD2] hover:text-[#C94F6A]" href={resource.url} key={resource.id} rel="noreferrer" target="_blank"><span className="min-w-0"><span className="block truncate font-medium">{resource.title}</span><span className="mt-0.5 block text-xs text-[#8A8186]">{resource.storagePath ? "アップロード資料" : resourceTypeLabels[resource.type]}</span></span><ExternalLink className="h-4 w-4 shrink-0" /></a> : null)}</div> : <p className="mt-3 text-sm text-[#8A8186]">HPや資料はまだ登録されていません。</p>}</section>
       <DetailList title="解決する課題" values={product.problems} /><DetailList title="提供する価値" values={product.values} />
     </aside>
   </div>;
@@ -134,6 +144,7 @@ function ProductForm({ draft, change }: { draft: Draft; change: <K extends keyof
     <Field label="対象業種" multiline onChange={(value) => change("industries", value)} value={draft.industries} />
     <Field label="解決する課題" multiline onChange={(value) => change("problems", value)} value={draft.problems} />
     <Field label="提供する価値" multiline onChange={(value) => change("values", value)} value={draft.values} />
+    <section className="rounded-xl border border-[#E9E1E4] p-4 sm:col-span-2"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-[#4B4549]">公式HP・資料リンク</h3><p className="mt-1 text-xs leading-5 text-[#8A8186]">商材サイト、提案資料、料金表、サービス資料、事例などをまとめます。</p></div><button className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-[#F7CAD2] px-3 text-sm text-[#C94F6A]" onClick={() => change("resources", [...draft.resources, newDraftResource("service_document")])} type="button"><Plus className="h-4 w-4" />リンク追加</button></div><div className="mt-4 grid gap-3">{draft.resources.map((resource, index) => <ResourceEditor index={index} key={resource.id} resource={resource} onChange={(next) => change("resources", draft.resources.map((entry) => entry.id === resource.id ? next : entry))} onRemove={() => change("resources", draft.resources.filter((entry) => entry.id !== resource.id))} />)}</div></section>
     <section className="rounded-xl border border-[#E9E1E4] p-4 sm:col-span-2"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-[#4B4549]">基本料金</h3><p className="mt-1 text-xs text-[#8A8186]">初期費用と月額プランをまとめて登録します。</p></div><button className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-[#F7CAD2] px-3 text-sm text-[#C94F6A]" onClick={() => change("plans", [...draft.plans, newDraftPlan()])} type="button"><Plus className="h-4 w-4" />プラン追加</button></div><div className="mt-4"><PriceInput label="初期費用" value={draft.initialFee} onChange={(value) => change("initialFee", value)} /></div><div className="mt-4 grid gap-3">{draft.plans.map((plan, index) => <PlanEditor key={plan.id} index={index} plan={plan} onChange={(next) => change("plans", draft.plans.map((entry) => entry.id === plan.id ? next : entry))} onRemove={() => change("plans", draft.plans.filter((entry) => entry.id !== plan.id))} />)}</div></section>
   </div>;
 }
@@ -142,9 +153,17 @@ function PlanEditor({ plan, index, onChange, onRemove }: { plan: DraftPlan; inde
   return <article className="rounded-xl border border-[#E9E1E4] bg-[#FFFBFC] p-4"><div className="flex items-center justify-between gap-3"><h4 className="text-sm font-semibold text-[#4B4549]">プラン {index + 1}</h4><button aria-label="プランを削除" className="grid h-8 w-8 place-items-center rounded-md text-[#C94F6A] hover:bg-white" onClick={onRemove} type="button"><Trash2 className="h-4 w-4" /></button></div><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="プラン名" value={plan.name} onChange={(name) => onChange({ ...plan, name })} /><Field label="プランの説明" value={plan.description} onChange={(description) => onChange({ ...plan, description })} /><div className="sm:col-span-2"><PriceInput label="月額料金" value={plan.monthlyFee} onChange={(monthlyFee) => onChange({ ...plan, monthlyFee })} /></div></div></article>;
 }
 
+function ResourceEditor({ resource, index, onChange, onRemove }: { resource: DraftResource; index: number; onChange: (resource: DraftResource) => void; onRemove: () => void }) {
+  return <article className="rounded-xl border border-[#E9E1E4] bg-[#FFFBFC] p-4"><div className="flex items-center justify-between gap-3"><h4 className="text-sm font-semibold text-[#4B4549]">リンク {index + 1}</h4><button aria-label="リンクを削除" className="grid h-8 w-8 place-items-center rounded-md text-[#C94F6A] hover:bg-white" onClick={onRemove} type="button"><Trash2 className="h-4 w-4" /></button></div><div className="mt-3 grid gap-3 sm:grid-cols-[150px_minmax(0,1fr)]"><label className="text-sm font-medium text-[#4B4549]">種類<select className="mt-2 w-full rounded-lg border border-[#E9E1E4] bg-white px-3 py-2.5" onChange={(event) => onChange({ ...resource, type: event.target.value as ProductResource["type"] })} value={resource.type}>{Object.entries(resourceTypeLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}</select></label><Field label="表示名" onChange={(title) => onChange({ ...resource, title })} value={resource.title} /><div className="sm:col-span-2"><Field label="URL" onChange={(url) => onChange({ ...resource, url })} value={resource.url} /></div></div></article>;
+}
+
 function PriceInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-sm font-medium text-[#4B4549]">{label}<div className="mt-2 flex overflow-hidden rounded-lg border border-[#E9E1E4] bg-white"><span className="grid place-items-center border-r border-[#E9E1E4] px-3 text-sm text-[#8A8186]">¥</span><input className="min-w-0 flex-1 px-3 py-2.5 text-sm outline-none" min="0" onChange={(event) => onChange(event.target.value)} placeholder="未設定" type="number" value={value} /></div></label>; }
 
 function newDraftPlan(): DraftPlan { return { id: crypto.randomUUID(), name: "", description: "", monthlyFee: "", isActive: true }; }
+function newDraftResource(type: ProductResource["type"]): DraftResource { return { id: crypto.randomUUID(), title: type === "website" ? "公式HP" : "", type, url: "" }; }
+const resourceTypeLabels: Record<ProductResource["type"], string> = { website: "公式HP", proposal: "提案資料", pricing: "料金表", service_document: "サービス資料", case_document: "事例資料", demo: "デモ", simulation: "シミュレーション", contract_template: "契約書ひな形", other: "その他" };
+function resourcesFromDraft(resources: DraftResource[], userId: string): ProductResource[] { const now = Timestamp.now(); return resources.filter((resource) => resource.url.trim()).map((resource) => ({ id: resource.id, title: resource.title.trim() || resourceTypeLabels[resource.type], type: resource.type, url: normalizeResourceUrl(resource.url), storagePath: null, fileName: null, description: "", visibility: resource.type === "website" ? "public" : "sales", createdBy: userId, createdAt: now, updatedAt: now })); }
+function normalizeResourceUrl(value: string): string { const url = value.trim(); return /^https?:\/\//i.test(url) ? url : `https://${url}`; }
 function numberOrNull(value: string): number | null { const normalized = value.trim(); if (!normalized) return null; const number = Number(normalized); return Number.isFinite(number) && number >= 0 ? number : null; }
 function plansFromDraft(plans: DraftPlan[]): Product["pricing"]["plans"] { return plans.filter((plan) => plan.name.trim()).map((plan, index) => ({ id: plan.id, name: plan.name.trim(), description: plan.description.trim(), initialFee: null, monthlyFee: numberOrNull(plan.monthlyFee), oneTimeFee: null, features: [], recommended: false, isActive: plan.isActive, sortOrder: index + 1 })); }
 function pricingSummary(product: Product): string { if (product.pricing.initialFee != null) return `初期費用 ${yen(product.pricing.initialFee)}`; return product.pricing.plans.length ? `${product.pricing.plans.length}つの料金プラン` : "料金未設定"; }

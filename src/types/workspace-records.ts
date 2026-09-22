@@ -9,6 +9,8 @@ export interface CompanyOption extends WorkspaceOption {
   phone?: string;
   email?: string;
   status?: string;
+  nextActionAt?: import("firebase/firestore").Timestamp | null;
+  nextActionTitle?: string | null;
 }
 
 export interface ProductOption extends WorkspaceOption {
@@ -23,6 +25,8 @@ export interface LeadOption extends WorkspaceOption {
   productId?: string | null;
   productName?: string | null;
   convertedCompanyId?: string | null;
+  nextActionAt?: import("firebase/firestore").Timestamp | null;
+  nextActionTitle?: string | null;
 }
 
 export interface ProjectOption extends WorkspaceOption {

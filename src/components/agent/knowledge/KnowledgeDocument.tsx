@@ -3,8 +3,9 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Edit2, Save, X } from "lucide-react";
+import { Edit2, Save, UserRound, X } from "lucide-react";
 import type { KnowledgeNode } from "@/lib/agent-knowledge/types";
+import { getUserDisplayNameById } from "@/lib/user-display";
 
 const alertStyles = {
   note: { label: "NOTE", className: "border-[#60A5FA] bg-[#EFF6FF] text-[#1E40AF]" },
@@ -60,12 +61,12 @@ export function KnowledgeDocument({ node, saving, onSave }: { node: KnowledgeNod
     try { await onSave(content, node.updatedAt); setEditing(false); }
     catch (nextError) { setError(nextError instanceof Error ? nextError.message : "保存できませんでした。"); }
   };
-  return <article className="mx-auto min-w-0 max-w-5xl px-5 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-[#E5E7EB] pb-5">
-      <div className="min-w-0"><h1 className="break-words text-3xl font-semibold tracking-tight text-[#111827]">{node.title}</h1></div>
+  return <article className="mx-auto min-w-0 max-w-4xl px-5 py-7 sm:px-10 sm:py-9 lg:px-14 lg:py-10">
+    <div className="mb-7 flex flex-wrap items-start justify-between gap-4 border-b border-[#E5E5E5] pb-5">
+      <div className="min-w-0"><h1 className="break-words text-xl font-semibold tracking-tight text-[#2B2730] sm:text-2xl">{node.title}</h1><div className="mt-2 text-xs text-[#7C7378]"><span className="inline-flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5 text-[#D75B7A]" />作成者：{getUserDisplayNameById(node.createdBy)}</span></div></div>
       {editing ? <div className="flex gap-2"><button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => { setContent(node.content); setEditing(false); }} type="button"><X className="h-4 w-4" />キャンセル</button><button className="inline-flex h-9 items-center gap-1 rounded-md bg-[#EC6F8B] px-3 text-sm text-white disabled:opacity-50" disabled={saving || content === node.content} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button></div> : <button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => setEditing(true)} type="button"><Edit2 className="h-4 w-4" />編集</button>}
     </div>
     {error ? <p className="mb-4 text-sm text-red-600" role="alert">{error}</p> : null}
-    {editing ? <><div className="mb-2 flex flex-wrap gap-1">{[["見出し", "## 見出し"], ["太字", "**強調**"], ["箇条書き", "- 項目"], ["番号", "1. 項目"], ["チェック", "- [ ] 項目"], ["引用", "> 引用"], ["重要", "> [!IMPORTANT]\n> 重要な内容"], ["コード", "```\nコード\n```"], ["リンク", "[リンク名](https://example.com)"], ["表", "| 項目 | 内容 |\n| --- | --- |\n| 名前 | 値 |"]].map(([label, snippet]) => <button className="rounded border border-[#E5E7EB] px-2 py-1 text-xs text-[#6F676B] hover:bg-[#FFF0F3]" key={label} onClick={() => setContent((current) => `${current}${current && !current.endsWith("\n") ? "\n" : ""}${snippet}\n`)} type="button">{label}</button>)}</div><textarea aria-label="Markdown本文" className="min-h-[55vh] w-full resize-y rounded-md border border-[#E5E7EB] p-4 font-mono text-sm leading-7 outline-none focus:border-[#EC6F8B]" onChange={(event) => setContent(event.target.value)} value={content} /></> : node.content ? <MarkdownBody content={node.content} /> : <p className="text-sm text-[#8A8186]">まだ本文がありません。編集から追加できます。</p>}
+    <div>{editing ? <><div className="mb-2 flex flex-wrap gap-1">{[["見出し", "## 見出し"], ["太字", "**強調**"], ["箇条書き", "- 項目"], ["番号", "1. 項目"], ["チェック", "- [ ] 項目"], ["引用", "> 引用"], ["重要", "> [!IMPORTANT]\n> 重要な内容"], ["コード", "```\nコード\n```"], ["リンク", "[リンク名](https://example.com)"], ["表", "| 項目 | 内容 |\n| --- | --- |\n| 名前 | 値 |"]].map(([label, snippet]) => <button className="rounded border border-[#D8D8D8] px-2 py-1 text-xs text-[#666] hover:bg-[#F1F1F1]" key={label} onClick={() => setContent((current) => `${current}${current && !current.endsWith("\n") ? "\n" : ""}${snippet}\n`)} type="button">{label}</button>)}</div><textarea aria-label="Markdown本文" className="min-h-[55vh] w-full resize-y rounded-md border border-[#D8D8D8] bg-[#FAFAFA] p-4 font-mono text-sm leading-7 outline-none focus:border-[#EC6F8B]" onChange={(event) => setContent(event.target.value)} value={content} /></> : node.content ? <MarkdownBody content={node.content} /> : <p className="text-sm text-[#8A8186]">まだ本文がありません。編集から追加できます。</p>}</div>
   </article>;
 }

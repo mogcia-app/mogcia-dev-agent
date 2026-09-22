@@ -21,6 +21,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [logs, setLogs] = useState<CompanyActivityLog[]>([]);
+  const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [commonActivities, setCommonActivities] = useState<Activity[]>([]);
   const [meetings, setMeetings] = useState<CompanyMeeting[]>([]);
   const [files, setFiles] = useState<CompanyFile[]>([]);
@@ -50,7 +51,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   useEffect(() => {
     if (!selectedCompanyId) return undefined;
     const onError = (nextError: Error) => setError(nextError.message);
-    const unsubLogs = subscribeCompanyActivityLogs(selectedCompanyId, logLimit, setLogs, onError);
+    const unsubLogs = subscribeCompanyActivityLogs(selectedCompanyId, logLimit + 1, (nextLogs) => { setHasMoreLogs(nextLogs.length > logLimit); setLogs(nextLogs.slice(0, logLimit)); }, onError);
     const unsubCommonActivities = subscribeCompanyActivities(selectedCompanyId, setCommonActivities, onError);
     const unsubMeetings = subscribeCompanyMeetings(selectedCompanyId, setMeetings, onError);
     const unsubFiles = subscribeCompanyFiles(selectedCompanyId, setFiles, onError);
@@ -79,6 +80,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     calendarEvents: selectedCalendarEvents,
     now,
     logs,
+    hasMoreLogs,
     commonActivities,
     meetings,
     files,

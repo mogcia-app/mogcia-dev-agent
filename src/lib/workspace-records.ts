@@ -22,7 +22,9 @@ export function subscribeCompanies(onNext: (items: CompanyOption[]) => void, onE
         contactName: data.primaryContactName,
         phone: data.phone,
         email: data.email,
-        status: data.status
+        status: data.status,
+        nextActionAt: data.nextActionAt ?? null,
+        nextActionTitle: data.nextActionTitle ?? null
       };
     }).filter((entry) => entry.name)),
     onError
@@ -45,7 +47,9 @@ export function subscribeLeadOptions(onNext: (items: LeadOption[]) => void, onEr
         status: data.status,
         productId: data.productId ?? null,
         productName: data.productName ?? null,
-        convertedCompanyId: data.convertedCompanyId ?? data.companyId ?? null
+        convertedCompanyId: data.convertedCompanyId ?? data.companyId ?? null,
+        nextActionAt: data.nextActionAt ?? null,
+        nextActionTitle: data.nextActionTitle ?? null
       };
     }).filter((entry) => entry.name)),
     onError

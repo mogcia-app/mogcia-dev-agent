@@ -91,6 +91,7 @@ export function getCategoryMeta(category: CalendarCategory) {
   if (category === "meeting") return { label: "打ち合わせ", dot: "bg-[#FF2D75]", dotColor: "#FF2D75", soft: "bg-[#FFF3F8]", text: "text-[#D81B60]", border: "border-[#FFC1D6]" };
   if (category === "appointment" || category === "sales") return { label: "打ち合わせ", dot: "bg-[#FF0F6A]", dotColor: "#FF0F6A", soft: "bg-[#FFF0F5]", text: "text-[#E6005C]", border: "border-[#FFB3CF]" };
   if (category === "customer_support") return { label: "顧客対応", dot: "bg-[#FF4F9A]", dotColor: "#FF4F9A", soft: "bg-[#FFF2F8]", text: "text-[#D81B72]", border: "border-[#FFC4DD]" };
+  if (category === "content") return { label: "投稿", dot: "bg-[#7C5CFC]", dotColor: "#7C5CFC", soft: "bg-[#F5F2FF]", text: "text-[#6847D8]", border: "border-[#D8CEFF]" };
   if (category === "phone") return { label: "電話", dot: "bg-[#FF5FA8]", dotColor: "#FF5FA8", soft: "bg-[#FFF4FA]", text: "text-[#D62B7A]", border: "border-[#FFD0E5]" };
   if (category === "visit") return { label: "訪問", dot: "bg-[#FF2D8A]", dotColor: "#FF2D8A", soft: "bg-[#FFF1F8]", text: "text-[#D91A72]", border: "border-[#FFC2DE]" };
   if (category === "internal") return { label: "社内", dot: "bg-[#E73586]", dotColor: "#E73586", soft: "bg-[#FFF3F8]", text: "text-[#C82A75]", border: "border-[#F8C6DE]" };
@@ -181,7 +182,7 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
 
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
   const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
-  const endAt = draft.allDay ? parseDateTime(draft.startDate, "23:59") : parseDurationEndDateTime(draft.startDate, draft.startTime, draft.durationMinutes, draft.endDate, draft.endTime);
+  const endAt = draft.allDay ? parseDateTime(draft.endDate || draft.startDate, "23:59") : parseDurationEndDateTime(draft.startDate, draft.startTime, draft.durationMinutes, draft.endDate, draft.endTime);
   const attendeeIds = Array.from(new Set(draft.attendeeIds.filter((id) => id && id !== draft.assigneeId)));
   const selectedAttendeeNames = draft.attendeeMemberNames.filter(Boolean);
   const manualAttendeeNames = draft.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean);
@@ -244,7 +245,8 @@ function parseDurationEndDateTime(startDate: string, startTime: string, duration
   const fallbackEnd = Number.isNaN(start.getTime()) ? new Date() : new Date(start);
   const safeDuration = typeof durationMinutes === "number" && Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : null;
   fallbackEnd.setMinutes(fallbackEnd.getMinutes() + (safeDuration ?? 60));
-  const end = safeDuration ? fallbackEnd : endDate && endTime ? new Date(`${endDate}T${endTime}`) : fallbackEnd;
+  const explicitEnd = endDate && endTime ? new Date(`${endDate}T${endTime}`) : null;
+  const end = explicitEnd && !Number.isNaN(explicitEnd.getTime()) && explicitEnd.getTime() > start.getTime() ? explicitEnd : fallbackEnd;
   if (Number.isNaN(end.getTime())) return Timestamp.fromDate(fallbackEnd);
   if (!Number.isNaN(start.getTime()) && end.getTime() <= start.getTime()) return Timestamp.fromDate(fallbackEnd);
   return Timestamp.fromDate(end);

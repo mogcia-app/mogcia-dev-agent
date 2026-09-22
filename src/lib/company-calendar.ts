@@ -16,7 +16,7 @@ export function companyWithCalendarContact(company: Company, events: CalendarEve
   const recordedContact = company.lastContactAt?.toMillis() ?? 0;
   const latestPast = linked.filter((event) => (event.endAt ?? event.startAt).toMillis() <= now)
     .reduce((latest, event) => Math.max(latest, event.startAt.toMillis()), recordedContact <= now ? recordedContact : 0);
-  const nextEvent = linked.filter((event) => event.startAt.toMillis() > now)
+  const nextEvent = linked.filter((event) => event.startAt.toMillis() > now && !event.recurrence && (event.eventType === "sales" || event.eventType === "meeting"))
     .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis())[0];
   return {
     ...company,

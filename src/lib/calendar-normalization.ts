@@ -6,13 +6,13 @@ type CalendarFieldInput = {
   meetingUrl?: unknown;
 };
 
-const eventTypes = ["sales", "customer_support", "internal", "deskwork", "personal", "other", "meeting"] as const;
+const eventTypes = ["sales", "customer_support", "content", "internal", "deskwork", "personal", "other", "meeting"] as const;
 const meetingMethods = ["online", "visit", "phone", "in_person", "other"] as const;
 
 export function normalizeCalendarEventType(value: unknown): CalendarEventType {
   if (value === "appointment" || value === "sales") return "sales";
   if (value === "customer_support" || value === "phone" || value === "visit") return "customer_support";
-  if (value === "internal" || value === "deskwork" || value === "personal" || value === "meeting") return value;
+  if (value === "content" || value === "internal" || value === "deskwork" || value === "personal" || value === "meeting") return value;
   return "other";
 }
 
@@ -51,6 +51,7 @@ function legacyMeetingMethod(value: unknown): CalendarMeetingMethod | null {
 }
 
 function inferCalendarEventType(rawMessage: string): CalendarEventType {
+  if (/(投稿|SNS|コンテンツ|配信|公開)/i.test(rawMessage)) return "content";
   if (/(社内|内部|社内MTG|社内ミーティング)/.test(rawMessage)) return "internal";
   if (/(作業|作業時間|デスクワーク)/.test(rawMessage)) return "deskwork";
   if (/(私用|個人|プライベート)/.test(rawMessage)) return "personal";

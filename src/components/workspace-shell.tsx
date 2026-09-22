@@ -12,8 +12,8 @@ import { LoadingCard, PageProgress } from "@/components/ui/loading";
 type NavItem = { href: string; label: string; icon: LucideIcon };
 const groups: Array<{ label: string; items: NavItem[] }> = [
   { label: "今日", items: [{ href: "/home", label: "ホーム", icon: Home }] },
-  { label: "仕事", items: [{ href: "/agent", label: "Agent", icon: Bot }, { href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/leads", label: "営業リスト", icon: UserRoundSearch }] },
-  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/products", label: "商材", icon: Package }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] }
+  { label: "仕事", items: [{ href: "/agent", label: "Agent", icon: Bot }, { href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }, { href: "/leads", label: "営業リスト", icon: UserRoundSearch }] },
+  { label: "営業データ", items: [{ href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/products", label: "商材", icon: Package }] }
 ];
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {

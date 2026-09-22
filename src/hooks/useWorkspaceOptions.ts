@@ -10,12 +10,14 @@ export function useWorkspaceOptions() {
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [meetings, setMeetings] = useState<MeetingOption[]>([]);
+  const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  const [leadsLoaded, setLeadsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const onError = (nextError: Error) => setError(nextError.message);
-    const unsubCompanies = subscribeCompanies(setCompanies, onError);
-    const unsubLeads = subscribeLeadOptions(setLeads, onError);
+    const unsubCompanies = subscribeCompanies((items) => { setCompanies(items); setCompaniesLoaded(true); }, onError);
+    const unsubLeads = subscribeLeadOptions((items) => { setLeads(items); setLeadsLoaded(true); }, onError);
     const unsubProducts = subscribeProductOptions(setProducts, onError);
     const unsubProjects = subscribeProjects(setProjects, onError);
     const unsubMeetings = subscribeMeetings(setMeetings, onError);
@@ -28,5 +30,5 @@ export function useWorkspaceOptions() {
     };
   }, []);
 
-  return { companies, leads, products, projects, meetings, error };
+  return { companies, leads, products, projects, meetings, loading: !companiesLoaded || !leadsLoaded, error };
 }
