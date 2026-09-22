@@ -19,7 +19,7 @@ export async function createProject(auth: BusinessAuth, body: Record<string, unk
   const ref = await auth.db.collection(COLLECTION).add({
     name,
     type: normalizeType(body.type, companyId ? "client" : "internal"),
-    status: normalizeStatus(body.status),
+    status: "active",
     phase: optionalString(body.phase, 200),
     companyId,
     companyName: companyId ? nullableString(body.companyName, 300) : null,
