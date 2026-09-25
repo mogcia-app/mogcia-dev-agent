@@ -163,12 +163,12 @@ export function getDueBadge(task: Task): string {
 
 export function getDueBadgeTone(task: Task): string {
   const group = getTaskGroupKey(task);
-  if (group === "期限切れ") return "border-[#F4B5C0] bg-[#FFF0F3] text-[#D94F6E]";
-  if (group === "今日") return "border-[#F7CAD2] bg-[#EC6F8B] text-white";
+  if (group === "期限切れ") return "border-[#F4B5C0] bg-[#FDF0F4] text-[#9B4862]";
+  if (group === "今日") return "border-[#F1C2D0] bg-[#D47A95] text-white";
   if (group === "明日") return "border-[#CFE0F6] bg-[#F1F7FF] text-[#4F78B4]";
-  if (group === "完了") return "border-[#E2DDDF] bg-[#F6F4F5] text-[#8A8186]";
-  if (!task.dueDate) return "border-[#EFE3E6] bg-white text-[#9A9296]";
-  return "border-[#EFE3E6] bg-white text-[#6F676B]";
+  if (group === "完了") return "border-[#E2DDDF] bg-[#F6F4F5] text-[#64748B]";
+  if (!task.dueDate) return "border-[#E2E8F0] bg-white text-[#94A3B8]";
+  return "border-[#E2E8F0] bg-white text-[#475569]";
 }
 
 export function priorityWeight(priority: TaskPriority): number {

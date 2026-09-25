@@ -313,25 +313,25 @@ export function LeadsPageClient() {
       <PageHeader
         title="営業リスト"
         description="契約前の営業対象について、現在の段階と次の対応を確認します。"
-        actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={openCreateLead} type="button"><Plus className="h-4 w-4" />営業リストを登録</button>}
+        actions={<button className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#D47A95] px-5 text-sm font-bold text-white disabled:opacity-50" disabled={!user} onClick={openCreateLead} type="button"><Plus className="h-4 w-4" />営業リストを登録</button>}
       />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
 
-        <section className="mt-5 overflow-hidden rounded-none border border-[#EAE5E3] bg-white p-4 shadow-sm">
-          <div className="flex gap-1 overflow-x-auto border-b border-[#EEEAE8] pt-1">
-            {monthTabs.map((tab) => <button className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium ${monthFilter === tab.value ? "border-[#EC6F8B] text-[#B84563]" : "border-transparent text-neutral-500"}`} key={tab.value} onClick={() => setMonthFilter(tab.value)} type="button">{tab.label} <span className="ml-1 text-xs text-neutral-400">{tab.count}</span></button>)}
+        <section className="mt-5 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+          <div className="flex gap-1 overflow-x-auto border-b border-[#E5E7EB] pt-1">
+            {monthTabs.map((tab) => <button className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium ${monthFilter === tab.value ? "border-[#D47A95] text-[#9B4862]" : "border-transparent text-neutral-500"}`} key={tab.value} onClick={() => setMonthFilter(tab.value)} type="button">{tab.label} <span className="ml-1 text-xs text-neutral-400">{tab.count}</span></button>)}
           </div>
-          <div className="border-b border-[#EEEAE8] py-4">
+          <div className="border-b border-[#E5E7EB] py-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <label className="flex h-10 w-full max-w-xl items-center gap-2 rounded-none border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#777]">
+              <label className="flex h-10 w-full max-w-xl items-center gap-2 rounded-xl border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#64748B]">
                 <Search className="h-4 w-4" />
                 <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
             </div>
           </div>
           <div className="overflow-x-auto pb-1">
-            <div className="grid min-w-[1080px] grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] gap-4 border-b border-[#EEEAE8] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
+            <div className="grid min-w-[1080px] grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] gap-4 border-b border-[#E5E7EB] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
               <span>実施月</span><span>商材</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
@@ -341,9 +341,9 @@ export function LeadsPageClient() {
         </section>
 
       {selectedLead ? <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setRoute({ id: null }); }}>
-        <aside className="ml-auto h-full w-full max-w-5xl overflow-y-auto border-l border-[#EAE5E3] bg-white shadow-2xl">
+        <aside className="ml-auto h-full w-full max-w-5xl overflow-y-auto border-l border-[#E2E8F0] bg-white shadow-2xl">
           <div className="sticky top-0 z-20 flex justify-end bg-white/95 p-4 backdrop-blur">
-            <button className="grid h-10 w-10 place-items-center rounded-none hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
+            <button className="grid h-10 w-10 place-items-center rounded-xl hover:bg-[#F8F6F5]" onClick={() => setRoute({ id: null })} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button>
           </div>
           <div className="space-y-5 px-8 pb-8">
             <LeadHeader lead={selectedLead} saving={saving} onActivity={() => setActivityOpen(true)} onEdit={() => openEditLead(selectedLead)} onEmail={() => setEmailOpen(true)} onStatusChange={(nextStatus) => void saveLeadStatus(selectedLead, nextStatus)} />
@@ -354,7 +354,7 @@ export function LeadsPageClient() {
             <LeadNotesCard lead={selectedLead} />
             <div className="bg-white">
               <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
-                {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#EC6F8B] text-[#EC6F8B]" : "text-[#6F676B]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
+                {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#D47A95] text-[#D47A95]" : "text-[#475569]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
               </div>
               <div className="pt-5">
                 {selectedTab === "activity" ? <ActivityTab activities={activities} /> : null}
@@ -381,23 +381,23 @@ function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange }: { lead:
   const chasing = lead.status === "contacting";
   const statusStyle = leadStatusCellStyle(lead.status);
   return (
-    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : chasing ? "border-[#FFD6E2] bg-[#FFF4F7] hover:bg-[#FFEAF0]" : "border-[#EEEAE8] hover:bg-[#FCFAFA]"}` } role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
+    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : chasing ? "border-[#FFD6E2] bg-[#F8FAFC] hover:bg-[#FFEAF0]" : "border-[#E5E7EB] hover:bg-[#FCFAFA]"}` } role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
       <div className="min-w-0 text-left">
-        <span className={`flex min-w-0 items-center gap-2 text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#B84563]"}`}>
+        <span className={`flex min-w-0 items-center gap-2 text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#9B4862]"}`}>
           <span className="truncate">{formatLeadMonth(lead)}</span>
         </span>
       </div>
-      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.productName || "未設定"}</div>
-      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#2B2B2B]"}`}>{lead.companyName}</span></div>
-      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
-      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>{lead.industry || "未設定"}</div>
-      <label className="relative inline-flex h-9 min-w-0 cursor-pointer items-center rounded-md border px-2.5 shadow-sm" style={statusStyle} onClick={(event) => event.stopPropagation()}>
+      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.productName || "未設定"}</div>
+      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#111827]"}`}>{lead.companyName}</span></div>
+      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
+      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.industry || "未設定"}</div>
+      <label className="relative inline-flex h-9 min-w-0 cursor-pointer items-center rounded-md border px-2.5 shadow-none" style={statusStyle} onClick={(event) => event.stopPropagation()}>
         <span className="truncate text-xs font-medium">{leadStatusLabels[lead.status]}</span>
         <select className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)} aria-label="ステータスを変更">
-          {leadStatusOptions.map(([value, label]) => <option className="text-[#2B2B2B]" key={value} value={value}>{label}</option>)}
+          {leadStatusOptions.map(([value, label]) => <option className="text-[#111827]" key={value} value={value}>{label}</option>)}
         </select>
       </label>
-      <div className={`min-w-0 text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#5E565A]"}`}>
+      <div className={`min-w-0 text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>
         {nextAction.source !== "none" ? <span className="block truncate">{nextAction.title}</span> : null}
       </div>
     </div>
@@ -407,10 +407,10 @@ function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange }: { lead:
 function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange }: { lead: Lead; saving: boolean; onActivity: () => void; onEdit: () => void; onEmail: () => void; onStatusChange: (status: LeadStatus) => void }) {
   const compact = [
     lead.contactName ? <span className="inline-flex items-center gap-1" key="contact"><Building2 className="h-4 w-4" />{lead.contactName}</span> : null,
-    lead.contactRole ? <span className="rounded-md bg-[#FFF0F3] px-2 py-0.5 text-xs font-medium text-[#EC6F8B]" key="role">{lead.contactRole}</span> : null,
+    lead.contactRole ? <span className="rounded-md bg-[#FDF0F4] px-2 py-0.5 text-xs font-medium text-[#D47A95]" key="role">{lead.contactRole}</span> : null,
     lead.phone ? <span className="inline-flex items-center gap-1" key="phone"><Phone className="h-4 w-4" />{lead.phone}</span> : null,
     lead.email ? <span className="inline-flex items-center gap-1" key="email"><Mail className="h-4 w-4" />{lead.email}</span> : null,
-    lead.website ? <a className="inline-flex items-center gap-1 text-[#EC6F8B]" href={normalizeWebsiteUrl(lead.website)} key="website" rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4" />HP</a> : null
+    lead.website ? <a className="inline-flex items-center gap-1 text-[#D47A95]" href={normalizeWebsiteUrl(lead.website)} key="website" rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4" />HP</a> : null
   ].filter(Boolean);
   return (
     <section className="border-b border-[#E5E7EB] pb-5">
@@ -418,9 +418,9 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="break-words text-2xl font-semibold tracking-normal text-[#111827]">{lead.companyName}</h2>
-            <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#F0E7E9] bg-white px-2 text-xs font-medium text-[#6F676B]">
+            <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-2 text-xs font-medium text-[#475569]">
               <span>ステータス</span>
-              <select className="bg-transparent text-xs font-medium text-[#2B2B2B] outline-none disabled:opacity-50" disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)}>
+              <select className="bg-transparent text-xs font-medium text-[#111827] outline-none disabled:opacity-50" disabled={saving} value={lead.status} onChange={(event) => onStatusChange(event.target.value as LeadStatus)}>
                 {leadStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
@@ -428,10 +428,10 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange 
           {compact.length ? <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-[#4B5563]">{compact}</div> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEmail} type="button"><Mail className="h-4 w-4 text-[#EC6F8B]" />メール作成</button>
-          {lead.website ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" href={normalizeWebsiteUrl(lead.website)} rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4 text-[#EC6F8B]" />HP</a> : null}
-          <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-5 text-xs font-medium text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onActivity} type="button"><Plus className="h-4 w-4" />活動を追加</button>
-          <button className="inline-flex h-10 items-center gap-2 rounded-none border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
+          <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEmail} type="button"><Mail className="h-4 w-4 text-[#D47A95]" />メール作成</button>
+          {lead.website ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" href={normalizeWebsiteUrl(lead.website)} rel="noreferrer" target="_blank"><LinkIcon className="h-4 w-4 text-[#D47A95]" />HP</a> : null}
+          <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D47A95] px-5 text-xs font-medium text-white" onClick={onActivity} type="button"><Plus className="h-4 w-4" />活動を追加</button>
+          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-xs font-medium text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
         </div>
       </div>
     </section>
@@ -441,16 +441,16 @@ function LeadHeader({ lead, saving, onActivity, onEdit, onEmail, onStatusChange 
 function NextActionPanel({ lead, nextAction, onNextAction }: { lead: Lead; nextAction: NextActionView; onNextAction: () => void }) {
   const needsFollow = lead.status === "appointment" || lead.status === "contacted" || lead.status === "document_sent" || lead.status === "sent" || lead.status === "contacting";
   return (
-    <section className="flex flex-col gap-4 rounded-none bg-[#FFF4F7] p-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-4 rounded-xl bg-[#F8FAFC] p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-4">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#FFE2E9] text-[#EC6F8B]"><Target className="h-6 w-6" /></span>
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#F9DCE5] text-[#D47A95]"><Target className="h-6 w-6" /></span>
         <div className="min-w-0">
           <h3 className="text-base font-medium text-[#111827]">{needsFollow ? "次の対応を設定して、商談につなげましょう" : "次の対応を整理しましょう"}</h3>
           <p className="mt-1 text-sm font-normal leading-6 text-[#4B5563]">{nextAction.source !== "none" ? nextAction.title : `${leadStatusLabels[lead.status]}後のフォローや打ち合わせ内容を登録できます。`}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-3">
-        <button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#F7AFC0] bg-white px-5 text-xs font-medium text-[#EC6F8B]" onClick={onNextAction} type="button"><Plus className="h-4 w-4" />次回予定を設定</button>
+        <button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#E79AB0] bg-white px-5 text-xs font-medium text-[#D47A95]" onClick={onNextAction} type="button"><Plus className="h-4 w-4" />次回予定を設定</button>
       </div>
     </section>
   );
@@ -469,10 +469,10 @@ function LeadSummaryStrip({ lead }: { lead: Lead }) {
     { label: "商材", value: lead.productName, Icon: LinkIcon }
   ].filter((item) => Boolean(item.value));
   return (
-    <section className="grid gap-4 rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-4 rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none sm:grid-cols-2 xl:grid-cols-4">
       {items.map(({ label, value, Icon }) => (
         <div className="min-w-0" key={label}>
-          <p className="flex items-center gap-2 text-xs font-medium text-[#6B7280]"><Icon className="h-4 w-4 text-[#EC6F8B]" />{label}</p>
+          <p className="flex items-center gap-2 text-xs font-medium text-[#6B7280]"><Icon className="h-4 w-4 text-[#D47A95]" />{label}</p>
           <p className="mt-2 truncate text-sm font-medium text-[#111827]">{value}</p>
         </div>
       ))}
@@ -484,10 +484,10 @@ function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean;
   const [lostReason, setLostReason] = useState(lead.lostReason ?? "");
   const changed = lostReason.trim() !== (lead.lostReason ?? "").trim();
   if (lead.lostReason?.trim()) {
-    return <p className="whitespace-pre-wrap rounded-none border border-[#2F2F2F] bg-[#1F1F22] p-5 text-sm leading-7 text-white">{lead.lostReason}</p>;
+    return <p className="whitespace-pre-wrap rounded-xl border border-[#2F2F2F] bg-[#1F1F22] p-5 text-sm leading-7 text-white">{lead.lostReason}</p>;
   }
   return (
-    <section className="rounded-none border border-[#2F2F2F] bg-[#1F1F22] p-5 text-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+    <section className="rounded-xl border border-[#2F2F2F] bg-[#1F1F22] p-5 text-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-base font-medium">失注理由</h3>
@@ -495,7 +495,7 @@ function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean;
         </div>
         <button className="inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-xs font-medium text-[#242424] disabled:opacity-50" disabled={saving || !changed} onClick={() => onSave(lostReason)} type="button">{saving ? "保存中..." : "保存"}</button>
       </div>
-      <textarea className="mt-4 min-h-32 w-full resize-y rounded-none border border-[#444] bg-[#111] p-3 text-sm font-normal leading-6 text-white outline-none placeholder:text-[#777] focus:border-[#EC6F8B]" placeholder="例: 予算が合わない、導入時期が先、担当者と連絡が取れない など" value={lostReason} onChange={(event) => setLostReason(event.target.value)} />
+      <textarea className="mt-4 min-h-32 w-full resize-y rounded-xl border border-[#444] bg-[#111] p-3 text-sm font-normal leading-6 text-white outline-none placeholder:text-[#64748B] focus:border-[#D47A95]" placeholder="例: 予算が合わない、導入時期が先、担当者と連絡が取れない など" value={lostReason} onChange={(event) => setLostReason(event.target.value)} />
     </section>
   );
 }
@@ -503,9 +503,9 @@ function LostReasonCard({ lead, saving, onSave }: { lead: Lead; saving: boolean;
 function LeadPreInfoCard({ lead }: { lead: Lead }) {
   if (!lead.preInfo?.trim()) return null;
   return (
-    <section className="rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#EC6F8B]" />事前情報</h3>
-      <p className="mt-4 whitespace-pre-wrap rounded-none bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.preInfo}</p>
+    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none">
+      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#D47A95]" />事前情報</h3>
+      <p className="mt-4 whitespace-pre-wrap rounded-xl bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.preInfo}</p>
     </section>
   );
 }
@@ -513,9 +513,9 @@ function LeadPreInfoCard({ lead }: { lead: Lead }) {
 function LeadNotesCard({ lead }: { lead: Lead }) {
   if (!lead.notes?.trim() || lead.notes === lead.preInfo) return null;
   return (
-    <section className="rounded-none border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#8A8186]" />メモ</h3>
-      <p className="mt-4 whitespace-pre-wrap rounded-none bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p>
+    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none">
+      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#64748B]" />メモ</h3>
+      <p className="mt-4 whitespace-pre-wrap rounded-xl bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p>
     </section>
   );
 }
@@ -530,7 +530,7 @@ function ActivityTab({ activities }: { activities: Activity[] }) {
   if (items.length === 0) return <EmptyState icon={MessageSquarePlus} title="活動ログはまだありません" description="電話、資料送付、メモなどを時系列で確認できます。" />;
   return (
     <div className="relative pl-9">
-      <span className="absolute bottom-4 left-3 top-3 w-px bg-[#F0E7E9]" />
+      <span className="absolute bottom-4 left-3 top-3 w-px bg-[#E2E8F0]" />
       <div className="grid gap-4">
         {items.map((activity) => <ActivityItem activity={activity} key={activity.id} />)}
       </div>
@@ -540,14 +540,14 @@ function ActivityTab({ activities }: { activities: Activity[] }) {
 
 function ActivityItem({ activity }: { activity: Activity }) {
   return (
-    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
+    <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-medium text-[#EC6F8B]">{activityTypeLabels[activity.type]}</span>
+        <span className="rounded-xl bg-[#FDF0F4] px-2.5 py-1 text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type]}</span>
       </div>
-      <h3 className="mt-2 text-sm font-medium text-[#2B2B2B]">{activity.title || activityTypeLabels[activity.type]}</h3>
-      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-normal leading-6 text-[#6F676B]">{activity.content}</p> : null}
-      {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#D94F6E]">次回予定: {activity.nextActionTitle}</p> : null}
+      <h3 className="mt-2 text-sm font-medium text-[#111827]">{activity.title || activityTypeLabels[activity.type]}</h3>
+      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-normal leading-6 text-[#475569]">{activity.content}</p> : null}
+      {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#9B4862]">次回予定: {activity.nextActionTitle}</p> : null}
     </article>
   );
 }
@@ -556,18 +556,18 @@ function RecordItem({ record, isSummarizing, onSummarize }: { record: TeleapoRec
   const canSummarize = Boolean(record.audioFilePath || record.audioDownloadUrl || record.transcriptionStatus === "completed");
   const needsTranscription = record.transcriptionStatus !== "completed";
   return (
-    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-black text-[#EC6F8B]"><Mic2 className="h-4 w-4" /></span>
+    <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-black text-[#D47A95]"><Mic2 className="h-4 w-4" /></span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-none bg-[#FFF0F3] px-2.5 py-1 text-xs font-black text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+        <span className="rounded-xl bg-[#FDF0F4] px-2.5 py-1 text-xs font-black text-[#D47A95]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
       </div>
-      <h3 className="mt-2 font-black text-[#2B2B2B]">{record.meetingTitle || record.productName || record.customerName}</h3>
+      <h3 className="mt-2 font-black text-[#111827]">{record.meetingTitle || record.productName || record.customerName}</h3>
       {record.audioDownloadUrl ? <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} /> : null}
-      {record.aiAdvice?.summary ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-normal leading-6 text-[#6F676B]">{record.aiAdvice.summary}</p> : null}
+      {record.aiAdvice?.summary ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-normal leading-6 text-[#475569]">{record.aiAdvice.summary}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        {!record.aiAdvice ? <button className="inline-flex h-9 items-center gap-2 rounded-none bg-[#EC6F8B] px-3 text-xs font-bold text-white disabled:opacity-50" disabled={!canSummarize || isSummarizing} onClick={onSummarize} type="button"><Sparkles className="h-4 w-4" />{isSummarizing ? "作成中..." : needsTranscription ? "音声から要約" : "要約を作成"}</button> : null}
+        {!record.aiAdvice ? <button className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#D47A95] px-3 text-xs font-bold text-white disabled:opacity-50" disabled={!canSummarize || isSummarizing} onClick={onSummarize} type="button"><Sparkles className="h-4 w-4" />{isSummarizing ? "作成中..." : needsTranscription ? "音声から要約" : "要約を作成"}</button> : null}
       </div>
-      {record.transcriptText ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm leading-6 text-[#6F676B]">{record.transcriptText}</p> : null}
+      {record.transcriptText ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm leading-6 text-[#475569]">{record.transcriptText}</p> : null}
     </article>
   );
 }
@@ -580,7 +580,7 @@ function MeetingsTab({ records, summarizingRecordId, onSummarizeRecord }: { reco
 
 function TasksTab({ tasks }: { tasks: Task[] }) {
   if (!tasks.length) return <EmptyState icon={CheckCircle2} title="タスクはまだありません" description="営業リストに紐づくタスクを表示します。" />;
-  return <div className="grid gap-3">{tasks.map((task) => <div className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={task.id}><p className="font-bold text-[#2B2B2B]">{task.title}</p><p className="mt-1 text-sm font-semibold text-[#777]">{task.assigneeName || "担当者未設定"} / {task.status}</p></div>)}</div>;
+  return <div className="grid gap-3">{tasks.map((task) => <div className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4" key={task.id}><p className="font-bold text-[#111827]">{task.title}</p><p className="mt-1 text-sm font-semibold text-[#64748B]">{task.assigneeName || "担当者未設定"} / {task.status}</p></div>)}</div>;
 }
 
 function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }: { draft: LeadDraft; mode: "create" | "edit"; products: Product[]; saving: boolean; onChange: (draft: LeadDraft) => void; onSave: () => void; onClose: () => void }) {
@@ -601,8 +601,8 @@ function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }:
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
       </div>
       <div className="mt-6 flex justify-end gap-3">
-        <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.companyName.trim()} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+        <button className="h-11 rounded-xl border border-[#E2E8F0] px-5 text-sm font-bold text-[#475569]" onClick={onClose} type="button">キャンセル</button>
+        <button className="h-11 rounded-xl bg-[#D47A95] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving || !draft.companyName.trim()} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
       </div>
     </Modal>
   );
@@ -612,8 +612,8 @@ function ActivityModal({ draft, saving, onChange, onSave, onClose }: { draft: Ac
   return (
     <Modal title="活動ログを追加" onClose={onClose}>
       <div className="grid gap-5">
-        <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
-          <h3 className="text-sm font-medium text-[#2B2B2B]">活動ログ</h3>
+        <section className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+          <h3 className="text-sm font-medium text-[#111827]">活動ログ</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <SelectBox label="種類" value={draft.type} options={activityTypeOptions} onChange={(type) => onChange({ ...draft, type: type as ActivityDraft["type"] })} />
             <div className="sm:col-span-2"><Input label="タイトル" value={draft.title} onChange={(title) => onChange({ ...draft, title })} /></div>
@@ -622,8 +622,8 @@ function ActivityModal({ draft, saving, onChange, onSave, onClose }: { draft: Ac
         </section>
       </div>
       <div className="mt-6 flex justify-end gap-3">
-        <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+        <button className="h-11 rounded-xl border border-[#E2E8F0] px-5 text-sm font-bold text-[#475569]" onClick={onClose} type="button">キャンセル</button>
+        <button className="h-11 rounded-xl bg-[#D47A95] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
       </div>
     </Modal>
   );
@@ -634,11 +634,11 @@ function NextActionModal({ draft, saving, onChange, onSave, onClose }: { draft: 
     <Modal title="次回予定を追加" onClose={onClose}>
       <div className="grid gap-4">
         <Input label="次回予定" value={draft.nextActionTitle} onChange={(nextActionTitle) => onChange({ ...draft, nextActionTitle })} />
-        <p className="text-xs font-normal text-[#8A8186]">空欄で保存すると次回予定をクリアします。</p>
+        <p className="text-xs font-normal text-[#64748B]">空欄で保存すると次回予定をクリアします。</p>
       </div>
       <div className="mt-6 flex justify-end gap-3">
-        <button className="h-11 rounded-none border border-[#F0E7E9] px-5 text-sm font-bold text-[#6F676B]" onClick={onClose} type="button">キャンセル</button>
-        <button className="h-11 rounded-none bg-[#EC6F8B] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
+        <button className="h-11 rounded-xl border border-[#E2E8F0] px-5 text-sm font-bold text-[#475569]" onClick={onClose} type="button">キャンセル</button>
+        <button className="h-11 rounded-xl bg-[#D47A95] px-6 text-sm font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void onSave()} type="button">{saving ? "保存中..." : "保存"}</button>
       </div>
     </Modal>
   );
@@ -679,42 +679,42 @@ function EmailPrepModal({ lead, templates, calendars, onClose }: { lead: Lead; t
   return (
     <Modal title="メール準備" onClose={onClose}>
       <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
-          <h3 className="text-sm font-medium text-[#2B2B2B]">テンプレート</h3>
+        <section className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+          <h3 className="text-sm font-medium text-[#111827]">テンプレート</h3>
           <div className="mt-3 grid gap-3">
             {emailTemplates.length ? (
               <SearchSelect clearable={false} emptyLabel="テンプレートがありません。" options={emailTemplates.map((template) => ({ value: template.id, label: template.title }))} placeholder="テンプレートを選択" value={selectedTemplateId} onChange={(templateId) => { setSelectedTemplateId(templateId); setSubject(""); setBodyText(""); setGenerateError(null); }} />
             ) : <EmptyState icon={Mail} title="メール用テンプレートはまだありません" description="テンプレート集に登録すると、ここで確認できます。" />}
             {selectedTemplate ? (
               <>
-                <button className="inline-flex h-10 w-fit items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={generating} onClick={() => void generate()} type="button"><Mail className="h-4 w-4" />{generating ? "生成中..." : "AIで文面作成"}</button>
+                <button className="inline-flex h-10 w-fit items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={generating} onClick={() => void generate()} type="button"><Mail className="h-4 w-4" />{generating ? "生成中..." : "AIで文面作成"}</button>
                 <Input label="件名" value={resolvedSubject} onChange={setSubject} />
                 <Text label="本文" value={resolvedBody} onChange={setBodyText} />
-                {generateError ? <p className="text-sm font-medium text-[#D94F6E]">{generateError}</p> : null}
+                {generateError ? <p className="text-sm font-medium text-[#9B4862]">{generateError}</p> : null}
               </>
             ) : null}
           </div>
         </section>
         <aside className="grid gap-4">
-          <section className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4">
-            <h3 className="text-sm font-medium text-[#2B2B2B]">差し込み情報</h3>
-            <div className="mt-3 grid gap-2 text-sm font-normal text-[#5E565A]">
+          <section className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4">
+            <h3 className="text-sm font-medium text-[#111827]">差し込み情報</h3>
+            <div className="mt-3 grid gap-2 text-sm font-normal text-[#475569]">
               <p>会社: {lead.companyName}</p>
               <p>担当者: {lead.contactName || "未設定"}</p>
               <p>商材: {lead.productName || "未設定"}</p>
               <p>ステータス: {leadStatusLabels[lead.status]}</p>
             </div>
           </section>
-          <section className="rounded-none border border-[#F0E7E9] bg-white p-4">
-            <h3 className="text-sm font-medium text-[#2B2B2B]">関連予定</h3>
+          <section className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            <h3 className="text-sm font-medium text-[#111827]">関連予定</h3>
             {calendars.length ? (
-              <div className="mt-3 divide-y divide-[#F0E7E9]">
-                {calendars.map((event) => <div className="py-3" key={event.id}><p className="text-sm font-medium text-[#2B2B2B]">{event.title}</p><p className="mt-1 text-xs font-normal text-[#8A8186]">{formatCalendarDate(event)}</p></div>)}
+              <div className="mt-3 divide-y divide-[#E2E8F0]">
+                {calendars.map((event) => <div className="py-3" key={event.id}><p className="text-sm font-medium text-[#111827]">{event.title}</p><p className="mt-1 text-xs font-normal text-[#64748B]">{formatCalendarDate(event)}</p></div>)}
               </div>
-            ) : <p className="mt-3 text-sm font-normal text-[#8A8186]">関連予定はまだありません。</p>}
+            ) : <p className="mt-3 text-sm font-normal text-[#64748B]">関連予定はまだありません。</p>}
           </section>
           <div className="flex flex-wrap justify-end gap-3">
-            {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-medium text-white" href={mailto}><Mail className="h-4 w-4" />メールを開く</a> : null}
+            {lead.email ? <a className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D47A95] px-5 text-sm font-medium text-white" href={mailto}><Mail className="h-4 w-4" />メールを開く</a> : null}
           </div>
         </aside>
       </div>
@@ -723,11 +723,11 @@ function EmailPrepModal({ lead, templates, calendars, onClose }: { lead: Lead; t
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-none border border-[#F0E7E9] bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-4"><h2 className="text-2xl font-bold text-[#2B2B2B]">{title}</h2><button className="grid h-9 w-9 shrink-0 place-items-center rounded-none text-[#8A8186] hover:bg-[#FFF0F3] hover:text-[#EC6F8B]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div><div className="mt-5">{children}</div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1F1F22]/25 p-4 backdrop-blur-sm"><section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-4"><h2 className="text-2xl font-bold text-[#111827]">{title}</h2><button className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#64748B] hover:bg-[#FDF0F4] hover:text-[#D47A95]" onClick={onClose} type="button" aria-label="閉じる"><X className="h-5 w-5" /></button></div><div className="mt-5">{children}</div></section></div>;
 }
 
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
-  return <div className="grid gap-3">{rows.map(([label, value]) => <div className="grid gap-1 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-3 md:grid-cols-[160px_1fr]" key={label}><dt className="text-sm font-black text-[#8A8186]">{label}</dt><dd className="whitespace-pre-wrap text-sm font-semibold leading-6 text-[#2B2B2B]">{value}</dd></div>)}</div>;
+  return <div className="grid gap-3">{rows.map(([label, value]) => <div className="grid gap-1 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-3 md:grid-cols-[160px_1fr]" key={label}><dt className="text-sm font-black text-[#64748B]">{label}</dt><dd className="whitespace-pre-wrap text-sm font-semibold leading-6 text-[#111827]">{value}</dd></div>)}</div>;
 }
 
 function Input({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
@@ -913,7 +913,7 @@ function readTabParam(value: string | null): TabKey {
 }
 
 function leadStatusCellStyle(status: LeadStatus) {
-  if (status === "prospect") return { backgroundColor: "#FFF0F3", borderColor: "#F7CAD2", color: "#B84563" };
+  if (status === "prospect") return { backgroundColor: "#FDF0F4", borderColor: "#F1C2D0", color: "#9B4862" };
   if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
   if (status === "contacted") return { backgroundColor: "#EAF7F2", borderColor: "#BEE7D8", color: "#2F7D62" };
   if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };

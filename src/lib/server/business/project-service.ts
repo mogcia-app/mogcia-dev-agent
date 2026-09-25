@@ -21,6 +21,9 @@ export async function createProject(auth: BusinessAuth, body: Record<string, unk
     type: normalizeType(body.type, companyId ? "client" : "internal"),
     status: "active",
     phase: optionalString(body.phase, 200),
+    currentPosition: optionalString(body.currentPosition ?? body.phase, 2000),
+    nextAction: optionalString(body.nextAction, 2000),
+    notes: optionalString(body.notes, 10000),
     companyId,
     companyName: companyId ? nullableString(body.companyName, 300) : null,
     productId: nullableString(body.productId, 160),
@@ -45,6 +48,9 @@ export async function updateProject(auth: BusinessAuth, body: Record<string, unk
     ...(body.type !== undefined ? { type: normalizeType(body.type, previous.type) } : {}),
     ...(body.status !== undefined ? { status: normalizeStatus(body.status, previous.status) } : {}),
     ...(body.phase !== undefined ? { phase: optionalString(body.phase, 200) } : {}),
+    ...(body.currentPosition !== undefined ? { currentPosition: optionalString(body.currentPosition, 2000) } : {}),
+    ...(body.nextAction !== undefined ? { nextAction: optionalString(body.nextAction, 2000) } : {}),
+    ...(body.notes !== undefined ? { notes: optionalString(body.notes, 10000) } : {}),
     ...(body.companyId !== undefined ? { companyId } : {}),
     ...(body.companyName !== undefined || body.companyId !== undefined ? { companyName: companyId ? nullableString(body.companyName, 300) : null } : {}),
     ...(body.productId !== undefined ? { productId: nullableString(body.productId, 160) } : {}),
@@ -74,4 +80,4 @@ export async function deleteProject(auth: BusinessAuth, id: string) {
 
 function normalizeType(value: unknown, fallback: unknown = "internal"): ProjectType { return types.includes(value as ProjectType) ? value as ProjectType : types.includes(fallback as ProjectType) ? fallback as ProjectType : "internal"; }
 function normalizeStatus(value: unknown, fallback: unknown = "planning"): ProjectStatus { return statuses.includes(value as ProjectStatus) ? value as ProjectStatus : statuses.includes(fallback as ProjectStatus) ? fallback as ProjectStatus : "planning"; }
-function serializeProject(id: string, data: DocumentData) { return { ...serializeDoc(id, data), name: String(data.name ?? ""), type: normalizeType(data.type, data.companyId ? "client" : "internal"), status: normalizeStatus(data.status), phase: String(data.phase ?? ""), companyId: data.companyId ?? null, companyName: data.companyName ?? null, productId: data.productId ?? null, productName: data.productName ?? null, description: String(data.description ?? "") }; }
+function serializeProject(id: string, data: DocumentData) { return { ...serializeDoc(id, data), name: String(data.name ?? ""), type: normalizeType(data.type, data.companyId ? "client" : "internal"), status: normalizeStatus(data.status), phase: String(data.phase ?? ""), currentPosition: String(data.currentPosition ?? data.phase ?? ""), nextAction: String(data.nextAction ?? ""), notes: String(data.notes ?? ""), companyId: data.companyId ?? null, companyName: data.companyName ?? null, productId: data.productId ?? null, productName: data.productName ?? null, description: String(data.description ?? "") }; }

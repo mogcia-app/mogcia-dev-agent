@@ -4,6 +4,7 @@ export type CalendarItemType = "task" | "meeting" | "appointment" | "event";
 export type CalendarCategory = "ai_task" | "manual_task" | "meeting" | "appointment" | "customer_support" | "sales" | "content" | "phone" | "visit" | "internal" | "deskwork" | "personal" | "other";
 export type CalendarEventType = "sales" | "customer_support" | "content" | "internal" | "deskwork" | "personal" | "other" | "meeting";
 export type CalendarMeetingMethod = "online" | "visit" | "phone" | "in_person" | "other";
+export type CalendarScheduleMode = "single_day" | "multi_day" | "all_day";
 export type CalendarViewMode = "timeline" | "list";
 
 export interface CalendarItem {
@@ -105,7 +106,8 @@ export interface CalendarEvent {
 export interface CalendarEventDraft {
   title: string;
   eventType: CalendarEventType;
-  meetingMethod: CalendarMeetingMethod;
+  meetingMethod: CalendarMeetingMethod | null;
+  scheduleMode: CalendarScheduleMode;
   startDate: string;
   startTime: string;
   durationMinutes: number;

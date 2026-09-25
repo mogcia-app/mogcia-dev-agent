@@ -20,13 +20,14 @@ export function normalizeCalendarMeetingMethod(value: unknown): CalendarMeetingM
   return meetingMethods.includes(value as CalendarMeetingMethod) ? value as CalendarMeetingMethod : "other";
 }
 
-export function normalizeCalendarEventFields(input: CalendarFieldInput): { eventType: CalendarEventType; meetingMethod: CalendarMeetingMethod } {
+export function normalizeCalendarEventFields(input: CalendarFieldInput): { eventType: CalendarEventType; meetingMethod: CalendarMeetingMethod | null } {
   const eventType = normalizeCalendarEventType(input.eventType);
+  if (input.meetingMethod === null || input.meetingMethod === "" || input.meetingMethod === "other") return { eventType, meetingMethod: null };
   const explicitMethod = normalizeCalendarMeetingMethod(input.meetingMethod);
   const legacyMethod = legacyMeetingMethod(input.eventType);
   return {
     eventType,
-    meetingMethod: explicitMethod !== "other" ? explicitMethod : legacyMethod ?? inferCalendarMeetingMethod(input) ?? "other"
+    meetingMethod: explicitMethod !== "other" ? explicitMethod : legacyMethod ?? inferCalendarMeetingMethod(input)
   };
 }
 

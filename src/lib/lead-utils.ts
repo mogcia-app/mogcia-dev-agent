@@ -73,7 +73,7 @@ export function createEmptyLeadDraft(): LeadDraft {
 }
 
 export function leadStatusTone(status: LeadStatus): string {
-  if (status === "prospect") return "bg-[#FFF0F3] text-[#B84563] ring-1 ring-[#F7CAD2]";
+  if (status === "prospect") return "bg-[#FDF0F4] text-[#9B4862] ring-1 ring-[#F1C2D0]";
   if (status === "appointment" || status === "meeting") return "bg-[#EC2F7A] text-white";
   if (status === "contacted") return "bg-[#EAF7F2] text-[#2F7D62] ring-1 ring-[#BEE7D8]";
   if (status === "document_sent" || status === "sent") return "bg-[#FF8A3D] text-white";

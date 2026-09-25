@@ -44,7 +44,7 @@ export async function createCalendarEvent(auth: BusinessAuth, body: Record<strin
   const title = requireString(body.title, "予定タイトル");
   const startAt = parseDate(body.startAt);
   if (!startAt) throw new BusinessApiError("VALIDATION_ERROR", "開始日時を入力してください。", 400);
-  const endAt = parseDate(body.endAt) ?? Timestamp.fromMillis(startAt.toMillis() + DEFAULT_DURATION_MINUTES * 60 * 1000);
+  const endAt = body.endAt === null ? null : parseDate(body.endAt) ?? Timestamp.fromMillis(startAt.toMillis() + DEFAULT_DURATION_MINUTES * 60 * 1000);
   const force = body.force === true;
   const duplicates = await findTimeDuplicates(auth.db, COLLECTION, { title, companyId: nullableString(body.companyId), startsAt: startAt.toDate() });
   if (duplicates.length && !force) return { id: null, calendarEventId: null, requiresConfirmation: true, duplicates };
@@ -52,7 +52,8 @@ export async function createCalendarEvent(auth: BusinessAuth, body: Record<strin
   const recurrence = weeklyRecurrence(body.recurrence);
   if (recurrence) {
     if (recurrence.endDate.toMillis() < startAt.toMillis()) throw new BusinessApiError("VALIDATION_ERROR", "繰り返し終了日は開始日以降にしてください。", 400);
-    const occurrences = weeklyOccurrences(startAt, endAt, recurrence.weekdays, recurrence.endDate);
+    const recurrenceEndAt = endAt ?? Timestamp.fromMillis(startAt.toMillis() + DEFAULT_DURATION_MINUTES * 60 * 1000);
+    const occurrences = weeklyOccurrences(startAt, recurrenceEndAt, recurrence.weekdays, recurrence.endDate);
     if (!occurrences.length) throw new BusinessApiError("VALIDATION_ERROR", "指定期間内に対象の曜日がありません。", 400);
     const groupId = auth.db.collection(COLLECTION).doc().id;
     const batch = auth.db.batch();
@@ -78,7 +79,7 @@ export async function updateCalendarEvent(auth: BusinessAuth, body: Record<strin
   const endAt = body.endAt === undefined ? previous.endAt ?? null : parseDate(body.endAt);
   const normalizedFields = normalizeCalendarEventFields({
     eventType: body.eventType ?? previous.eventType,
-    meetingMethod: body.meetingMethod ?? previous.meetingMethod,
+    meetingMethod: body.meetingMethod === undefined ? previous.meetingMethod : body.meetingMethod,
     meetingUrl: body.meetingUrl ?? previous.meetingUrl
   });
   await ref.set({
@@ -183,7 +184,7 @@ export function toDesktopSyncCalendarEvent(event: DocumentData) {
   };
 }
 
-async function buildCalendarPayload(auth: BusinessAuth, body: Record<string, unknown>, title: string, startAt: Timestamp, endAt: Timestamp) {
+async function buildCalendarPayload(auth: BusinessAuth, body: Record<string, unknown>, title: string, startAt: Timestamp, endAt: Timestamp | null) {
   const normalizedFields = normalizeCalendarEventFields(body);
   const companyId = nullableString(body.companyId, 160);
   const companySnapshot = companyId ? await auth.db.collection("companies").doc(companyId).get() : null;

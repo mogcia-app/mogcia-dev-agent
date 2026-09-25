@@ -10,7 +10,7 @@ export function DayTimeline({ selectedDate, items, onOpen }: { selectedDate: Dat
   const dayItems = itemsForDate(items, selectedDate);
   const allDayItems = dayItems.filter((item) => item.allDay || isMultiDayItem(item));
   const timedItems = dayItems.filter((item) => !item.allDay && !isMultiDayItem(item));
-  return <section className="rounded-2xl border border-[#ECE7E4] bg-white p-5 shadow-sm">
+  return <section className="rounded-2xl border border-[#ECE7E4] bg-white p-5 shadow-none">
     <div className="mb-5"><h2 className="text-base font-semibold text-neutral-900">{formatShortDate(selectedDate)}</h2><p className="mt-1 text-sm text-neutral-500">{timedItems.length ? `${timedItems.length}件の予定` : "予定はありません"}</p></div>
     <AllDayEvents items={allDayItems} onOpen={onOpen} />
     {!timedItems.length && !allDayItems.length ? <div className="grid min-h-72 place-items-center rounded-xl border border-dashed border-[#E5E0DD] bg-[#FCFBFA] text-center"><div><CalendarDays className="mx-auto h-6 w-6 text-neutral-300" /><p className="mt-3 text-sm font-semibold text-neutral-700">この日の予定はありません</p><p className="mt-1 text-xs text-neutral-400">この日は空いています。</p></div></div> : null}

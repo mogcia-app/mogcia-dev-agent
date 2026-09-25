@@ -9,6 +9,9 @@ export interface Project {
   type: ProjectType;
   status: ProjectStatus;
   phase: string;
+  currentPosition: string;
+  nextAction: string;
+  notes: string;
   companyId: string | null;
   companyName: string | null;
   productId: string | null;
@@ -27,6 +30,9 @@ export type ProjectDraft = {
   type: ProjectType;
   status: ProjectStatus;
   phase: string;
+  currentPosition: string;
+  nextAction: string;
+  notes: string;
   companyId: string;
   companyName: string;
   productId: string;

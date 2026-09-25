@@ -32,7 +32,7 @@ export default function LoginPage() {
       setIsLoading(false);
       if (nextUser) {
         setIsRedirecting(true);
-        router.replace("/home" as Route);
+        router.replace("/calendar" as Route);
       }
     });
   }, [router]);
@@ -50,7 +50,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       setIsRedirecting(true);
-      router.replace("/home" as Route);
+      router.replace("/calendar" as Route);
     } catch (error) {
       setMessage(toAuthMessage(error));
     } finally {
@@ -62,14 +62,14 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-10">
-      <div className="absolute -right-32 -top-32 h-[480px] w-[480px] rounded-none bg-[#E9CBC8]/55" />
-      <div className="absolute -bottom-36 -left-36 h-[420px] w-[420px] rounded-none bg-[#D5B5B2]/30" />
+      <div className="absolute -right-32 -top-32 h-[480px] w-[480px] rounded-none bg-[#F9DCE5]/55" />
+      <div className="absolute -bottom-36 -left-36 h-[420px] w-[420px] rounded-none bg-[#F1C2D0]/30" />
       {isRedirecting ? <PageProgress /> : null}
 
       <section className="relative w-full max-w-[760px] rounded-[56px] border border-white/70 bg-white/90 px-6 py-10 shadow-[0_28px_90px_rgba(31,31,34,0.12)] backdrop-blur sm:px-12 sm:py-14">
-        <div className="pointer-events-none absolute left-[18%] top-[16%] text-3xl font-light text-[#D5B5B2]/70">+</div>
-        <div className="pointer-events-none absolute right-[20%] top-[18%] h-4 w-4 rounded-none bg-[#E9CBC8]" />
-        <div className="pointer-events-none absolute right-[15%] top-[30%] text-4xl font-light text-[#D5B5B2]/70">+</div>
+        <div className="pointer-events-none absolute left-[18%] top-[16%] text-3xl font-light text-[#F1C2D0]/70">+</div>
+        <div className="pointer-events-none absolute right-[20%] top-[18%] h-4 w-4 rounded-none bg-[#F9DCE5]" />
+        <div className="pointer-events-none absolute right-[15%] top-[30%] text-4xl font-light text-[#F1C2D0]/70">+</div>
 
         <div className="mx-auto flex max-w-[500px] flex-col items-center">
           <Image
@@ -85,12 +85,12 @@ export default function LoginPage() {
           <p className="mt-3 text-center text-base leading-7 text-neutral-500">アカウントにログインして、MOGCIAを始めましょう</p>
 
           {!firebaseConfigured ? (
-            <p className="mt-8 w-full rounded-[18px] border border-[#E9CBC8] bg-[#F8F4F3] px-5 py-4 text-sm text-[#B97B80]">
+            <p className="mt-8 w-full rounded-[18px] border border-[#F9DCE5] bg-[#F6F7F9] px-5 py-4 text-sm text-[#475569]">
               Firebase未設定です。.env.local にFirebase Web Appの値を入れてください。
             </p>
           ) : isAuthTransition ? (
             <div className="mt-8 w-full">
-              <LoadingCard compact variant="auth" title={isLoading ? "認証しています" : "ログインしました！"} description={isLoading ? "アカウントを確認しています..." : "Homeへ移動しています..."} progress={isRedirecting ? 70 : undefined} />
+              <LoadingCard compact variant="auth" title={isLoading ? "認証しています" : "ログインしました！"} description={isLoading ? "アカウントを確認しています..." : "カレンダーへ移動しています..."} progress={isRedirecting ? 70 : undefined} />
             </div>
           ) : (
             <form
@@ -103,12 +103,12 @@ export default function LoginPage() {
               <label className="block text-base font-medium text-[#1F1F22]">
                 メールアドレス
                 <span className="relative mt-3 block">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#C79A98]">
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#D47A95]">
                     <MailIcon />
                   </span>
                   <input
                     autoComplete="email"
-                    className="h-16 w-full rounded-[18px] border border-[#E4D8D6] bg-white/72 px-14 text-base font-normal text-[#1F1F22] outline-none transition placeholder:text-neutral-400 focus:border-[#C79A98] focus:bg-white"
+                    className="h-16 w-full rounded-[18px] border border-[#CBD5E1] bg-white/72 px-14 text-base font-normal text-[#1F1F22] outline-none transition placeholder:text-neutral-400 focus:border-[#D47A95] focus:bg-white"
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="メールアドレスを入力してください"
                     type="email"
@@ -119,12 +119,12 @@ export default function LoginPage() {
               <label className="block text-base font-medium text-[#1F1F22]">
                 パスワード
                 <span className="relative mt-3 block">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#C79A98]">
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#D47A95]">
                     <LockIcon />
                   </span>
                   <input
                     autoComplete="current-password"
-                    className="h-16 w-full rounded-[18px] border border-[#E4D8D6] bg-white/72 px-14 pr-16 text-base font-normal text-[#1F1F22] outline-none transition placeholder:text-neutral-400 focus:border-[#C79A98] focus:bg-white"
+                    className="h-16 w-full rounded-[18px] border border-[#CBD5E1] bg-white/72 px-14 pr-16 text-base font-normal text-[#1F1F22] outline-none transition placeholder:text-neutral-400 focus:border-[#D47A95] focus:bg-white"
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="パスワードを入力してください"
                     type={isPasswordVisible ? "text" : "password"}
@@ -132,14 +132,14 @@ export default function LoginPage() {
                   />
                   <button
                     aria-label={isPasswordVisible ? "パスワードを隠す" : "パスワードを表示"}
-                    className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-none text-neutral-500 transition hover:bg-[#F8F4F3]"
+                    className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-none text-neutral-500 transition hover:bg-[#F6F7F9]"
                     onClick={() => setIsPasswordVisible((current) => !current)}
                     type="button"
                   >
                     {isPasswordVisible ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </span>
-                <span className="mt-3 block text-right text-sm font-medium text-[#B97B80]">パスワードをお忘れですか？</span>
+                <span className="mt-3 block text-right text-sm font-medium text-[#475569]">パスワードをお忘れですか？</span>
               </label>
               <button
                 className="h-16 w-full rounded-[18px] bg-[#D89499] px-4 text-lg font-semibold text-white shadow-[0_14px_34px_rgba(185,123,128,0.28)] transition hover:bg-[#C98186] disabled:cursor-not-allowed disabled:opacity-60"

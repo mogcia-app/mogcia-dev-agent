@@ -76,7 +76,7 @@ export function subscribeProjects(onNext: (items: ProjectOption[]) => void, onEr
         snapshot.docs
           .map((entry) => {
             const data = entry.data();
-            return { id: entry.id, name: nameFromData(data), companyId: data.companyId ?? null, companyName: data.companyName ?? null, productId: data.productId ?? null, productName: data.productName ?? null, type: data.type ?? (data.companyId ? "client" : "internal"), status: data.status ?? "planning", phase: data.phase ?? "", targetDate: data.targetDate ?? null };
+            return { id: entry.id, name: nameFromData(data), companyId: data.companyId ?? null, companyName: data.companyName ?? null, productId: data.productId ?? null, productName: data.productName ?? null, type: data.type ?? (data.companyId ? "client" : "internal"), status: data.status ?? "planning", phase: data.phase ?? "", currentPosition: data.currentPosition ?? data.phase ?? "", nextAction: data.nextAction ?? "", targetDate: data.targetDate ?? null, updatedAt: data.updatedAt ?? null };
           })
           .filter((entry) => entry.name)
       ),

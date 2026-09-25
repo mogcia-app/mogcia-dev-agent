@@ -178,26 +178,26 @@ export function CompaniesPageClient() {
         <PageHeader
           title="会社一覧"
           description="契約後の顧客状況、活動、サービスをまとめて確認します"
-          actions={<button className="inline-flex h-11 items-center gap-2 rounded-none bg-[#EC6F8B] px-5 text-sm font-medium text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい会社を追加</button>}
+          actions={<button className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#D47A95] px-5 text-sm font-medium text-white" onClick={() => setCreateOpen(true)} type="button"><Plus className="h-4 w-4" />新しい会社を追加</button>}
         />
       ) : null}
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className={selectedCompany ? "" : "mt-4"}><StatusBanner message={store.error} type="error" /></div>
       <div className={selectedCompany ? "mt-0" : "mt-5"}>
         {!selectedCompany ? (
-        <section className="rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-          <label className="flex h-11 items-center gap-2 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] px-3 text-sm font-medium text-[#777]">
+        <section className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+          <label className="flex h-11 items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] px-3 text-sm font-medium text-[#64748B]">
             <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社名・サービス・状態で検索" value={query} onChange={(event) => setQuery(event.target.value)} />
             <Search className="h-4 w-4" />
           </label>
           <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[#6F676B]">{filtered.length}件の会社</p>
+            <p className="text-sm font-medium text-[#475569]">{filtered.length}件の会社</p>
             <div className="w-48">
               <SingleSelect options={sortOptions.map(([value, label]) => ({ value, label }))} value={sort} onChange={(value) => setSort(value as SortKey)} />
             </div>
           </div>
           <div className="mt-4 overflow-x-auto">
-            <div className="grid min-w-[680px] grid-cols-[1.5fr_1.1fr_1fr_110px] gap-4 border-b border-[#F0E7E9] px-3 py-3 text-xs font-medium text-[#8A8186]">
+            <div className="grid min-w-[680px] grid-cols-[1.5fr_1.1fr_1fr_110px] gap-4 border-b border-[#E2E8F0] px-3 py-3 text-xs font-medium text-[#64748B]">
               <span>会社</span><span>利用サービス</span><span>最終接触</span><span>次回予定</span>
             </div>
             {store.loading ? <CompanySkeleton /> : null}
@@ -211,7 +211,7 @@ export function CompaniesPageClient() {
               <CompanyDetailHeader company={selectedCompany} canDelete={store.isAdmin} favorite={selectedCompany.favoriteUserIds.includes(store.user?.uid ?? "")} onDelete={() => { void store.deleteCompany(selectedCompany.id); showCompanyList(); }} onEdit={() => setEditCompany(selectedCompany)} onFavorite={() => void store.toggleFavorite(selectedCompany)} onLog={() => setLogOpen(true)} onStatusChange={async (status) => { await store.updateCompany(selectedCompany.id, { status }); flash("ステータスを更新しました"); }} />
               <CompanySummaryCards company={selectedCompany} tasks={store.tasks} />
               <CompanyDetailTabs selectedTab={selectedTab} onSelect={selectDetailTab} />
-              <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"}>
+              <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none"}>
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => selectDetailTab("timeline")} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onNextAction={openNextAction} onCreateTask={async (title) => { await createTask(companyTaskDraft(selectedCompany, title, store.currentUser.id, store.currentUser.name), { id: store.currentUser.id, uid: store.currentUser.id, name: store.currentUser.name }); flash("タスクを追加しました"); }} onToggleTask={toggleCompanyTask} onDeleteTask={deleteCompanyTask} /> : null}
                   {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "projects" ? <CompanyProjectsTab companyId={selectedCompany.id} companyName={selectedCompany.name} tasks={store.tasks} /> : null}
@@ -234,14 +234,14 @@ export function CompaniesPageClient() {
 }
 
 function CompanyListItem({ company, active, favorite, onSelect, onFavorite }: { company: Company; active: boolean; favorite: boolean; onSelect: () => void; onFavorite: () => void }) {
-  return <button className={`grid min-w-[680px] w-full grid-cols-[1.5fr_1.1fr_1fr_110px] items-center gap-4 border-b border-[#F0E7E9] px-3 py-4 text-left transition ${active ? "bg-[#FFF0F3]" : "bg-white hover:bg-[#FFFBFC]"}`} onClick={onSelect} type="button">
+  return <button className={`grid min-w-[680px] w-full grid-cols-[1.5fr_1.1fr_1fr_110px] items-center gap-4 border-b border-[#E2E8F0] px-3 py-4 text-left transition ${active ? "bg-[#FDF0F4]" : "bg-white hover:bg-[#FFFFFF]"}`} onClick={onSelect} type="button">
     <span className="flex min-w-0 items-center gap-2">
-      <Bookmark className={`h-4 w-4 shrink-0 text-[#EC6F8B] ${favorite ? "fill-current" : ""}`} onClick={(event) => { event.stopPropagation(); onFavorite(); }} />
-      <span className="min-w-0 truncate font-medium text-[#2B2B2B]">{company.name}</span>
+      <Bookmark className={`h-4 w-4 shrink-0 text-[#D47A95] ${favorite ? "fill-current" : ""}`} onClick={(event) => { event.stopPropagation(); onFavorite(); }} />
+      <span className="min-w-0 truncate font-medium text-[#111827]">{company.name}</span>
     </span>
     <span className="truncate text-sm font-semibold text-[#655D62]">{company.productNames?.join(" / ") || "未設定"}</span>
     <span className="text-sm font-semibold text-[#655D62]">{company.lastContactAt ? relativeDate(company.lastContactAt.toDate()) : "未接触"}</span>
-    <span className={`truncate text-sm font-medium ${company.nextActionTitle ? "text-[#655D62]" : "text-[#D94F6E]"}`}>{company.nextActionTitle || "未設定 ⚠"}</span>
+    <span className={`truncate text-sm font-medium ${company.nextActionTitle ? "text-[#655D62]" : "text-[#9B4862]"}`}>{company.nextActionTitle || "未設定 ⚠"}</span>
   </button>;
 }
 
@@ -263,7 +263,7 @@ function CompanyDetailHeader({ company, favorite, canDelete, onFavorite, onEdit,
         <div className="min-w-0 pr-0 xl:pr-8">
           <div className="flex min-w-0 items-center gap-3">
             <h2 className="break-words text-xl font-medium tracking-normal text-[#111827]">{company.name}</h2>
-            <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#EC6F8B] hover:bg-[#FFF0F3]" onClick={onFavorite} type="button" aria-label="お気に入り"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
+            <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#D47A95] hover:bg-[#FDF0F4]" onClick={onFavorite} type="button" aria-label="お気に入り"><Bookmark className={`h-5 w-5 ${favorite ? "fill-current" : ""}`} /></button>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-semibold text-[#4B5563]">
             <StatusSelect disabled={updatingStatus} status={company.status} onChange={(status) => void changeStatus(status)} />
@@ -273,10 +273,10 @@ function CompanyDetailHeader({ company, favorite, canDelete, onFavorite, onEdit,
         <div className="relative flex flex-wrap gap-2 xl:justify-end">
           {company.email ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" href={`mailto:${company.email}`}><Mail className="h-4 w-4" />メール</a> : null}
           {company.phone ? <a className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" href={`tel:${company.phone}`}><Phone className="h-4 w-4" />電話</a> : null}
-          <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-4 text-sm font-medium text-white shadow-[0_8px_18px_rgba(236,111,139,0.2)]" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button>
+          <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D47A95] px-4 text-sm font-medium text-white" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button>
           <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#374151]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" />編集</button>
           <button className="grid h-10 w-10 place-items-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151]" onClick={() => setMenu((current) => !current)} type="button" aria-label="その他"><MoreHorizontal className="h-5 w-5" /></button>
-          {menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-lg"><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#D94F6E] hover:bg-[#FFF0F3]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}
+          {menu ? <div className="absolute right-0 top-12 z-10 grid w-40 gap-1 rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-lg"><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" onClick={() => void navigator.clipboard.writeText(window.location.href)} type="button">URLをコピー</button><button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#F9FAFB]" type="button"><Archive className="mr-2 inline h-4 w-4" />アーカイブ</button>{canDelete ? <button className="h-9 rounded-md px-2 text-left text-sm font-semibold text-[#9B4862] hover:bg-[#FDF0F4]" onClick={() => window.confirm("会社を削除しますか？") && onDelete()} type="button"><Trash2 className="mr-2 inline h-4 w-4" />削除</button> : null}</div> : null}
         </div>
       </div>
     </section>
@@ -300,12 +300,12 @@ function CompanySummaryCards({ company, tasks }: { company: Company; tasks: Arra
 }
 
 function SummaryCard({ icon, label, value, tone = "gray" }: { icon: React.ReactNode; label: string; value: string; tone?: "gray" | "yellow" | "pink" | "green" }) {
-  const toneClass = tone === "yellow" ? "bg-[#FFF8E6] text-[#B7791F]" : tone === "pink" ? "bg-[#FFF0F3] text-[#EC6F8B]" : tone === "green" ? "bg-[#ECFDF3] text-[#16A34A]" : "bg-[#F3F4F6] text-[#6B7280]";
-  return <section className="flex min-h-24 items-center gap-4 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${toneClass}`}>{icon}</span><div className="min-w-0"><p className="text-xs font-semibold text-[#6B7280]">{label}</p><p className="mt-1 truncate text-base font-medium text-[#111827]">{value}</p></div></section>;
+  const toneClass = tone === "yellow" ? "bg-[#FFF8E6] text-[#B7791F]" : tone === "pink" ? "bg-[#FDF0F4] text-[#D47A95]" : tone === "green" ? "bg-[#ECFDF3] text-[#16A34A]" : "bg-[#F3F4F6] text-[#6B7280]";
+  return <section className="flex min-h-24 items-center gap-4 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-none"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${toneClass}`}>{icon}</span><div className="min-w-0"><p className="text-xs font-semibold text-[#6B7280]">{label}</p><p className="mt-1 truncate text-base font-medium text-[#111827]">{value}</p></div></section>;
 }
 
 function CompanyDetailTabs({ selectedTab, onSelect }: { selectedTab: TabKey; onSelect: (tab: TabKey) => void }) {
-  return <nav className="flex gap-6 overflow-x-auto border-b border-[#E5E7EB]" aria-label="会社詳細タブ">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 border-b-2 text-sm font-medium transition ${selectedTab === value ? "border-[#EC6F8B] text-[#EC6F8B]" : "border-transparent text-[#111827] hover:text-[#EC6F8B]"}`} key={value} onClick={() => onSelect(value)} type="button">{label}</button>)}</nav>;
+  return <nav className="flex gap-6 overflow-x-auto border-b border-[#E5E7EB]" aria-label="会社詳細タブ">{tabs.map(([value, label]) => <button className={`h-12 shrink-0 border-b-2 text-sm font-medium transition ${selectedTab === value ? "border-[#D47A95] text-[#D47A95]" : "border-transparent text-[#111827] hover:text-[#D47A95]"}`} key={value} onClick={() => onSelect(value)} type="button">{label}</button>)}</nav>;
 }
 
 function OverviewTab({ company, tasks, calendarEvents, now, commonActivities, logs, records, onActivity, onEdit, onLog, onNextAction, onCreateTask, onToggleTask, onDeleteTask }: { company: Company; tasks: Task[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; logs: CompanyActivityLog[]; records: TeleapoRecord[]; onActivity: () => void; onEdit: () => void; onLog: () => void; onNextAction: () => void; onCreateTask: (title: string) => Promise<void>; onToggleTask: (task: Task) => Promise<void>; onDeleteTask: (task: Task) => Promise<void> }) {
@@ -322,11 +322,11 @@ function OverviewTab({ company, tasks, calendarEvents, now, commonActivities, lo
         <InfoGrid compact rows={[["状態", companyStatusLabel(company.status)], ["最終接触", company.lastContactAt ? company.lastContactAt.toDate().toLocaleDateString("ja-JP") : "未接触"], ["次回予定", company.nextActionTitle || "未設定"]]} />
       </DetailCard>
       <DetailCard action={<button className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-semibold text-[#374151]" onClick={onActivity} type="button">すべての活動を見る</button>} title="最近の活動">
-        {recent.length ? <div className="space-y-4">{recent.map((item) => <div className="grid gap-3 border-b border-[#F3F4F6] pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[80px_92px_minmax(0,1fr)]" key={item.id}><time className="text-xs font-semibold text-[#6B7280]">{item.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</time><span className="inline-flex h-7 w-fit items-center rounded-full bg-[#FFF0F3] px-3 text-xs font-medium text-[#EC6F8B]">{item.type}</span><span className="min-w-0"><strong className="block text-sm font-medium text-[#111827]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-medium leading-6 text-[#6B7280]">{item.content}</span> : null}</span></div>)}</div> : <div className="grid min-h-48 place-items-center text-center"><div><Clock3 className="mx-auto h-9 w-9 text-[#C7CBD1]" /><p className="mt-3 text-sm font-medium text-[#111827]">活動履歴はまだありません</p><p className="mt-1 text-sm font-medium text-[#6B7280]">最初の活動を登録して、顧客との関係を記録しましょう。</p><button className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-[#EC6F8B] px-4 text-sm font-medium text-white" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button></div></div>}
+        {recent.length ? <div className="space-y-4">{recent.map((item) => <div className="grid gap-3 border-b border-[#F3F4F6] pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[80px_92px_minmax(0,1fr)]" key={item.id}><time className="text-xs font-semibold text-[#6B7280]">{item.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</time><span className="inline-flex h-7 w-fit items-center rounded-full bg-[#FDF0F4] px-3 text-xs font-medium text-[#D47A95]">{item.type}</span><span className="min-w-0"><strong className="block text-sm font-medium text-[#111827]">{item.title}</strong>{item.content ? <span className="mt-1 line-clamp-2 block text-sm font-medium leading-6 text-[#6B7280]">{item.content}</span> : null}</span></div>)}</div> : <div className="grid min-h-48 place-items-center text-center"><div><Clock3 className="mx-auto h-9 w-9 text-[#C7CBD1]" /><p className="mt-3 text-sm font-medium text-[#111827]">活動履歴はまだありません</p><p className="mt-1 text-sm font-medium text-[#6B7280]">最初の活動を登録して、顧客との関係を記録しましょう。</p><button className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-[#D47A95] px-4 text-sm font-medium text-white" onClick={onLog} type="button"><Plus className="h-4 w-4" />活動を追加</button></div></div>}
       </DetailCard>
     </div>
     <aside className="space-y-4">
-      <SideCard icon={<CalendarDays className="h-5 w-5" />} title="次回予定">{company.nextActionTitle ? <InfoPair label="内容" value={company.nextActionTitle} /> : <div className="rounded-lg bg-[#FFF0F3] p-4"><p className="flex items-center gap-2 text-sm font-medium text-[#9F1239]"><AlertTriangle className="h-4 w-4" />次回予定が設定されていません</p><p className="mt-2 text-sm font-medium text-[#6B4B55]">次回の予定はカレンダーか、ここから登録できます。</p></div>}<button className="mt-4 h-10 w-full rounded-lg border border-[#F7CAD2] bg-white text-sm font-medium text-[#EC6F8B]" onClick={onNextAction} type="button">＋ 次回予定を設定</button></SideCard>
+      <SideCard icon={<CalendarDays className="h-5 w-5" />} title="次回予定">{company.nextActionTitle ? <InfoPair label="内容" value={company.nextActionTitle} /> : <div className="rounded-lg bg-[#FDF0F4] p-4"><p className="flex items-center gap-2 text-sm font-medium text-[#9F1239]"><AlertTriangle className="h-4 w-4" />次回予定が設定されていません</p><p className="mt-2 text-sm font-medium text-[#6B4B55]">次回の予定はカレンダーか、ここから登録できます。</p></div>}<button className="mt-4 h-10 w-full rounded-lg border border-[#F1C2D0] bg-white text-sm font-medium text-[#D47A95]" onClick={onNextAction} type="button">＋ 次回予定を設定</button></SideCard>
       <QuickTaskCard key={company.id} tasks={tasks} onCreate={onCreateTask} onToggle={onToggleTask} onDelete={onDeleteTask} />
     </aside>
   </div>;
@@ -351,8 +351,8 @@ function QuickTaskCard({ tasks, onCreate, onToggle, onDelete }: { tasks: Task[];
   };
   return <SideCard icon={<CheckCircle2 className="h-5 w-5" />} title="タスク">
     <div className="flex gap-2">
-      <input aria-label="タスク内容" className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-3 text-sm outline-none focus:border-[#EC6F8B]" placeholder="タスクを入力" value={title} onChange={(event) => setTitle(event.target.value)} />
-      <button className="h-10 shrink-0 rounded-lg bg-[#EC6F8B] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !title.trim()} onClick={() => void save()} type="button">{saving ? "保存中" : "追加"}</button>
+      <input aria-label="タスク内容" className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-3 text-sm outline-none focus:border-[#D47A95]" placeholder="タスクを入力" value={title} onChange={(event) => setTitle(event.target.value)} />
+      <button className="h-10 shrink-0 rounded-lg bg-[#D47A95] px-4 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !title.trim()} onClick={() => void save()} type="button">{saving ? "保存中" : "追加"}</button>
     </div>
     {error ? <p className="mt-2 text-xs text-red-600" role="alert">{error}</p> : null}
     {tasks.length ? <div className="mt-4 space-y-2">{tasks.slice(0, 5).map((task) => <CompanyTaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />)}</div> : <p className="mt-4 text-sm text-[#6B7280]">タスクはありません。</p>}
@@ -362,19 +362,19 @@ function QuickTaskCard({ tasks, onCreate, onToggle, onDelete }: { tasks: Task[];
 function CompanyTaskRow({ task, onToggle, onDelete }: { task: Task; onToggle: (task: Task) => Promise<void>; onDelete: (task: Task) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const run = async (operation: () => Promise<void>) => { setBusy(true); try { await operation(); } finally { setBusy(false); } };
-  return <div className="flex items-center gap-2 rounded-lg border border-[#F0E7E9] px-2 py-1.5">
-    <button aria-label={task.status === "completed" ? "未完了に戻す" : "完了にする"} className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#EC6F8B] hover:bg-[#FFF0F3] disabled:opacity-50" disabled={busy} onClick={() => void run(() => onToggle(task))} type="button">{task.status === "completed" ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border border-[#BCAFB5]" />}</button>
-    <span className={`min-w-0 flex-1 break-words text-sm ${task.status === "completed" ? "text-[#9A9296] line-through" : "text-[#374151]"}`}>{task.title}</span>
-    <button aria-label="タスクを削除" className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#A0969B] hover:bg-red-50 hover:text-[#D94F6E] disabled:opacity-50" disabled={busy} onClick={() => void run(() => onDelete(task))} type="button"><Trash2 className="h-4 w-4" /></button>
+  return <div className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] px-2 py-1.5">
+    <button aria-label={task.status === "completed" ? "未完了に戻す" : "完了にする"} className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#D47A95] hover:bg-[#FDF0F4] disabled:opacity-50" disabled={busy} onClick={() => void run(() => onToggle(task))} type="button">{task.status === "completed" ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border border-[#BCAFB5]" />}</button>
+    <span className={`min-w-0 flex-1 break-words text-sm ${task.status === "completed" ? "text-[#94A3B8] line-through" : "text-[#374151]"}`}>{task.title}</span>
+    <button aria-label="タスクを削除" className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#A0969B] hover:bg-red-50 hover:text-[#9B4862] disabled:opacity-50" disabled={busy} onClick={() => void run(() => onDelete(task))} type="button"><Trash2 className="h-4 w-4" /></button>
   </div>;
 }
 
 function DetailCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-base font-medium text-[#111827]">{title}</h3>{action}</div>{children}</section>;
+  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none"><div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-base font-medium text-[#111827]">{title}</h3>{action}</div>{children}</section>;
 }
 
 function SideCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"><div className="mb-4 flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span><h3 className="text-base font-medium text-[#111827]">{title}</h3></div>{children}</section>;
+  return <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none"><div className="mb-4 flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FDF0F4] text-[#D47A95]">{icon}</span><h3 className="text-base font-medium text-[#111827]">{title}</h3></div>{children}</section>;
 }
 
 type UnifiedCompanyTimelineItem =
@@ -404,11 +404,11 @@ function TimelineTab({ logs, calendarEvents, now, commonActivities, records, com
           <section key={month}>
             <div className="mb-4 flex items-center gap-3">
               <h3 className="text-sm font-semibold text-[#655D62]">{month}</h3>
-              <span className="h-px flex-1 bg-[#F0E7E9]" />
+              <span className="h-px flex-1 bg-[#E2E8F0]" />
               <span className="text-xs font-medium text-[#A0979B]">{items.length}件</span>
             </div>
             <div className="relative pl-9">
-              <span className="absolute bottom-4 left-3 top-3 w-px bg-[#F0E7E9]" />
+              <span className="absolute bottom-4 left-3 top-3 w-px bg-[#E2E8F0]" />
               <div className="grid gap-4">
                 {items.map((item) => {
                   if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} />;
@@ -422,49 +422,49 @@ function TimelineTab({ logs, calendarEvents, now, commonActivities, records, com
         ))}
       </div>
       )}
-      {hasMore ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-medium text-[#EC6F8B]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
+      {hasMore ? <button className="mt-5 h-11 w-full rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#D47A95]" onClick={onMore} type="button">さらに過去の履歴を表示</button> : null}
     </div>
   );
 }
 
 function CalendarActivityTimelineItem({ event }: { event: CalendarEvent }) {
-  return <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-    <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-semibold text-[#EC6F8B]">予</span>
-    <div className="flex flex-wrap items-center gap-2"><span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]">カレンダー</span><time className="text-xs font-medium text-[#8A8186]">{event.startAt.toDate().toLocaleDateString("ja-JP")}</time></div>
-    <h3 className="mt-2 text-base font-semibold text-[#2B2B2B]">{event.title}</h3>
-    {event.description ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{event.description}</p> : null}
+  return <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+    <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">予</span>
+    <div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">カレンダー</span><time className="text-xs font-medium text-[#64748B]">{event.startAt.toDate().toLocaleDateString("ja-JP")}</time></div>
+    <h3 className="mt-2 text-base font-semibold text-[#111827]">{event.title}</h3>
+    {event.description ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-semibold leading-6 text-[#111827]">{event.description}</p> : null}
   </article>;
 }
 
 function CommonActivityTimelineItem({ activity }: { activity: Activity }) {
   const occurredAt = activity.occurredAt.toDate();
   return (
-    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-semibold text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
+    <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]">{commonActivityTypeLabels[activity.type]}</span>
-        <span className="text-xs font-medium text-[#8A8186]">{occurredAt.toLocaleDateString("ja-JP")}</span>
+        <span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{commonActivityTypeLabels[activity.type]}</span>
+        <span className="text-xs font-medium text-[#64748B]">{occurredAt.toLocaleDateString("ja-JP")}</span>
       </div>
-      <h3 className="mt-2 text-base font-semibold text-[#2B2B2B]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
-      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{activity.content}</p> : null}
-      {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#D94F6E]">次回予定: {activity.nextActionTitle}</p> : null}
+      <h3 className="mt-2 text-base font-semibold text-[#111827]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
+      {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-semibold leading-6 text-[#111827]">{activity.content}</p> : null}
+      {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#9B4862]">次回予定: {activity.nextActionTitle}</p> : null}
     </article>
   );
 }
 
 function AnalysisTimelineItem({ record }: { record: TeleapoRecord }) {
   return (
-    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-semibold text-[#EC6F8B]">分</span>
+    <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">分</span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#EC6F8B]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
-        <span className="text-xs font-medium text-[#8A8186]">{record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span>
-        {record.audioDownloadUrl ? <span className="rounded-none bg-white px-2 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9]">音声あり</span> : null}
-        {record.aiAdvice ? <span className="rounded-none bg-white px-2 py-1 text-xs font-medium text-[#6F676B] ring-1 ring-[#F0E7E9]">AI分析あり</span> : null}
+        <span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{record.salesDomain === "teleapo" ? "テレアポ" : "商談"}</span>
+        <span className="text-xs font-medium text-[#64748B]">{record.recordedAt.toDate().toLocaleDateString("ja-JP")}</span>
+        {record.audioDownloadUrl ? <span className="rounded-xl bg-white px-2 py-1 text-xs font-medium text-[#475569] ring-1 ring-[#E2E8F0]">音声あり</span> : null}
+        {record.aiAdvice ? <span className="rounded-xl bg-white px-2 py-1 text-xs font-medium text-[#475569] ring-1 ring-[#E2E8F0]">AI分析あり</span> : null}
       </div>
-      <h3 className="mt-2 text-base font-semibold text-[#2B2B2B]">{record.meetingTitle || record.productName || "分析データ"}</h3>
+      <h3 className="mt-2 text-base font-semibold text-[#111827]">{record.meetingTitle || record.productName || "分析データ"}</h3>
       {record.audioDownloadUrl ? <audio className="mt-3 w-full" controls src={record.audioDownloadUrl} /> : null}
-      {record.aiAdvice?.summary ? <p className="mt-3 whitespace-pre-wrap text-sm text-[#6F676B]">{record.aiAdvice.summary}</p> : null}
+      {record.aiAdvice?.summary ? <p className="mt-3 whitespace-pre-wrap text-sm text-[#475569]">{record.aiAdvice.summary}</p> : null}
     </article>
   );
 }
@@ -473,26 +473,26 @@ function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
   const occurredAt = log.occurredAt.toDate();
   const date = occurredAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
   return (
-    <article className="relative rounded-none border border-[#F0E7E9] bg-white p-4 shadow-sm">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-none border border-[#F7CAD2] bg-[#FFF0F3] text-xs font-semibold text-[#EC6F8B]">{activityTypeLabels[log.type]?.slice(0, 1) ?? "・"}</span>
+    <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">{activityTypeLabels[log.type]?.slice(0, 1) ?? "・"}</span>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-none px-3 py-1 text-xs font-medium ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
-            <span className="text-xs font-medium text-[#8A8186]">{date}</span>
+            <span className={`rounded-xl px-3 py-1 text-xs font-medium ${activityTone(log.type)}`}>{activityTypeLabels[log.type]}</span>
+            <span className="text-xs font-medium text-[#64748B]">{date}</span>
           </div>
-          <h3 className="mt-2 text-base font-semibold text-[#2B2B2B]">{log.title || "無題のログ"}</h3>
+          <h3 className="mt-2 text-base font-semibold text-[#111827]">{log.title || "無題のログ"}</h3>
         </div>
-        {log.nextAction?.title ? <span className="rounded-none bg-[#FFF0F3] px-3 py-1 text-xs font-medium text-[#D94F6E]">次アクションあり</span> : null}
+        {log.nextAction?.title ? <span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#9B4862]">次アクションあり</span> : null}
       </div>
-      <dl className="mt-3 grid gap-2 text-sm font-semibold text-[#6F676B]">
-        <div className="grid gap-1 md:grid-cols-[120px_1fr]"><dt className="font-medium text-[#8A8186]">対応者・相手先</dt><dd>{formatActivityParties(log)}</dd></div>
+      <dl className="mt-3 grid gap-2 text-sm font-semibold text-[#475569]">
+        <div className="grid gap-1 md:grid-cols-[120px_1fr]"><dt className="font-medium text-[#64748B]">対応者・相手先</dt><dd>{formatActivityParties(log)}</dd></div>
       </dl>
-      <p className="mt-3 whitespace-pre-wrap rounded-none bg-[#FFFBFC] p-3 text-sm font-semibold leading-6 text-[#2B2B2B]">{log.content || "内容は未登録です。"}</p>
+      <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-semibold leading-6 text-[#111827]">{log.content || "内容は未登録です。"}</p>
       {log.nextAction?.title ? (
-        <div className="mt-3 border-l-2 border-[#EC6F8B] bg-[#FFF7F8] px-3 py-2">
-          <p className="text-xs font-semibold text-[#D94F6E]">次のアクション</p>
-          <p className="mt-1 text-sm font-medium text-[#2B2B2B]">{log.nextAction.title}</p>
+        <div className="mt-3 border-l-2 border-[#D47A95] bg-[#FFF7F8] px-3 py-2">
+          <p className="text-xs font-semibold text-[#9B4862]">次のアクション</p>
+          <p className="mt-1 text-sm font-medium text-[#111827]">{log.nextAction.title}</p>
           <p className="mt-1 text-xs font-semibold text-[#8A8A8A]">{log.nextAction.dueAt?.toDate().toLocaleDateString("ja-JP") ?? "期限未設定"}</p>
         </div>
       ) : null}
@@ -502,13 +502,13 @@ function ActivityTimelineItem({ log }: { log: CompanyActivityLog }) {
 
 function ActivityLogEmptyCard({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
   return (
-    <section className={`rounded-none border border-[#F0E7E9] bg-[#FFFBFC] ${compact ? "p-6" : "mb-5 p-8"}`}>
+    <section className={`rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] ${compact ? "p-6" : "mb-5 p-8"}`}>
       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-none bg-white text-[#EC6F8B] shadow-sm">
+        <span className="grid h-12 w-12 place-items-center rounded-xl bg-white text-[#D47A95] shadow-none">
           <Mail className="h-5 w-5" />
         </span>
-        <h3 className="mt-4 text-base font-medium text-[#2B2B2B]">{title}</h3>
-        <p className="mt-2 text-sm font-semibold leading-6 text-[#8A8186]">{description}</p>
+        <h3 className="mt-4 text-base font-medium text-[#111827]">{title}</h3>
+        <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">{description}</p>
       </div>
     </section>
   );
@@ -594,27 +594,27 @@ function ServicesTab({ company, products, user }: { company: Company; products: 
   };
   return <div className="w-full space-y-4">
     <StatusBanner message={error} type="error" />
-    <div className="flex items-center justify-between gap-3"><p className="text-sm text-[#6B7280]">利用中のサービス、URL、料金などを管理</p>{!formOpen ? <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#EC6F8B] px-3.5 text-sm font-medium text-white" onClick={() => { reset(); setFormOpen(true); }} type="button"><Plus className="h-4 w-4" />追加</button> : null}</div>
-    {formOpen ? <section className="rounded-lg border border-[#E5E7EB] bg-[#FFFBFC] p-4"><h4 className="font-semibold text-[#2B2B2B]">{editingId ? "サービスを編集" : "サービスを追加"}</h4><div className="mt-3 grid gap-3 sm:grid-cols-2">
-      <div className="sm:col-span-2"><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>名称 <span className="text-[#EC6F8B]">*</span></span><input className="task-input border-[#E5E7EB] bg-white" list="company-service-options" placeholder="例：Instagram、公式サイト" value={form.serviceName} onChange={(event) => { const serviceName = event.target.value; const product = products.find((item) => item.name === serviceName); setForm({ ...form, serviceName, productId: product?.id ?? "" }); }} /><datalist id="company-service-options">{products.map((item) => <option key={item.id} value={item.name} />)}</datalist></label></div>
+    <div className="flex items-center justify-between gap-3"><p className="text-sm text-[#6B7280]">利用中のサービス、URL、料金などを管理</p>{!formOpen ? <button className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#D47A95] px-3.5 text-sm font-medium text-white" onClick={() => { reset(); setFormOpen(true); }} type="button"><Plus className="h-4 w-4" />追加</button> : null}</div>
+    {formOpen ? <section className="rounded-lg border border-[#E5E7EB] bg-[#FFFFFF] p-4"><h4 className="font-semibold text-[#111827]">{editingId ? "サービスを編集" : "サービスを追加"}</h4><div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="sm:col-span-2"><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>名称 <span className="text-[#D47A95]">*</span></span><input className="task-input border-[#E5E7EB] bg-white" list="company-service-options" placeholder="例：Instagram、公式サイト" value={form.serviceName} onChange={(event) => { const serviceName = event.target.value; const product = products.find((item) => item.name === serviceName); setForm({ ...form, serviceName, productId: product?.id ?? "" }); }} /><datalist id="company-service-options">{products.map((item) => <option key={item.id} value={item.name} />)}</datalist></label></div>
       <div className="sm:col-span-2"><Input label="URL" type="url" placeholder="https://" value={form.productionUrl} onChange={(productionUrl) => setForm({ ...form, productionUrl })} /></div>
-      <div className="sm:col-span-2">{accessFieldsOpen ? <div className="grid gap-3 rounded-lg border border-[#E5E7EB] bg-white p-3 sm:grid-cols-2"><Input label="アカウント名・ログインID" placeholder="メールアドレスやユーザー名" value={form.accountName} onChange={(accountName) => setForm({ ...form, accountName })} /><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>{editingCredentialId ? "パスワード" : "パスワード（任意）"}</span><span className="flex"><input className="task-input min-w-0 flex-1 rounded-r-none border-[#E5E7EB] bg-white" type={formSecretVisible ? "text" : "password"} value={form.secret} onChange={(event) => setForm({ ...form, secret: event.target.value })} /><button className="shrink-0 rounded-r-lg border border-l-0 border-[#E5E7EB] bg-white px-3 text-xs text-[#EC6F8B]" onClick={() => setFormSecretVisible((current) => !current)} type="button">{formSecretVisible ? "隠す" : "表示"}</button></span>{editingCredentialId && !form.secret ? <button className="w-fit text-xs font-medium text-[#EC6F8B]" onClick={() => void showCurrentSecretInForm()} type="button">保存済みパスワードを表示</button> : null}</label></div> : <button className="text-sm font-medium text-[#EC6F8B]" onClick={() => setAccessFieldsOpen(true)} type="button"><Plus className="mr-1 inline h-4 w-4" />ログイン情報がある場合のみ追加</button>}</div>
+      <div className="sm:col-span-2">{accessFieldsOpen ? <div className="grid gap-3 rounded-lg border border-[#E5E7EB] bg-white p-3 sm:grid-cols-2"><Input label="アカウント名・ログインID" placeholder="メールアドレスやユーザー名" value={form.accountName} onChange={(accountName) => setForm({ ...form, accountName })} /><label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span>{editingCredentialId ? "パスワード" : "パスワード（任意）"}</span><span className="flex"><input className="task-input min-w-0 flex-1 rounded-r-none border-[#E5E7EB] bg-white" type={formSecretVisible ? "text" : "password"} value={form.secret} onChange={(event) => setForm({ ...form, secret: event.target.value })} /><button className="shrink-0 rounded-r-lg border border-l-0 border-[#E5E7EB] bg-white px-3 text-xs text-[#D47A95]" onClick={() => setFormSecretVisible((current) => !current)} type="button">{formSecretVisible ? "隠す" : "表示"}</button></span>{editingCredentialId && !form.secret ? <button className="w-fit text-xs font-medium text-[#D47A95]" onClick={() => void showCurrentSecretInForm()} type="button">保存済みパスワードを表示</button> : null}</label></div> : <button className="text-sm font-medium text-[#D47A95]" onClick={() => setAccessFieldsOpen(true)} type="button"><Plus className="mr-1 inline h-4 w-4" />ログイン情報がある場合のみ追加</button>}</div>
       <Input label="料金" type="number" placeholder="例：10000" value={form.price} onChange={(price) => setForm({ ...form, price })} />
       <Select label="料金の単位" value={form.billingCycle} options={[["monthly", "月額"], ["yearly", "年額"], ["one_time", "一括"], ["other", "その他"]]} onChange={(billingCycle) => setForm({ ...form, billingCycle })} />
       <Select label="状態" value={form.status} options={[["active", "利用中"], ["paused", "一時停止"], ["ended", "終了"]]} onChange={(status) => setForm({ ...form, status })} />
       <Input label="メモ" placeholder="管理内容や補足" value={form.memo} onChange={(memo) => setForm({ ...form, memo })} />
-    </div><div className="mt-4 flex justify-end gap-2"><button className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm" onClick={reset} type="button">キャンセル</button><button className="h-9 rounded-lg bg-[#EC6F8B] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !form.serviceName.trim()} onClick={() => void save()} type="button">{saving ? "保存中..." : "保存"}</button></div></section> : null}
-    {services.length ? <div className="overflow-x-auto rounded-lg border border-[#E5E7EB] bg-white"><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] gap-4 border-b border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3 text-xs font-medium text-[#8A8186]"><span>サービス</span><span>状態</span><span>URL</span><span>料金</span><span className="text-right">操作</span></div>{services.map((service) => { const credential = credentialFor(service); const expanded = expandedServices.has(service.id); const hasDetails = Boolean(service.accountName || credential?.username || credential || service.memo); return <div className="border-b border-[#EEE8EA] last:border-b-0" key={service.id}><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] items-center gap-4 px-4 py-3"><button className="flex min-w-0 items-center gap-2 text-left disabled:cursor-default" disabled={!hasDetails} onClick={() => setExpandedServices((current) => { const next = new Set(current); if (next.has(service.id)) next.delete(service.id); else next.add(service.id); return next; })} type="button">{hasDetails ? expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-[#8A8186]" /> : <ChevronRight className="h-4 w-4 shrink-0 text-[#8A8186]" /> : <span className="w-4 shrink-0" />}<span className="truncate text-sm font-semibold text-[#2B2B2B]">{service.serviceName}</span></button><span><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${service.status === "active" ? "bg-[#ECFDF3] text-[#15803D]" : service.status === "paused" ? "bg-[#FFF8E6] text-[#B7791F]" : "bg-[#F3F4F6] text-[#6B7280]"}`}>{serviceStatusLabel(service.status)}</span></span><span className="truncate text-sm">{service.productionUrl ? <a className="text-[#EC6F8B] hover:underline" href={service.productionUrl} rel="noreferrer" target="_blank">開く</a> : <span className="text-[#C0B9BC]">—</span>}</span><span className="truncate text-sm text-[#4B5563]">{service.price !== null ? `¥${service.price.toLocaleString()} / ${billingLabel(service.billingCycle)}` : <span className="text-[#C0B9BC]">—</span>}</span><span className="flex justify-end gap-2"><button className="h-8 rounded-md border border-[#E5E7EB] px-3 text-xs text-[#4B5563]" onClick={() => edit(service)} type="button">編集</button><button aria-label={`${service.serviceName}を削除`} className="grid h-8 w-8 place-items-center rounded-md border border-[#E5E7EB] text-[#D94F6E]" onClick={() => void remove(service)} type="button"><Trash2 className="h-3.5 w-3.5" /></button></span></div>{expanded && hasDetails ? <div className="min-w-[720px] border-t border-[#F3EEF0] bg-[#FFFBFC] px-10 py-4"><dl className="grid gap-3 text-sm sm:grid-cols-2">{service.accountName || credential?.username ? <div><dt className="text-xs text-[#8A8186]">アカウント</dt><dd className="mt-1 break-all text-[#4B5563]">{service.accountName || credential?.username}</dd></div> : null}{service.memo ? <div><dt className="text-xs text-[#8A8186]">メモ</dt><dd className="mt-1 break-words text-[#4B5563]">{service.memo}</dd></div> : null}{credential ? <div><dt className="text-xs text-[#8A8186]">パスワード</dt><dd className="mt-1 break-all text-[#4B5563]">{revealed[credential.id] ?? "••••••••"}</dd><div className="mt-1 flex gap-3 text-xs"><button className="text-[#EC6F8B]" onClick={() => revealed[credential.id] ? setRevealed((current) => { const next = { ...current }; delete next[credential.id]; return next; }) : void accessSecret(credential, "reveal")} type="button">{revealed[credential.id] ? "隠す" : "表示する"}</button><button className="text-[#EC6F8B]" onClick={() => void accessSecret(credential, "copy")} type="button">コピー</button></div></div> : null}</dl></div> : null}</div>; })}</div> : !formOpen ? <div className="rounded-lg border border-dashed border-[#D9DDE3] p-8 text-center"><p className="text-sm font-medium text-[#4B5563]">管理サービスはまだありません</p><p className="mt-1 text-sm text-[#8A8186]">SNSやWebサイトから登録できます。</p><button className="mt-3 text-sm font-medium text-[#EC6F8B]" onClick={() => setFormOpen(true)} type="button">最初のサービスを追加</button></div> : null}
+    </div><div className="mt-4 flex justify-end gap-2"><button className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm" onClick={reset} type="button">キャンセル</button><button className="h-9 rounded-lg bg-[#D47A95] px-5 text-sm font-medium text-white disabled:opacity-50" disabled={saving || !form.serviceName.trim()} onClick={() => void save()} type="button">{saving ? "保存中..." : "保存"}</button></div></section> : null}
+    {services.length ? <div className="overflow-x-auto rounded-lg border border-[#E5E7EB] bg-white"><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] gap-4 border-b border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3 text-xs font-medium text-[#64748B]"><span>サービス</span><span>状態</span><span>URL</span><span>料金</span><span className="text-right">操作</span></div>{services.map((service) => { const credential = credentialFor(service); const expanded = expandedServices.has(service.id); const hasDetails = Boolean(service.accountName || credential?.username || credential || service.memo); return <div className="border-b border-[#E5E7EB] last:border-b-0" key={service.id}><div className="grid min-w-[720px] grid-cols-[minmax(180px,1.4fr)_120px_minmax(120px,.8fr)_minmax(150px,1fr)_120px] items-center gap-4 px-4 py-3"><button className="flex min-w-0 items-center gap-2 text-left disabled:cursor-default" disabled={!hasDetails} onClick={() => setExpandedServices((current) => { const next = new Set(current); if (next.has(service.id)) next.delete(service.id); else next.add(service.id); return next; })} type="button">{hasDetails ? expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-[#64748B]" /> : <ChevronRight className="h-4 w-4 shrink-0 text-[#64748B]" /> : <span className="w-4 shrink-0" />}<span className="truncate text-sm font-semibold text-[#111827]">{service.serviceName}</span></button><span><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${service.status === "active" ? "bg-[#ECFDF3] text-[#15803D]" : service.status === "paused" ? "bg-[#FFF8E6] text-[#B7791F]" : "bg-[#F3F4F6] text-[#6B7280]"}`}>{serviceStatusLabel(service.status)}</span></span><span className="truncate text-sm">{service.productionUrl ? <a className="text-[#D47A95] hover:underline" href={service.productionUrl} rel="noreferrer" target="_blank">開く</a> : <span className="text-[#C0B9BC]">—</span>}</span><span className="truncate text-sm text-[#4B5563]">{service.price !== null ? `¥${service.price.toLocaleString()} / ${billingLabel(service.billingCycle)}` : <span className="text-[#C0B9BC]">—</span>}</span><span className="flex justify-end gap-2"><button className="h-8 rounded-md border border-[#E5E7EB] px-3 text-xs text-[#4B5563]" onClick={() => edit(service)} type="button">編集</button><button aria-label={`${service.serviceName}を削除`} className="grid h-8 w-8 place-items-center rounded-md border border-[#E5E7EB] text-[#9B4862]" onClick={() => void remove(service)} type="button"><Trash2 className="h-3.5 w-3.5" /></button></span></div>{expanded && hasDetails ? <div className="min-w-[720px] border-t border-[#F3EEF0] bg-[#FFFFFF] px-10 py-4"><dl className="grid gap-3 text-sm sm:grid-cols-2">{service.accountName || credential?.username ? <div><dt className="text-xs text-[#64748B]">アカウント</dt><dd className="mt-1 break-all text-[#4B5563]">{service.accountName || credential?.username}</dd></div> : null}{service.memo ? <div><dt className="text-xs text-[#64748B]">メモ</dt><dd className="mt-1 break-words text-[#4B5563]">{service.memo}</dd></div> : null}{credential ? <div><dt className="text-xs text-[#64748B]">パスワード</dt><dd className="mt-1 break-all text-[#4B5563]">{revealed[credential.id] ?? "••••••••"}</dd><div className="mt-1 flex gap-3 text-xs"><button className="text-[#D47A95]" onClick={() => revealed[credential.id] ? setRevealed((current) => { const next = { ...current }; delete next[credential.id]; return next; }) : void accessSecret(credential, "reveal")} type="button">{revealed[credential.id] ? "隠す" : "表示する"}</button><button className="text-[#D47A95]" onClick={() => void accessSecret(credential, "copy")} type="button">コピー</button></div></div> : null}</dl></div> : null}</div>; })}</div> : !formOpen ? <div className="rounded-lg border border-dashed border-[#D9DDE3] p-8 text-center"><p className="text-sm font-medium text-[#4B5563]">管理サービスはまだありません</p><p className="mt-1 text-sm text-[#64748B]">SNSやWebサイトから登録できます。</p><button className="mt-3 text-sm font-medium text-[#D47A95]" onClick={() => setFormOpen(true)} type="button">最初のサービスを追加</button></div> : null}
   </div>;
 }
 
 function InfoPair({ label, value }: { label: string; value: string }) {
-  return <div><p className="text-xs font-medium text-[#8A8186]">{label}</p><p className="mt-1 text-sm font-medium text-[#2B2B2B]">{value}</p></div>;
+  return <div><p className="text-xs font-medium text-[#64748B]">{label}</p><p className="mt-1 text-sm font-medium text-[#111827]">{value}</p></div>;
 }
 
 function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string; url: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number }>; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
   const [progress, setProgress] = useState(0);
-  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-medium text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-medium text-[#EC6F8B]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4 text-sm font-medium text-[#2B2B2B]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}{file.createdByName ? <span className="ml-3 text-xs text-[#777]">{file.createdByName}</span> : null}</a>)}</div></div>;
+  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-medium text-[#D47A95]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4 text-sm font-medium text-[#111827]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}{file.createdByName ? <span className="ml-3 text-xs text-[#64748B]">{file.createdByName}</span> : null}</a>)}</div></div>;
 }
 
 function NotesTab({
@@ -657,8 +657,8 @@ function NotesTab({
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-[#6F676B]">{sortedMemos.length + activityMemos.length}件のメモ</p>
-        <button className="inline-flex h-10 items-center gap-2 rounded-none bg-[#EC6F8B] px-4 text-sm font-medium text-white" onClick={onCreate} type="button"><Plus className="h-4 w-4" />メモを追加</button>
+        <p className="text-sm font-medium text-[#475569]">{sortedMemos.length + activityMemos.length}件のメモ</p>
+        <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white" onClick={onCreate} type="button"><Plus className="h-4 w-4" />メモを追加</button>
       </div>
       {sortedMemos.length === 0 && activityMemos.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">メモはまだありません。</p> : null}
       {sortedMemos.length > 0 ? (
@@ -667,40 +667,40 @@ function NotesTab({
           {sortedMemos.map((memo) => {
             const active = selectedMemo?.id === memo.id;
             return (
-              <button className={`w-full rounded-none border p-3 text-left transition ${active ? "border-[#F7CAD2] bg-[#FFF0F3]" : "border-[#F0E7E9] bg-white hover:bg-[#FFFBFC]"}`} key={memo.id} onClick={() => setSelectedMemoId(memo.id)} type="button">
-                <span className="block truncate text-sm font-semibold text-[#2B2B2B]">{memo.pinned ? "固定: " : ""}{memo.title || "無題のメモ"}</span>
-                <span className="mt-1 block truncate text-xs font-semibold text-[#8A8186]">{memo.createdByName ?? "作成者未設定"}</span>
+              <button className={`w-full rounded-xl border p-3 text-left transition ${active ? "border-[#F1C2D0] bg-[#FDF0F4]" : "border-[#E2E8F0] bg-white hover:bg-[#FFFFFF]"}`} key={memo.id} onClick={() => setSelectedMemoId(memo.id)} type="button">
+                <span className="block truncate text-sm font-semibold text-[#111827]">{memo.pinned ? "固定: " : ""}{memo.title || "無題のメモ"}</span>
+                <span className="mt-1 block truncate text-xs font-semibold text-[#64748B]">{memo.createdByName ?? "作成者未設定"}</span>
               </button>
             );
           })}
         </div>
-        <article className="min-h-80 rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-5">
+        <article className="min-h-80 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-5">
           {selectedMemo ? (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h4 className="break-words text-base font-semibold text-[#2B2B2B]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
-                  <p className="mt-1 text-xs font-semibold text-[#777]">{selectedMemo.createdByName ?? "作成者未設定"}</p>
+                  <h4 className="break-words text-base font-semibold text-[#111827]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
+                  <p className="mt-1 text-xs font-semibold text-[#64748B]">{selectedMemo.createdByName ?? "作成者未設定"}</p>
                 </div>
                 {canManageSelectedMemo ? (
                   <div className="flex shrink-0 gap-2">
-                    <button className="grid h-9 w-9 place-items-center border border-[#F0E7E9] bg-white text-[#EC6F8B] transition hover:bg-[#FFF0F3]" onClick={() => setEditingMemo(selectedMemo)} type="button" aria-label="メモを編集">
+                    <button className="grid h-9 w-9 place-items-center border border-[#E2E8F0] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => setEditingMemo(selectedMemo)} type="button" aria-label="メモを編集">
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#E65A78] transition hover:bg-[#FFF0F3]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
+                    <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 ) : null}
               </div>
-              <p className="mt-5 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#2B2B2B]">{selectedMemo.content || "内容は未入力です。"}</p>
+              <p className="mt-5 whitespace-pre-wrap text-sm font-semibold leading-7 text-[#111827]">{selectedMemo.content || "内容は未入力です。"}</p>
             </>
           ) : null}
         </article>
       </div>
       ) : null}
-      {activityMemos.length > 0 ? <div className="mt-6 grid gap-3">{activityMemos.map((memo) => <article className="rounded-none border border-[#F0E7E9] bg-[#FFFBFC] p-4" key={memo.id}><h4 className="text-sm font-semibold text-[#2B2B2B]">{memo.title || "メモ"}</h4>{memo.content ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4B5563]">{memo.content}</p> : null}</article>)}</div> : null}
-      {logs.length > 0 ? <button className="mt-5 h-11 w-full rounded-none border border-[#F0E7E9] text-sm font-medium text-[#EC6F8B]" onClick={onMore} type="button">さらに過去のメモを表示</button> : null}
+      {activityMemos.length > 0 ? <div className="mt-6 grid gap-3">{activityMemos.map((memo) => <article className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4" key={memo.id}><h4 className="text-sm font-semibold text-[#111827]">{memo.title || "メモ"}</h4>{memo.content ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4B5563]">{memo.content}</p> : null}</article>)}</div> : null}
+      {logs.length > 0 ? <button className="mt-5 h-11 w-full rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#D47A95]" onClick={onMore} type="button">さらに過去のメモを表示</button> : null}
       {editingMemo ? <MemoFormModal initial={editingMemo} mode="edit" onClose={() => setEditingMemo(null)} onSubmit={async (input) => { await onUpdate(editingMemo.id, input); setEditingMemo(null); }} /> : null}
     </div>
   );
@@ -800,9 +800,9 @@ function CompanyFormModal({ mode, company, products, onClose, onSubmit }: { mode
             {form.contacts.map((contact, index) => (
               <div className="grid gap-4 rounded-xl border border-[#E5E7EB] bg-white p-4" key={contact.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#2B2B2B]">担当者{index + 1}</p>
+                  <p className="text-sm font-semibold text-[#111827]">担当者{index + 1}</p>
                   {form.contacts.length > 1 ? (
-                    <button className="inline-flex h-9 items-center gap-2 border border-[#F6CBD2] bg-white px-3 text-xs font-medium text-[#D94F6E] transition hover:bg-[#FFF0F3]" onClick={() => removeContact(contact.id)} type="button">
+                    <button className="inline-flex h-9 items-center gap-2 border border-[#F6CBD2] bg-white px-3 text-xs font-medium text-[#9B4862] transition hover:bg-[#FDF0F4]" onClick={() => removeContact(contact.id)} type="button">
                       <Trash2 className="h-3.5 w-3.5" />
                       削除
                     </button>
@@ -823,7 +823,7 @@ function CompanyFormModal({ mode, company, products, onClose, onSubmit }: { mode
                 </Field>
               </div>
             ))}
-            <button className="inline-flex h-11 w-fit items-center gap-2 border border-dashed border-[#F7AFC0] bg-white px-4 text-sm font-medium text-[#EC6F8B] transition hover:bg-[#FFF7F9]" onClick={addContact} type="button">
+            <button className="inline-flex h-11 w-fit items-center gap-2 border border-dashed border-[#E79AB0] bg-white px-4 text-sm font-medium text-[#D47A95] transition hover:bg-[#F8FAFC]" onClick={addContact} type="button">
               <Plus className="h-4 w-4" />
               担当者を追加
             </button>
@@ -925,10 +925,10 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
       <section className="flex max-h-[90vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_80px_rgba(31,31,34,0.16)]">
         <div className="flex items-start justify-between gap-4 border-b border-[#F3F4F6] px-6 py-5">
           <div>
-        <h2 className="text-xl font-medium text-[#2B2B2B]">{title}</h2>
-            {subtitle ? <p className="mt-1 text-sm font-semibold text-[#8A8186]">{subtitle}</p> : null}
+        <h2 className="text-xl font-medium text-[#111827]">{title}</h2>
+            {subtitle ? <p className="mt-1 text-sm font-semibold text-[#64748B]">{subtitle}</p> : null}
           </div>
-          <button className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#E5E7EB] bg-white text-[#6F676B] transition hover:bg-[#FFF7F9]" onClick={onClose} type="button" aria-label="閉じる">
+          <button className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#E5E7EB] bg-white text-[#475569] transition hover:bg-[#F8FAFC]" onClick={onClose} type="button" aria-label="閉じる">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -939,7 +939,7 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
 }
 
 function Actions({ saving, disabled, primaryLabel = "保存", savingLabel = "保存中...", onClose, onSave }: { saving: boolean; disabled: boolean; primaryLabel?: string; savingLabel?: string; onClose: () => void; onSave: () => void }) {
-  return <div className="sticky bottom-0 -mx-6 mt-6 flex justify-end gap-3 border-t border-[#F3F4F6] bg-white px-6 py-4"><button className="h-11 border border-[#E5E7EB] bg-white px-5 text-sm font-medium text-[#6F676B] transition hover:bg-[#F9FAFB]" onClick={onClose} type="button">キャンセル</button><button className="h-11 bg-[#EC6F8B] px-6 text-sm font-medium text-white transition hover:bg-[#E45E7D] disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">{saving ? savingLabel : primaryLabel}</button></div>;
+  return <div className="sticky bottom-0 -mx-6 mt-6 flex justify-end gap-3 border-t border-[#F3F4F6] bg-white px-6 py-4"><button className="h-11 border border-[#E5E7EB] bg-white px-5 text-sm font-medium text-[#475569] transition hover:bg-[#F9FAFB]" onClick={onClose} type="button">キャンセル</button><button className="h-11 bg-[#D47A95] px-6 text-sm font-medium text-white transition hover:bg-[#E45E7D] disabled:opacity-50" disabled={saving || disabled} onClick={onSave} type="button">{saving ? savingLabel : primaryLabel}</button></div>;
 }
 
 function InfoGrid({ rows, compact = false }: { rows: Array<[string, string]>; compact?: boolean }) {
@@ -1037,20 +1037,20 @@ function formatActivityParties(log: CompanyActivityLog): string {
 }
 
 function FormSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return <section className="rounded-xl border border-[#E5E7EB] bg-[#FFFBFC] p-5"><h3 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-[#2B2B2B]"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FFF0F3] text-[#EC6F8B]">{icon}</span>{title}</h3>{children}</section>;
+  return <section className="rounded-xl border border-[#E5E7EB] bg-[#FFFFFF] p-5"><h3 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-[#111827]"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#FDF0F4] text-[#D47A95]">{icon}</span>{title}</h3>{children}</section>;
 }
 
 function Input({ label, value, onChange, placeholder, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; type?: string }) {
-  return <label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span className="inline-flex items-center gap-1.5">{label}{required ? <span className="text-[#EC6F8B]">*</span> : null}</span><input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#EC6F8B] focus:ring-2 focus:ring-[#F7CAD2]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-sm font-semibold text-[#655D62]"><span className="inline-flex items-center gap-1.5">{label}{required ? <span className="text-[#D47A95]">*</span> : null}</span><input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#D47A95] focus:ring-2 focus:ring-[#F1C2D0]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function ContactInput({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
-  return <label className="grid gap-2 text-xs font-medium text-[#6F676B]">{label}<input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#EC6F8B] focus:ring-2 focus:ring-[#F7CAD2]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  return <label className="grid gap-2 text-xs font-medium text-[#475569]">{label}<input className="task-input border-[#E5E7EB] bg-white placeholder:text-[#B8B0B4] focus:border-[#D47A95] focus:ring-2 focus:ring-[#F1C2D0]" placeholder={placeholder} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function ContactMethodToggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={`inline-flex h-9 min-w-16 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${checked ? "bg-[#EC6F8B] text-white" : "border border-[#E5E7EB] bg-white text-[#6F676B]"}`} onClick={onClick} type="button" aria-pressed={checked}>
+    <button className={`inline-flex h-9 min-w-16 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${checked ? "bg-[#D47A95] text-white" : "border border-[#E5E7EB] bg-white text-[#475569]"}`} onClick={onClick} type="button" aria-pressed={checked}>
       {checked ? <Check className="h-3.5 w-3.5" /> : null}
       {label}
     </button>

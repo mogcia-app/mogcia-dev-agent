@@ -1,25 +1,19 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 
 export function PageHeader({
   title,
   description,
   actions,
-  imageSrc = "/m-dev-2.png"
 }: {
   title: string;
   description: string;
   actions?: ReactNode;
-  imageSrc?: string;
 }) {
   return (
-    <header className="flex flex-col gap-4 border border-[#F0E7E9] bg-white/85 p-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-4">
-        <Image alt="" className="h-20 w-20 object-contain" height={112} priority src={imageSrc} width={112} />
-        <div>
-          <h2 className="text-xl font-medium text-[#2B2B2B]">{title}</h2>
-          <p className="mt-2 text-sm font-semibold text-[#777]">{description}</p>
-        </div>
+    <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
+        <p className="mt-2 text-sm font-normal text-slate-500">{description}</p>
       </div>
       {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
     </header>

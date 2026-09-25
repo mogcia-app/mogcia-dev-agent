@@ -1,10 +1,10 @@
 function SkeletonLine({ className = "" }: { className?: string }) {
-  return <span className={`mogcia-skeleton block rounded-none ${className}`} />;
+  return <span className={`mogcia-skeleton block rounded-xl ${className}`} />;
 }
 
 export function SkeletonCard({ lines = 4, media = false }: { lines?: number; media?: boolean }) {
   return (
-    <div className="rounded-2xl border border-[#F0E7E9] bg-white p-5 shadow-[0_14px_44px_rgba(31,31,34,0.04)]">
+    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_14px_44px_rgba(31,31,34,0.04)]">
       <div className="flex gap-4">
         {media ? <span className="mogcia-skeleton h-16 w-16 shrink-0 rounded-xl" /> : null}
         <div className="min-w-0 flex-1 space-y-3">

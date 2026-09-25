@@ -39,13 +39,13 @@ export function LoadingCard({
   const copy = loadingCopy[variant];
 
   return (
-    <div className={`mx-auto w-full max-w-md rounded-2xl border border-[#F0E7E9] bg-white/92 text-center shadow-[0_22px_70px_rgba(31,31,34,0.08)] ${compact ? "p-6" : "p-8"}`}>
+    <div className={`mx-auto w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white/92 text-center shadow-[0_22px_70px_rgba(31,31,34,0.08)] ${compact ? "p-6" : "p-8"}`}>
       <div className="flex justify-center">
         <LoadingLogo size={compact ? "sm" : "md"} />
       </div>
       <h2 className="mt-5 text-base font-medium text-[#222]">{title ?? copy.title}</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-[#888]">{description ?? copy.description}</p>
-      {currentStep ? <p className="mt-4 rounded-none bg-[#FCF9F9] px-4 py-3 text-sm font-medium text-[#F45F7A]">{currentStep}</p> : null}
+      {currentStep ? <p className="mt-4 rounded-xl bg-[#FCF9F9] px-4 py-3 text-sm font-medium text-[#F45F7A]">{currentStep}</p> : null}
       <div className="mt-5">
         {variant === "ai" || typeof progress === "number" ? <LoadingProgress progress={progress} /> : <LoadingDots />}
       </div>

@@ -2,7 +2,7 @@ import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 
 const bannerMeta = {
   success: { icon: CheckCircle2, className: "border-[#DCEED8] bg-[#F3FAF0] text-[#5E9B61]" },
-  error: { icon: AlertCircle, className: "border-[#F7CAD2] bg-[#FFF0F3] text-[#D94F6E]" },
+  error: { icon: AlertCircle, className: "border-[#F1C2D0] bg-[#FDF0F4] text-[#9B4862]" },
   info: { icon: Info, className: "border-[#DDEDF8] bg-[#F1F7FF] text-[#4F78B4]" }
 };
 

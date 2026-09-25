@@ -66,6 +66,20 @@ export async function deleteRecentKnowledgeNode(userId: string, nodeId: string) 
   return { nodeId, deleted: true };
 }
 
+export async function listKnowledgeFavoriteIds(userId: string) {
+  const snapshot = await getAdminDb().collection("knowledgeFavorites").doc(userId).collection("items").orderBy("createdAt", "desc").limit(100).get();
+  return snapshot.docs.map((entry) => entry.id);
+}
+
+export async function setKnowledgeFavorite(userId: string, nodeId: string, favorite: boolean) {
+  const ref = getAdminDb().collection("knowledgeFavorites").doc(userId).collection("items").doc(nodeId);
+  if (!favorite) { await ref.delete(); return { nodeId, favorite: false }; }
+  const node = await collection().doc(nodeId).get();
+  if (!node.exists || node.data()?.type !== "document") throw new Error("ページが見つかりません。");
+  await ref.set({ nodeId, createdAt: FieldValue.serverTimestamp() });
+  return { nodeId, favorite: true };
+}
+
 export function cleanTitle(value: unknown): string {
   const title = typeof value === "string" ? value.trim() : "";
   if (!title || title.length > 160) throw new Error("名前は1〜160文字にしてください。");

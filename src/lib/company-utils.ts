@@ -38,7 +38,7 @@ export function activityTone(type: ActivityLogType): string {
   if (type === "phone" || type === "visit") return "bg-[#F3FAF0] text-[#5E9B61]";
   if (type === "email" || type === "chat") return "bg-[#EEF5FF] text-[#4F78B4]";
   if (type === "memo") return "bg-[#FFF6EA] text-[#D7791F]";
-  if (type === "task_created" || type === "task_completed" || type === "ai_task") return "bg-[#FFF0F3] text-[#EC6F8B]";
+  if (type === "task_created" || type === "task_completed" || type === "ai_task") return "bg-[#FDF0F4] text-[#D47A95]";
   return "bg-[#F5F5F5] text-[#6E6E6E]";
 }
 

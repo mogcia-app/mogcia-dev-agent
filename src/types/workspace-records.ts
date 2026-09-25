@@ -37,6 +37,9 @@ export interface ProjectOption extends WorkspaceOption {
   type?: "client" | "product" | "internal";
   status?: "planning" | "active" | "paused" | "completed" | "archived";
   phase?: string;
+  currentPosition?: string;
+  nextAction?: string;
+  updatedAt?: import("firebase/firestore").Timestamp | null;
   targetDate?: import("firebase/firestore").Timestamp | null;
 }
 

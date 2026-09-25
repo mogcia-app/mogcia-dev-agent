@@ -8,9 +8,9 @@ import type { KnowledgeNode } from "@/lib/agent-knowledge/types";
 import { getUserDisplayNameById } from "@/lib/user-display";
 
 const alertStyles = {
-  note: { label: "NOTE", className: "border-[#60A5FA] bg-[#EFF6FF] text-[#1E40AF]" },
+  note: { label: "NOTE", className: "border-[#DF7D99] bg-[#FDF0F4] text-[#1E40AF]" },
   tip: { label: "TIP", className: "border-[#34D399] bg-[#ECFDF5] text-[#065F46]" },
-  important: { label: "IMPORTANT", className: "border-[#EC6F8B] bg-[#FFF0F3] text-[#9F1239]" },
+  important: { label: "IMPORTANT", className: "border-[#D47A95] bg-[#FDF0F4] text-[#9F1239]" },
   warning: { label: "WARNING", className: "border-[#FBBF24] bg-[#FFFBEB] text-[#92400E]" },
   caution: { label: "CAUTION", className: "border-[#F87171] bg-[#FEF2F2] text-[#991B1B]" }
 } as const;
@@ -36,7 +36,7 @@ function remarkGithubAlerts() {
   };
 }
 export function MarkdownBody({ content }: { content: string }) {
-  return <div className="max-w-none break-words text-sm leading-7 text-[#374151] [&_a]:text-[#B84563] [&_a]:underline [&_code]:rounded [&_code]:bg-[#F6F4F4] [&_code]:px-1 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-7 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_hr]:my-7 [&_hr]:border-[#E5E7EB] [&_li]:ml-5 [&_li]:list-item [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-[#F6F4F4] [&_pre]:p-4 [&_pre_code]:bg-transparent [&_table]:block [&_table]:overflow-x-auto [&_table]:border-collapse [&_td]:border [&_td]:border-[#E5E7EB] [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-[#E5E7EB] [&_th]:bg-[#F9FAFB] [&_th]:px-3 [&_th]:py-2 [&_ul_li]:list-disc">
+  return <div className="max-w-none break-words text-sm leading-7 text-[#374151] [&_a]:text-[#9B4862] [&_a]:underline [&_code]:rounded [&_code]:bg-[#F6F4F4] [&_code]:px-1 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-7 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_hr]:my-7 [&_hr]:border-[#E5E7EB] [&_li]:ml-5 [&_li]:list-item [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-[#F6F4F4] [&_pre]:p-4 [&_pre_code]:bg-transparent [&_table]:block [&_table]:overflow-x-auto [&_table]:border-collapse [&_td]:border [&_td]:border-[#E5E7EB] [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-[#E5E7EB] [&_th]:bg-[#F9FAFB] [&_th]:px-3 [&_th]:py-2 [&_ul_li]:list-disc">
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkGithubAlerts]} components={{
       a: ({ children, href }) => <a href={href} rel="noopener noreferrer" target="_blank">{children}</a>,
       blockquote: ({ children, node }) => {
@@ -44,7 +44,7 @@ export function MarkdownBody({ content }: { content: string }) {
         const alert = alertStyles[kind];
         return alert
           ? <aside className={`my-5 rounded-lg border-l-4 px-4 py-3 [&_p]:my-1 ${alert.className}`}><p className="text-xs font-semibold tracking-wide">{alert.label}</p><div className="text-[#374151]">{children}</div></aside>
-          : <blockquote className="my-4 border-l-2 border-[#F7CAD2] pl-4 text-[#6F676B]">{children}</blockquote>;
+          : <blockquote className="my-4 border-l-2 border-[#F1C2D0] pl-4 text-[#475569]">{children}</blockquote>;
       }
     }}>{content}</ReactMarkdown>
   </div>;
@@ -54,7 +54,7 @@ export function KnowledgeDocument({ node, saving, onSave }: { node: KnowledgeNod
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(node?.content ?? "");
   const [error, setError] = useState("");
-  if (!node || node.type !== "document") return <div className="flex min-h-80 items-center justify-center p-8 text-center text-sm text-[#8A8186]">左のツリーからドキュメントを選択してください。</div>;
+  if (!node || node.type !== "document") return <div className="flex min-h-80 items-center justify-center p-8 text-center text-sm text-[#64748B]">左のツリーからドキュメントを選択してください。</div>;
   const save = async () => {
     setError("");
     try { await onSave(content, node.updatedAt); setEditing(false); }
@@ -63,9 +63,9 @@ export function KnowledgeDocument({ node, saving, onSave }: { node: KnowledgeNod
   return <article className="mx-auto min-w-0 max-w-4xl px-5 py-7 sm:px-10 sm:py-9 lg:px-14 lg:py-10">
     <div className="mb-7 flex flex-wrap items-start justify-between gap-4 border-b border-[#E5E5E5] pb-5">
       <div className="min-w-0"><h1 className="break-words text-xl font-semibold tracking-tight text-[#2B2730] sm:text-2xl">{node.title}</h1><div className="mt-2 text-xs text-[#7C7378]"><span className="inline-flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5 text-[#D75B7A]" />作成者：{getUserDisplayNameById(node.createdBy)}</span></div></div>
-      {editing ? <div className="flex gap-2"><button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => { setContent(node.content); setEditing(false); }} type="button"><X className="h-4 w-4" />キャンセル</button><button className="inline-flex h-9 items-center gap-1 rounded-md bg-[#EC6F8B] px-3 text-sm text-white disabled:opacity-50" disabled={saving || content === node.content} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button></div> : <button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => setEditing(true)} type="button"><Edit2 className="h-4 w-4" />編集</button>}
+      {editing ? <div className="flex gap-2"><button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => { setContent(node.content); setEditing(false); }} type="button"><X className="h-4 w-4" />キャンセル</button><button className="inline-flex h-9 items-center gap-1 rounded-md bg-[#D47A95] px-3 text-sm text-white disabled:opacity-50" disabled={saving || content === node.content} onClick={() => void save()} type="button"><Save className="h-4 w-4" />{saving ? "保存中..." : "保存"}</button></div> : <button className="inline-flex h-9 items-center gap-1 rounded-md border border-[#E5E7EB] px-3 text-sm" onClick={() => setEditing(true)} type="button"><Edit2 className="h-4 w-4" />編集</button>}
     </div>
     {error ? <p className="mb-4 text-sm text-red-600" role="alert">{error}</p> : null}
-    <div>{editing ? <><div className="mb-2 flex flex-wrap gap-1">{[["見出し", "## 見出し"], ["太字", "**強調**"], ["箇条書き", "- 項目"], ["番号", "1. 項目"], ["チェック", "- [ ] 項目"], ["引用", "> 引用"], ["重要", "> [!IMPORTANT]\n> 重要な内容"], ["コード", "```\nコード\n```"], ["リンク", "[リンク名](https://example.com)"], ["表", "| 項目 | 内容 |\n| --- | --- |\n| 名前 | 値 |"]].map(([label, snippet]) => <button className="rounded border border-[#D8D8D8] px-2 py-1 text-xs text-[#666] hover:bg-[#F1F1F1]" key={label} onClick={() => setContent((current) => `${current}${current && !current.endsWith("\n") ? "\n" : ""}${snippet}\n`)} type="button">{label}</button>)}</div><textarea aria-label="Markdown本文" className="min-h-[55vh] w-full resize-y rounded-md border border-[#D8D8D8] bg-[#FAFAFA] p-4 font-mono text-sm leading-7 outline-none focus:border-[#EC6F8B]" onChange={(event) => setContent(event.target.value)} value={content} /></> : node.content ? <MarkdownBody content={node.content} /> : <p className="text-sm text-[#8A8186]">まだ本文がありません。編集から追加できます。</p>}</div>
+    <div>{editing ? <><div className="mb-2 flex flex-wrap gap-1">{[["見出し", "## 見出し"], ["太字", "**強調**"], ["箇条書き", "- 項目"], ["番号", "1. 項目"], ["チェック", "- [ ] 項目"], ["引用", "> 引用"], ["重要", "> [!IMPORTANT]\n> 重要な内容"], ["コード", "```\nコード\n```"], ["リンク", "[リンク名](https://example.com)"], ["表", "| 項目 | 内容 |\n| --- | --- |\n| 名前 | 値 |"]].map(([label, snippet]) => <button className="rounded border border-[#D8D8D8] px-2 py-1 text-xs text-[#666] hover:bg-[#F1F1F1]" key={label} onClick={() => setContent((current) => `${current}${current && !current.endsWith("\n") ? "\n" : ""}${snippet}\n`)} type="button">{label}</button>)}</div><textarea aria-label="Markdown本文" className="min-h-[55vh] w-full resize-y rounded-md border border-[#D8D8D8] bg-[#FAFAFA] p-4 font-mono text-sm leading-7 outline-none focus:border-[#D47A95]" onChange={(event) => setContent(event.target.value)} value={content} /></> : node.content ? <MarkdownBody content={node.content} /> : <p className="text-sm text-[#64748B]">まだ本文がありません。編集から追加できます。</p>}</div>
   </article>;
 }

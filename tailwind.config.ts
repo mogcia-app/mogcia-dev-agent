@@ -10,21 +10,21 @@ const config: Config = {
     extend: {
       colors: {
         ink: "#1F1F22",
-        paper: "#F8F4F3",
-        line: "#E9DAD8",
-        warm: "#D5B5B2",
-        sage: "#C79A98",
-        signal: "#F3B8C0",
+        paper: "#F6F7F9",
+        line: "#E2E8F0",
+        warm: "#F9DCE5",
+        sage: "#D47A95",
+        signal: "#DF7D99",
         mogcia: {
-          primary: "#D5B5B2",
-          light: "#E9CBC8",
-          dark: "#C79A98",
-          bg: "#F8F4F3",
-          surface: "#F7F3F2",
-          face: "#1F1F22",
-          eye: "#F3B8C0",
-          blush: "#B97B80",
-          icon: "#F8F2F2"
+          primary: "#D47A95",
+          light: "#F9DCE5",
+          dark: "#9B4862",
+          bg: "#F6F7F9",
+          surface: "#FFFFFF",
+          face: "#111827",
+          eye: "#DF7D99",
+          blush: "#475569",
+          icon: "#FDF0F4"
         }
       },
       boxShadow: {

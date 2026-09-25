@@ -60,6 +60,7 @@ export function formatTime(date: Date): string {
 }
 
 export function formatTimeRange(startAt: Date, endAt?: Date | null, allDay = false): string {
+  if (allDay && endAt && !isSameCalendarDate(startAt, endAt)) return `${startAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })} - ${endAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}`;
   if (allDay) return "終日";
   if (!endAt) return formatTime(startAt);
   const minutes = Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
@@ -145,7 +146,8 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
   return {
     title: "",
     eventType: "sales",
-    meetingMethod: "online",
+    meetingMethod: null,
+    scheduleMode: "single_day",
     startDate: toDateKey(now),
     startTime: "10:00",
     durationMinutes: 60,
@@ -181,8 +183,14 @@ export function createEmptyCalendarDraft(currentUser: MemberOption): CalendarEve
 }
 
 export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: MemberOption) {
-  const startAt = parseDateTime(draft.startDate, draft.allDay ? "00:00" : draft.startTime);
-  const endAt = draft.allDay ? parseDateTime(draft.endDate || draft.startDate, "23:59") : parseDurationEndDateTime(draft.startDate, draft.startTime, draft.durationMinutes, draft.endDate, draft.endTime);
+  const isContent = draft.eventType === "content";
+  const allDay = draft.scheduleMode !== "single_day";
+  const startAt = parseDateTime(draft.startDate, allDay ? "00:00" : draft.startTime);
+  const endAt = isContent && draft.scheduleMode === "single_day" ? null : draft.scheduleMode === "multi_day"
+    ? parseDateTime(draft.endDate || draft.startDate, "23:59")
+    : draft.scheduleMode === "all_day"
+      ? parseDateTime(draft.startDate, "23:59")
+      : parseDateTime(draft.startDate, draft.endTime);
   const attendeeIds = Array.from(new Set(draft.attendeeIds.filter((id) => id && id !== draft.assigneeId)));
   const selectedAttendeeNames = draft.attendeeMemberNames.filter(Boolean);
   const manualAttendeeNames = draft.attendeeNames.split(",").map((name) => name.trim()).filter(Boolean);
@@ -195,7 +203,7 @@ export function draftToCalendarPayload(draft: CalendarEventDraft, currentUser: M
     meetingMethod: draft.meetingMethod,
     startAt,
     endAt,
-    allDay: draft.allDay,
+    allDay,
     assigneeId: draft.assigneeId || currentUser.id,
     assigneeName: draft.assigneeName || currentUser.name,
     attendeeIds,

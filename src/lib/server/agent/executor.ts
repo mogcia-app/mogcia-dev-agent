@@ -473,7 +473,7 @@ async function resolveLeadOrCompany(context: ExecutionContext, entities: Record<
 async function executePendingAction(pendingAction: AgentPendingAction, user: AgentUser) {
   if (pendingAction.type === "create_task") {
     const result = await tools.createTask(pendingAction.payload, user);
-    return { ...result, cards: [{ ...pendingTaskCard(pendingAction.payload), id: result.data.id, href: `/home?taskId=${result.data.id}`, tone: "success" as const }] };
+    return { ...result, cards: [{ ...pendingTaskCard(pendingAction.payload), id: result.data.id, href: "/calendar", tone: "success" as const }] };
   }
   if (pendingAction.type === "update_task") {
     const result = await tools.updateTask(pendingAction.payload, user);
@@ -577,7 +577,7 @@ function taskCard(task: DocumentData): AgentResultCard {
     type: "task",
     title: String(task.title ?? "タスク"),
     subtitle: [statusLabel(task.status), priorityLabel(task.priority)].filter(Boolean).join(" / "),
-    href: `/home?taskId=${task.id}`,
+    href: "/calendar",
     tone: task.status === "completed" ? "success" : tools.dateMillis(task.dueDate) && tools.dateMillis(task.dueDate) < Date.now() ? "warning" : "default",
     meta: [
       { label: "期限", value: formatDate(task.dueDate) },

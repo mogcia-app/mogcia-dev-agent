@@ -4,15 +4,15 @@
 
 :root {
   color-scheme: light;
-  --mogcia-loading: #f45f7a;
-  --mogcia-primary: #d5b5b2;
-  --mogcia-primary-light: #e9cbc8;
-  --mogcia-primary-dark: #c79a98;
-  --mogcia-bg: #f8f4f3;
-  --mogcia-surface: #f7f3f2;
-  --mogcia-face: #1f1f22;
-  --mogcia-eye: #f3b8c0;
-  --mogcia-blush: #b97b80;
+  --mogcia-loading: #d47a95;
+  --mogcia-primary: #d47a95;
+  --mogcia-primary-light: #f9dce5;
+  --mogcia-primary-dark: #9b4862;
+  --mogcia-bg: #f6f7f9;
+  --mogcia-surface: #ffffff;
+  --mogcia-face: #111827;
+  --mogcia-eye: #df7d99;
+  --mogcia-blush: #475569;
   --background: var(--mogcia-bg);
   --foreground: var(--mogcia-face);
 }
@@ -28,9 +28,9 @@ body {
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, #fffafa 0%, var(--background) 52%, #f3eceb 100%);
+  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 400;
 }
 
@@ -56,9 +56,9 @@ h4 {
 .task-input {
   min-height: 44px;
   width: 100%;
-  border-radius: 0;
-  border: 1px solid #f0dee2;
-  background: #fffbfc;
+  border-radius: 12px;
+  border: 1px solid #dfe3e8;
+  background: #ffffff;
   padding: 10px 12px;
   color: #302d30;
   outline: none;
@@ -66,14 +66,14 @@ h4 {
 }
 
 .task-input:focus {
-  border-color: #ec6f8b;
-  box-shadow: 0 0 0 3px rgba(236, 111, 139, 0.12);
+  border-color: #d47a95;
+  box-shadow: 0 0 0 3px rgba(214, 90, 127, 0.1);
 }
 
 .task-input:disabled {
   cursor: not-allowed;
-  background: #f8f2f4;
-  color: #8a8186;
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 textarea.task-input {
@@ -118,7 +118,7 @@ textarea.task-input {
   inset: 0;
   content: "";
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 240, 243, 0.95), transparent);
+  background: linear-gradient(90deg, transparent, rgba(249, 220, 229, 0.75), transparent);
   animation: mogcia-shimmer 1.55s ease-in-out infinite;
 }
 

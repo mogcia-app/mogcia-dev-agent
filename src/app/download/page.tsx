@@ -36,5 +36,5 @@ export default function DownloadPage() {
 }
 
 function Step({ number, title, text }: { number: string; title: string; text: string }) {
-  return <div className="rounded-2xl bg-[#FFF7F9] p-5"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#F7CAD2] text-sm font-semibold text-[#A94D65]">{number}</span><h2 className="mt-4 font-semibold text-[#302D30]">{title}</h2><p className="mt-2 text-sm leading-6 text-neutral-600">{text}</p></div>;
+  return <div className="rounded-2xl bg-[#F8FAFC] p-5"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#F1C2D0] text-sm font-semibold text-[#A94D65]">{number}</span><h2 className="mt-4 font-semibold text-[#302D30]">{title}</h2><p className="mt-2 text-sm leading-6 text-neutral-600">{text}</p></div>;
 }

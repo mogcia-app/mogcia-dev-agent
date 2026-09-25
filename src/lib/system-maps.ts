@@ -1,0 +1,10 @@
+"use client";
+import { businessApi, toJsonBody } from "@/lib/business-api-client";
+import type { SystemMapBundle, SystemMapCell } from "@/types/system-map";
+const endpoint = "/api/business/maps";
+export const getSystemMaps = () => businessApi<SystemMapBundle>(endpoint);
+export const createSystemMap = (input: { projectId: string; title?: string; description?: string }) => businessApi<{ id: string }>(endpoint, { method: "POST", body: toJsonBody({ entity: "map", ...input }) });
+export const updateSystemMap = (id: string, patch: { title?: string; description?: string }) => businessApi<{ ok: true }>(endpoint, { method: "PATCH", body: toJsonBody({ entity: "map", id, ...patch }) });
+export const createSystemMapCell = (mapId: string, title: string, x: number, y: number) => businessApi<{ id: string }>(endpoint, { method: "POST", body: toJsonBody({ entity: "cell", mapId, title, x, y }) });
+export const updateSystemMapCell = (id: string, patch: Partial<Pick<SystemMapCell, "title" | "content" | "x" | "y" | "width" | "height" | "status" | "tags" | "includeInProgress">>) => businessApi<{ ok: true }>(endpoint, { method: "PATCH", body: toJsonBody({ entity: "cell", id, ...patch }) });
+export const deleteSystemMapCell = (id: string) => businessApi<{ ok: true }>(endpoint, { method: "DELETE", body: toJsonBody({ entity: "cell", id }) });

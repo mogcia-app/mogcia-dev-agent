@@ -140,7 +140,7 @@ async function buildCalendarDraft(auth: DesktopAuth, body: Record<string, unknow
     contactName: optionalString(explicit.contactName, "担当者名", 120),
     leadId: optionalString(explicit.leadId, "見込み客ID", 160),
     eventType: normalizedFields.eventType,
-    meetingMethod: normalizedFields.meetingMethod
+    meetingMethod: normalizedFields.meetingMethod ?? "other"
   };
 }
 

@@ -3,7 +3,7 @@ import { SkeletonLine } from "@/components/ui/loading/SkeletonCard";
 export function SkeletonCompany() {
   return (
     <div className="grid gap-5 xl:grid-cols-[34%_1fr]">
-      <div className="rounded-2xl border border-[#F0E7E9] bg-white p-5">
+      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
         <SkeletonLine className="h-10 w-full" />
         <div className="mt-5 space-y-3">
           {Array.from({ length: 6 }, (_, index) => (
@@ -19,7 +19,7 @@ export function SkeletonCompany() {
         </div>
       </div>
       <div className="space-y-5">
-        <div className="rounded-2xl border border-[#F0E7E9] bg-white p-5">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
           <div className="flex gap-4">
             <span className="mogcia-skeleton h-20 w-20 rounded-xl" />
             <div className="flex-1 space-y-3">
@@ -30,8 +30,8 @@ export function SkeletonCompany() {
           </div>
         </div>
         <div className="grid gap-5 lg:grid-cols-[40%_1fr]">
-          <div className="h-80 rounded-2xl border border-[#F0E7E9] bg-white p-5"><SkeletonLine className="h-full w-full" /></div>
-          <div className="h-80 rounded-2xl border border-[#F0E7E9] bg-white p-5"><SkeletonLine className="h-full w-full" /></div>
+          <div className="h-80 rounded-2xl border border-[#E2E8F0] bg-white p-5"><SkeletonLine className="h-full w-full" /></div>
+          <div className="h-80 rounded-2xl border border-[#E2E8F0] bg-white p-5"><SkeletonLine className="h-full w-full" /></div>
         </div>
       </div>
     </div>
