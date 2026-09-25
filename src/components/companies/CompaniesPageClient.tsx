@@ -643,9 +643,15 @@ function NotesTab({
   const sortedMemos = useMemo(() => [...memos].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()), [memos]);
   const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
   const savedMemoSignatures = new Set(sortedMemos.map((memo) => `${memo.title.trim()}\n${memo.content.trim()}`));
+  const isMirroredMemoLog = (log: CompanyActivityLog) => {
+    const signature = `${log.title.trim()}\n${(log.content ?? "").trim()}`;
+    if (savedMemoSignatures.has(signature)) return true;
+    const occurredAt = log.occurredAt.toMillis();
+    return sortedMemos.some((memo) => Math.abs(memo.createdAt.toDate().getTime() - occurredAt) < 15_000);
+  };
   const activityMemos = [
     ...commonActivities.filter((activity) => activity.type === "note").map((activity) => ({ id: `activity-${activity.id}`, title: activity.title, content: activity.content, at: activity.occurredAt.toMillis(), createdByName: activity.createdByName || "活動ログ", sourceId: null })),
-    ...logs.filter((log) => log.type === "memo" && !commonLegacyIds.has(log.id) && !savedMemoSignatures.has(`${log.title.trim()}\n${(log.content ?? "").trim()}`)).map((log) => ({ id: `log-${log.id}`, title: log.title, content: log.content ?? "", at: log.occurredAt.toMillis(), createdByName: log.userName || "過去のメモ", sourceId: null }))
+    ...logs.filter((log) => log.type === "memo" && !commonLegacyIds.has(log.id) && !isMirroredMemoLog(log)).map((log) => ({ id: `log-${log.id}`, title: log.title, content: log.content ?? "", at: log.occurredAt.toMillis(), createdByName: log.userName || "過去のメモ", sourceId: null }))
   ].sort((a, b) => b.at - a.at);
   const memoItems = [
     ...sortedMemos.map((memo) => ({ id: `memo-${memo.id}`, title: memo.title, content: memo.content, at: memo.createdAt.toDate().getTime(), createdByName: memo.createdByName ?? "作成者未設定", sourceId: memo.id, pinned: memo.pinned, original: memo })),
