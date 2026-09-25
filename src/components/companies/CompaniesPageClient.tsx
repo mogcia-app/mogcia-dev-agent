@@ -218,7 +218,7 @@ export function CompaniesPageClient() {
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} onToggle={toggleCompanyTask} onDelete={deleteCompanyTask} /> : null}
                   {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
-                  {selectedTab === "notes" ? <NotesTab commonActivities={store.commonActivities} currentUserId={store.user?.uid ?? ""} isAdmin={store.isAdmin} logs={store.logs} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onMore={() => setLogLimit((current) => current + 30)} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
+                  {selectedTab === "notes" ? <NotesTab commonActivities={store.commonActivities} currentUserId={store.user?.uid ?? ""} hasMore={store.hasMoreLogs} isAdmin={store.isAdmin} logs={store.logs} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onMore={() => setLogLimit(500)} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
               </div>
             </div>
         </section>
@@ -622,6 +622,7 @@ function NotesTab({
   logs,
   commonActivities,
   currentUserId,
+  hasMore,
   isAdmin,
   onCreate,
   onDelete,
@@ -632,6 +633,7 @@ function NotesTab({
   logs: CompanyActivityLog[];
   commonActivities: Activity[];
   currentUserId: string;
+  hasMore: boolean;
   isAdmin: boolean;
   onCreate: () => void;
   onDelete: (memoId: string) => Promise<void>;
@@ -640,14 +642,19 @@ function NotesTab({
 }) {
   const sortedMemos = useMemo(() => [...memos].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()), [memos]);
   const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
+  const savedMemoSignatures = new Set(sortedMemos.map((memo) => `${memo.title.trim()}\n${memo.content.trim()}`));
   const activityMemos = [
-    ...commonActivities.filter((activity) => activity.type === "note").map((activity) => ({ id: `activity-${activity.id}`, title: activity.title, content: activity.content, at: activity.occurredAt.toMillis() })),
-    ...logs.filter((log) => log.type === "memo" && !commonLegacyIds.has(log.id)).map((log) => ({ id: `log-${log.id}`, title: log.title, content: log.content, at: log.occurredAt.toMillis() }))
+    ...commonActivities.filter((activity) => activity.type === "note").map((activity) => ({ id: `activity-${activity.id}`, title: activity.title, content: activity.content, at: activity.occurredAt.toMillis(), createdByName: activity.createdByName || "活動ログ", sourceId: null })),
+    ...logs.filter((log) => log.type === "memo" && !commonLegacyIds.has(log.id) && !savedMemoSignatures.has(`${log.title.trim()}\n${(log.content ?? "").trim()}`)).map((log) => ({ id: `log-${log.id}`, title: log.title, content: log.content ?? "", at: log.occurredAt.toMillis(), createdByName: log.userName || "過去のメモ", sourceId: null }))
   ].sort((a, b) => b.at - a.at);
+  const memoItems = [
+    ...sortedMemos.map((memo) => ({ id: `memo-${memo.id}`, title: memo.title, content: memo.content, at: memo.createdAt.toDate().getTime(), createdByName: memo.createdByName ?? "作成者未設定", sourceId: memo.id, pinned: memo.pinned, original: memo })),
+    ...activityMemos.map((memo) => ({ ...memo, pinned: false, original: null }))
+  ].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.at - a.at);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const [editingMemo, setEditingMemo] = useState<typeof sortedMemos[number] | null>(null);
-  const selectedMemo = sortedMemos.find((memo) => memo.id === selectedMemoId) ?? sortedMemos[0] ?? null;
-  const canManageSelectedMemo = selectedMemo ? isAdmin || selectedMemo.createdBy === currentUserId : false;
+  const selectedMemo = memoItems.find((memo) => memo.id === selectedMemoId) ?? memoItems[0] ?? null;
+  const canManageSelectedMemo = selectedMemo?.original ? isAdmin || selectedMemo.original.createdBy === currentUserId : false;
 
   const remove = async (memoId: string) => {
     if (!window.confirm("このメモを削除しますか？")) return;
@@ -657,19 +664,19 @@ function NotesTab({
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-[#475569]">{sortedMemos.length + activityMemos.length}件のメモ</p>
+        <p className="text-sm font-medium text-[#475569]">{memoItems.length}件のメモ</p>
         <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white" onClick={onCreate} type="button"><Plus className="h-4 w-4" />メモを追加</button>
       </div>
-      {sortedMemos.length === 0 && activityMemos.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">メモはまだありません。</p> : null}
-      {sortedMemos.length > 0 ? (
+      {memoItems.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">メモはまだありません。</p> : null}
+      {memoItems.length > 0 ? (
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="grid content-start gap-2">
-          {sortedMemos.map((memo) => {
+        <div className="grid max-h-[560px] content-start gap-2 overflow-y-auto pr-1">
+          {memoItems.map((memo) => {
             const active = selectedMemo?.id === memo.id;
             return (
               <button className={`w-full rounded-xl border p-3 text-left transition ${active ? "border-[#F1C2D0] bg-[#FDF0F4]" : "border-[#E2E8F0] bg-white hover:bg-[#FFFFFF]"}`} key={memo.id} onClick={() => setSelectedMemoId(memo.id)} type="button">
                 <span className="block truncate text-sm font-semibold text-[#111827]">{memo.pinned ? "固定: " : ""}{memo.title || "無題のメモ"}</span>
-                <span className="mt-1 block truncate text-xs font-semibold text-[#64748B]">{memo.createdByName ?? "作成者未設定"}</span>
+                <span className="mt-1 block truncate text-xs font-semibold text-[#64748B]">{memo.createdByName}</span>
               </button>
             );
           })}
@@ -680,14 +687,14 @@ function NotesTab({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="break-words text-base font-semibold text-[#111827]">{selectedMemo.pinned ? "固定: " : ""}{selectedMemo.title || "無題のメモ"}</h4>
-                  <p className="mt-1 text-xs font-semibold text-[#64748B]">{selectedMemo.createdByName ?? "作成者未設定"}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#64748B]">{selectedMemo.createdByName}</p>
                 </div>
                 {canManageSelectedMemo ? (
                   <div className="flex shrink-0 gap-2">
-                    <button className="grid h-9 w-9 place-items-center border border-[#E2E8F0] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => setEditingMemo(selectedMemo)} type="button" aria-label="メモを編集">
+                    <button className="grid h-9 w-9 place-items-center border border-[#E2E8F0] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => selectedMemo.original && setEditingMemo(selectedMemo.original)} type="button" aria-label="メモを編集">
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => void remove(selectedMemo.id)} type="button" aria-label="メモを削除">
+                    <button className="grid h-9 w-9 place-items-center border border-[#F6CBD2] bg-white text-[#D47A95] transition hover:bg-[#FDF0F4]" onClick={() => selectedMemo.sourceId && void remove(selectedMemo.sourceId)} type="button" aria-label="メモを削除">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -699,8 +706,7 @@ function NotesTab({
         </article>
       </div>
       ) : null}
-      {activityMemos.length > 0 ? <div className="mt-6 grid gap-3">{activityMemos.map((memo) => <article className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4" key={memo.id}><h4 className="text-sm font-semibold text-[#111827]">{memo.title || "メモ"}</h4>{memo.content ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4B5563]">{memo.content}</p> : null}</article>)}</div> : null}
-      {logs.length > 0 ? <button className="mt-5 h-11 w-full rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#D47A95]" onClick={onMore} type="button">さらに過去のメモを表示</button> : null}
+      {hasMore ? <button className="mt-5 h-11 w-full rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#D47A95]" onClick={onMore} type="button">過去のメモをすべて表示</button> : null}
       {editingMemo ? <MemoFormModal initial={editingMemo} mode="edit" onClose={() => setEditingMemo(null)} onSubmit={async (input) => { await onUpdate(editingMemo.id, input); setEditingMemo(null); }} /> : null}
     </div>
   );

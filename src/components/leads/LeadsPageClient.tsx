@@ -25,9 +25,9 @@ import type { Task } from "@/types/task";
 import type { Activity, ActivityDraft, Lead, LeadDraft, LeadSort, LeadStatus } from "@/types/lead";
 import type { CalendarEvent } from "@/types/calendar";
 
-type TabKey = "activity" | "meetings" | "tasks" | "files";
+type TabKey = "activity" | "meetings" | "tasks" | "files" | "notes";
 
-const tabs: Array<[TabKey, string]> = [["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"]];
+const tabs: Array<[TabKey, string]> = [["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新しい順"], ["nextAction", "次回予定が近い順"], ["lastActivity", "最終活動日が新しい順"], ["companyName", "会社名順"]];
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
 const ALL_MONTHS = "all";
@@ -351,7 +351,6 @@ export function LeadsPageClient() {
             <LeadSummaryStrip lead={selectedLead} />
             {selectedLead.status === "lost" ? <LostReasonCard key={selectedLead.id} lead={selectedLead} saving={saving} onSave={(lostReason) => void saveLostReason(selectedLead, lostReason)} /> : null}
             <LeadPreInfoCard lead={selectedLead} />
-            <LeadNotesCard lead={selectedLead} />
             <div className="bg-white">
               <div className="flex overflow-x-auto border-b border-[#E5E7EB]">
                 {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#D47A95] text-[#D47A95]" : "text-[#475569]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
@@ -361,6 +360,7 @@ export function LeadsPageClient() {
                 {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} summarizingRecordId={summarizingRecordId} onSummarizeRecord={summarizeRecord} /> : null}
                 {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
                 {selectedTab === "files" ? <EmptyState icon={UploadCloud} title="ファイルはまだありません" description="会社化後も参照できるファイル基盤として次フェーズで接続します。" /> : null}
+                {selectedTab === "notes" ? <LeadNotesTab activities={activities} lead={selectedLead} /> : null}
               </div>
             </div>
           </div>
@@ -510,13 +510,24 @@ function LeadPreInfoCard({ lead }: { lead: Lead }) {
   );
 }
 
-function LeadNotesCard({ lead }: { lead: Lead }) {
-  if (!lead.notes?.trim() || lead.notes === lead.preInfo) return null;
+function LeadNotesTab({ activities, lead }: { activities: Activity[]; lead: Lead }) {
+  const items = [
+    ...(lead.notes?.trim() && lead.notes !== lead.preInfo ? [{ id: `lead-${lead.id}`, title: "メモ", content: lead.notes, at: lead.updatedAt.toMillis() }] : []),
+    ...activities.filter((activity) => activity.type === "note").map((activity) => ({ id: activity.id, title: activity.title || "メモ", content: activity.content, at: activity.occurredAt.toMillis() }))
+  ].sort((a, b) => b.at - a.at);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  if (!items.length) return <EmptyState icon={StickyNote} title="メモはまだありません" description="活動を追加するときに種類を「メモ」にすると、ここで確認できます。" />;
   return (
-    <section className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none">
-      <h3 className="flex items-center gap-2 text-base font-medium text-[#111827]"><StickyNote className="h-5 w-5 text-[#64748B]" />メモ</h3>
-      <p className="mt-4 whitespace-pre-wrap rounded-xl bg-[#F9FAFB] p-4 text-sm font-normal leading-7 text-[#111827]">{lead.notes}</p>
-    </section>
+    <div className="grid min-h-80 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid max-h-[560px] content-start gap-2 overflow-y-auto pr-1">
+        {items.map((item) => <button className={`w-full rounded-xl border p-3 text-left transition ${selected?.id === item.id ? "border-[#F1C2D0] bg-[#FDF0F4]" : "border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"}`} key={item.id} onClick={() => setSelectedId(item.id)} type="button"><span className="block truncate text-sm font-semibold text-[#111827]">{item.title}</span></button>)}
+      </div>
+      <article className="min-h-80 rounded-xl border border-[#E2E8F0] bg-white p-5">
+        <h3 className="break-words text-base font-semibold text-[#111827]">{selected?.title}</h3>
+        <p className="mt-5 whitespace-pre-wrap text-sm font-normal leading-7 text-[#111827]">{selected?.content || "内容は未入力です。"}</p>
+      </article>
+    </div>
   );
 }
 
@@ -908,7 +919,7 @@ function leadMonthSortValue(lead: Lead): number {
 }
 
 function readTabParam(value: string | null): TabKey {
-  if (value === "meetings" || value === "tasks" || value === "files") return value;
+  if (value === "meetings" || value === "tasks" || value === "files" || value === "notes") return value;
   return "activity";
 }
 
