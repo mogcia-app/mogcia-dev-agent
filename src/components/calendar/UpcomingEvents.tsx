@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, MapPin } from "lucide-react";
-import { formatDateBadge, formatTimeRange, formatWeekday, getCategoryMeta, getMeetingMethodLabel, upcomingItems } from "@/lib/calendar-utils";
+import { formatDateBadge, formatTimeRange, formatWeekday, getCategoryMeta, upcomingItems } from "@/lib/calendar-utils";
 import type { CalendarItem } from "@/types/calendar";
 
 export function UpcomingEvents({ items, selectedDate, onOpen, onShowAll }: { items: CalendarItem[]; selectedDate: Date; onOpen: (item: CalendarItem) => void; onShowAll: () => void }) {
@@ -28,7 +28,7 @@ export function UpcomingEvents({ items, selectedDate, onOpen, onShowAll }: { ite
                   {item.allDay ? <span className="text-xs font-medium text-[#64748B]">終日</span> : null}
                 </span>
                 <span className="mt-1 block break-words text-sm font-medium leading-5 text-[#111827]">{displayTitle}</span>
-                <span className="mt-1 flex min-w-0 items-start gap-1 text-xs font-semibold leading-5 text-[#64748B]">{item.location ? <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : null}<span className="min-w-0 break-words">{item.meetingMethod && item.meetingMethod !== "other" ? `${meta.label} × ${getMeetingMethodLabel(item.meetingMethod)}` : meta.label}</span></span>
+                <span className="mt-1 flex min-w-0 items-start gap-1 text-xs font-semibold leading-5 text-[#64748B]">{item.location ? <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : null}<span className="min-w-0 break-words">{meta.label}</span></span>
                 <span className="mt-1 block text-xs font-medium text-[#5F575C]">{formatTimeRange(item.startAt, item.endAt, item.allDay)}</span>
               </span>
               <ChevronRight className="mt-5 h-4 w-4 text-[#D47A95]" />

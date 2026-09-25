@@ -2,7 +2,7 @@
 
 import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { formatShortDate, formatTimeRange, getCategoryMeta, getMeetingMethodLabel } from "@/lib/calendar-utils";
+import { formatShortDate, formatTimeRange, getCategoryMeta } from "@/lib/calendar-utils";
 import { getUserDisplayNameById } from "@/lib/user-display";
 import type { CalendarEvent, CalendarItem } from "@/types/calendar";
 import type { Route } from "next";
@@ -34,7 +34,6 @@ export function CalendarEventDrawer({ item, event, leads, canEdit, canDelete, on
         <div className="space-y-4 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4 text-sm font-semibold text-[#475569]">
           {item.description ? <Info label="説明" value={item.description} /> : null}
           <Info label="時間" value={formatTimeRange(item.startAt, item.endAt, item.allDay)} />
-          {item.meetingMethod && item.meetingMethod !== "other" ? <Info label="実施方法" value={getMeetingMethodLabel(item.meetingMethod)} /> : null}
           <Info label="担当者" value={getUserDisplayNameById(item.assigneeId, item.assigneeName)} />
           {item.attendeeNames?.length ? <Info label="参加者" value={item.attendeeNames.join(", ")} /> : null}
           {item.relatedName ? <InfoLink href={relatedHref} label="関連先" value={item.relatedName} /> : item.companyName ? <InfoLink href={item.companyId ? `/sales/companies?id=${item.companyId}&tab=overview` as Route : null} label="関連先" value={item.companyName} /> : null}

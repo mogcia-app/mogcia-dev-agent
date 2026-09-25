@@ -27,7 +27,7 @@ export function normalizeCalendarEventFields(input: CalendarFieldInput): { event
   const legacyMethod = legacyMeetingMethod(input.eventType);
   return {
     eventType,
-    meetingMethod: explicitMethod !== "other" ? explicitMethod : legacyMethod ?? inferCalendarMeetingMethod(input)
+    meetingMethod: explicitMethod !== "other" ? explicitMethod : legacyMethod
   };
 }
 
@@ -59,11 +59,6 @@ function inferCalendarEventType(rawMessage: string): CalendarEventType {
   if (/商談|打ち合わせ|ミーティング|面談/.test(rawMessage)) return "sales";
   if (/(顧客対応|フォロー|連絡|電話|訪問)/.test(rawMessage)) return "customer_support";
   return "other";
-}
-
-function inferCalendarMeetingMethod(input: CalendarFieldInput): CalendarMeetingMethod | null {
-  if (typeof input.meetingUrl === "string" && input.meetingUrl.trim()) return "online";
-  return null;
 }
 
 function inferCalendarMeetingMethodFromText(rawMessage: string): CalendarMeetingMethod {
