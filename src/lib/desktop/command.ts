@@ -627,7 +627,7 @@ function detectLeadAction(body: Record<string, unknown>, rawMessage: string): Le
   if (explicit === "delete" || explicit === "status" || explicit === "website" || explicit === "search" || explicit === "detail" || explicit === "update" || explicit === "activities" || explicit === "activity" || explicit === "calendar") return explicit;
   if (/(登録|追加|作成|作って)/.test(rawMessage)) return "create";
   if (/(削除|消して)/.test(rawMessage)) return "delete";
-  if (/(ステータス|状態).*(変更|更新|して|に)|契約|失注|追っかけ|連絡待ち|打ち合わせ中|検討中|資料請求|アポ獲得/.test(rawMessage)) return "status";
+  if (/(ステータス|状態).*(変更|更新|して|に)|契約|失注|アプローチ|追っかけ|連絡待ち|打ち合わせ中|検討中|資料請求|アポ獲得/.test(rawMessage)) return "status";
   if (/(HP|URL|サイト|ホームページ|website)/i.test(rawMessage) && /(変更|更新|登録|設定)/.test(rawMessage)) return "website";
   if (/(会社).*(関連付け|紐付け|リンク)/.test(rawMessage)) return "linkCompany";
   if (/(編集|変更|更新)/.test(rawMessage)) return "update";
@@ -642,6 +642,7 @@ function leadStatusFromText(value: unknown, rawMessage: string) {
   if (value) return normalizeBusinessLeadStatus(value);
   if (/契約|受注|成約/.test(rawMessage)) return "won";
   if (/失注|終了/.test(rawMessage)) return "lost";
+  if (/アプローチ/.test(rawMessage)) return "approach";
   if (/連絡済み|連絡済|架電済み|架電済|接触済み|接触済/.test(rawMessage)) return "contacted";
   if (/追っかけ|追客|接触中/.test(rawMessage)) return "contacting";
   if (/送付済|送信済|メール済/.test(rawMessage)) return "sent";
@@ -817,5 +818,5 @@ function normalizeActivityLogType(value: unknown): "phone" | "email" | "visit" |
 }
 
 function normalizeLeadStatus(value: unknown) {
-  return value === "prospect" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
+  return value === "prospect" || value === "approach" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
 }

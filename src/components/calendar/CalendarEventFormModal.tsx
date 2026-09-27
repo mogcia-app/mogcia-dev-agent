@@ -124,6 +124,7 @@ function nextHalfHour(value: string): string {
 function leadStatusLabel(status: string): string {
   return ({
     contacted: "連絡済み",
+    approach: "アプローチ",
     appointment: "アポ獲得",
     document_sent: "資料請求",
     sent: "送付済",

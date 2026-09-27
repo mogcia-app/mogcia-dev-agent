@@ -3,6 +3,7 @@ import type { ActivityType, LeadDraft, LeadStatus } from "@/types/lead";
 export const leadStatusLabels: Record<LeadStatus, string> = {
   new: "新規",
   prospect: "見込み",
+  approach: "アプローチ",
   contacted: "連絡済み",
   contacting: "追っかけ",
   document_sent: "資料請求",
@@ -17,6 +18,7 @@ export const leadStatusLabels: Record<LeadStatus, string> = {
 
 export const leadActivityStatusOptions: Array<[LeadStatus | "", string]> = [
   ["prospect", "見込み"],
+  ["approach", "アプローチ"],
   ["won", "契約"],
   ["lost", "失注"],
   ["contacted", "連絡済み"],
@@ -39,6 +41,7 @@ export const activityTypeLabels: Record<ActivityType, string> = {
 export const leadStatusOptions = Object.entries(leadStatusLabels) as Array<[LeadStatus, string]>;
 export const leadCreateStatusOptions: Array<[LeadStatus, string]> = [
   ["prospect", leadStatusLabels.prospect],
+  ["approach", leadStatusLabels.approach],
   ["appointment", leadStatusLabels.appointment],
   ["contacted", leadStatusLabels.contacted],
   ["document_sent", leadStatusLabels.document_sent],
@@ -75,7 +78,7 @@ export function createEmptyLeadDraft(): LeadDraft {
 export function leadStatusTone(status: LeadStatus): string {
   if (status === "prospect") return "bg-[#FDF0F4] text-[#9B4862] ring-1 ring-[#F1C2D0]";
   if (status === "appointment" || status === "meeting") return "bg-[#EC2F7A] text-white";
-  if (status === "contacted") return "bg-[#EAF7F2] text-[#2F7D62] ring-1 ring-[#BEE7D8]";
+  if (status === "approach" || status === "contacted") return "bg-[#EAF7F2] text-[#2F7D62] ring-1 ring-[#BEE7D8]";
   if (status === "document_sent" || status === "sent") return "bg-[#FF8A3D] text-white";
   if (status === "contacting") return "bg-[#FFD6E2] text-[#9F2F55] ring-1 ring-[#FFD6E2]";
   if (status === "hold") return "bg-[#FFE45C] text-[#6B5200] ring-1 ring-[#E8C72D]";

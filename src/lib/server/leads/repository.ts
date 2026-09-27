@@ -124,7 +124,7 @@ function nullableString(value: unknown): string | null {
 }
 
 function validLeadStatus(value: unknown): string {
-  return value === "prospect" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
+  return value === "prospect" || value === "approach" || value === "contacted" || value === "contacting" || value === "document_sent" || value === "sent" || value === "appointment" || value === "meeting" || value === "considering" || value === "hold" || value === "won" || value === "lost" ? value : "new";
 }
 
 function validActivityType(value: unknown): string {
