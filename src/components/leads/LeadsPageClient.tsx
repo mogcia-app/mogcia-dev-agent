@@ -46,7 +46,7 @@ export function LeadsPageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const selectedId = params.get("leadId") ?? params.get("id");
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get("leadId") ?? params.get("id"));
   const selectedTab = readTabParam(params.get("tab"));
   const [user, setUser] = useState<User | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -121,6 +121,15 @@ export function LeadsPageClient() {
   }, [user]);
 
   useEffect(() => {
+    const syncSelectedId = () => {
+      const search = new URLSearchParams(window.location.search);
+      setSelectedId(search.get("leadId") ?? search.get("id"));
+    };
+    window.addEventListener("popstate", syncSelectedId);
+    return () => window.removeEventListener("popstate", syncSelectedId);
+  }, []);
+
+  useEffect(() => {
     if (!selectedId) {
       window.setTimeout(() => setActivities([]), 0);
       return undefined;
@@ -164,7 +173,10 @@ export function LeadsPageClient() {
   const setRoute = (next: { id?: string | null; tab?: TabKey }) => {
     const search = new URLSearchParams(params.toString());
     search.delete("id");
-    if (next.id !== undefined) next.id ? search.set("leadId", next.id) : search.delete("leadId");
+    if (next.id !== undefined) {
+      setSelectedId(next.id);
+      next.id ? search.set("leadId", next.id) : search.delete("leadId");
+    }
     if (next.tab) search.set("tab", next.tab);
     router.replace(`${pathname}${search.toString() ? `?${search.toString()}` : ""}` as Route, { scroll: false });
   };
@@ -926,7 +938,8 @@ function readTabParam(value: string | null): TabKey {
 function leadStatusCellStyle(status: LeadStatus) {
   if (status === "prospect") return { backgroundColor: "#FDF0F4", borderColor: "#F1C2D0", color: "#9B4862" };
   if (status === "appointment" || status === "meeting") return { backgroundColor: "#EC2F7A", borderColor: "#EC2F7A", color: "#FFFFFF" };
-  if (status === "approach" || status === "contacted") return { backgroundColor: "#EAF7F2", borderColor: "#BEE7D8", color: "#2F7D62" };
+  if (status === "approach") return { backgroundColor: "#F3EEFF", borderColor: "#D8C7F2", color: "#7048A8" };
+  if (status === "contacted") return { backgroundColor: "#EAF7F2", borderColor: "#BEE7D8", color: "#2F7D62" };
   if (status === "document_sent" || status === "sent") return { backgroundColor: "#FF8A3D", borderColor: "#FF8A3D", color: "#FFFFFF" };
   if (status === "contacting") return { backgroundColor: "#FFD6E2", borderColor: "#FFD6E2", color: "#9F2F55" };
   if (status === "hold") return { backgroundColor: "#FFE45C", borderColor: "#E8C72D", color: "#6B5200" };
