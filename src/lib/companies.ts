@@ -290,7 +290,6 @@ export async function addCompanyMemo(companyId: string, user: { id: string; name
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await addDoc(collection(db, companiesCollection, companyId, "memos"), { ...input, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  await addCompanyLog(companyId, user, { type: "memo", title: input.title, content: input.content, occurredAt: Timestamp.now(), source: "manual" });
 }
 
 export async function updateCompanyMemo(companyId: string, memoId: string, input: { title: string; content: string; pinned: boolean }): Promise<void> {
