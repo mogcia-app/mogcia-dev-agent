@@ -29,6 +29,7 @@ export interface Lead {
   notes?: string;
   lostReason?: string;
   companyId?: string | null;
+  isWatchlisted?: boolean;
   createdBy: string;
   createdByName?: string;
   createdAt: Timestamp;

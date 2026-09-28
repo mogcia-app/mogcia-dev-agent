@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Search, Sparkles, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Search, Sparkles, Star, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -12,7 +12,7 @@ import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, toDatetimeLocalInput } from "@/lib/lead-utils";
-import { createLead, createManualActivity, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
+import { createLead, createManualActivity, setLeadWatchlisted, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
@@ -32,6 +32,7 @@ const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新し�
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
 const ALL_MONTHS = "all";
 const UNSET_MONTH = "unset";
+const WATCHLIST = "watchlist";
 
 type NextActionDraft = {
   nextActionTitle: string;
@@ -151,7 +152,7 @@ export function LeadsPageClient() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return leads
-      .filter((lead) => monthFilter === ALL_MONTHS || leadMonthKey(lead) === monthFilter)
+      .filter((lead) => monthFilter === ALL_MONTHS || (monthFilter === WATCHLIST ? lead.isWatchlisted : leadMonthKey(lead) === monthFilter))
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
       .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.preInfo, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
@@ -306,6 +307,16 @@ export function LeadsPageClient() {
     }
   };
 
+  const toggleWatchlist = async (lead: Lead) => {
+    setError(null);
+    try {
+      await setLeadWatchlisted(lead.id, !lead.isWatchlisted);
+      setToast(lead.isWatchlisted ? "追っかけリストから外しました" : "追っかけリストに追加しました");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "追っかけリストを更新できませんでした。");
+    }
+  };
+
   const saveLostReason = async (lead: Lead, lostReason: string) => {
     if (!user) return;
     setSaving(true);
@@ -321,7 +332,7 @@ export function LeadsPageClient() {
   };
 
   return (
-    <section className="px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+    <section className="pt-4 sm:pt-6">
       <PageHeader
         title="営業リスト"
         description="契約前の営業対象について、現在の段階と次の対応を確認します。"
@@ -343,12 +354,12 @@ export function LeadsPageClient() {
             </div>
           </div>
           <div className="overflow-x-auto pb-1">
-            <div className="grid min-w-[1080px] grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] gap-4 border-b border-[#E5E7EB] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
+            <div className="grid min-w-[1080px] grid-cols-[70px_1fr_1.25fr_0.95fr_0.8fr_0.9fr_1.6fr] gap-4 border-b border-[#E5E7EB] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
               <span>実施月</span><span>商材</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
             {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
-            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "activity" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} />)}
+            {filtered.map((lead) => <LeadRow key={lead.id} lead={lead} nextAction={nextActionDisplay(lead, calendarEvents)} saving={saving} onSelect={() => setRoute({ id: lead.id, tab: "activity" })} onStatusChange={(nextStatus) => void saveLeadStatus(lead, nextStatus)} onToggleWatchlist={() => void toggleWatchlist(lead)} />)}
           </div>
         </section>
 
@@ -388,19 +399,19 @@ export function LeadsPageClient() {
   );
 }
 
-function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange }: { lead: Lead; nextAction: NextActionView; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void }) {
+function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange, onToggleWatchlist }: { lead: Lead; nextAction: NextActionView; saving: boolean; onSelect: () => void; onStatusChange: (status: LeadStatus) => void; onToggleWatchlist: () => void }) {
   const lost = lead.status === "lost";
   const chasing = lead.status === "contacting";
   const statusStyle = leadStatusCellStyle(lead.status);
   return (
-    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1.05fr_1.35fr_1fr_0.9fr_0.95fr_1.25fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : chasing ? "border-[#FFD6E2] bg-[#F8FAFC] hover:bg-[#FFEAF0]" : "border-[#E5E7EB] hover:bg-[#FCFAFA]"}` } role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
+    <div className={`grid min-w-[1080px] w-full cursor-pointer grid-cols-[70px_1fr_1.25fr_0.95fr_0.8fr_0.9fr_1.6fr] items-center gap-4 border-b py-4 pl-8 pr-6 text-left transition ${lost ? "border-[#303030] bg-[#1F1F22] text-white hover:bg-[#29292D]" : chasing ? "border-[#FFD6E2] bg-[#F8FAFC] hover:bg-[#FFEAF0]" : "border-[#E5E7EB] hover:bg-[#FCFAFA]"}` } role="button" tabIndex={0} onClick={onSelect} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
       <div className="min-w-0 text-left">
         <span className={`flex min-w-0 items-center gap-2 text-sm font-medium ${lost ? "text-[#F5C8D3]" : "text-[#9B4862]"}`}>
           <span className="truncate">{formatLeadMonth(lead)}</span>
         </span>
       </div>
       <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.productName || "未設定"}</div>
-      <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-white" : "text-[#111827]"}`}>{lead.companyName}</span></div>
+      <div className="flex min-w-0 items-center gap-2 text-left"><button aria-label={lead.isWatchlisted ? `${lead.companyName}を追っかけリストから外す` : `${lead.companyName}を追っかけリストに追加`} className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${lead.isWatchlisted ? "text-amber-500" : lost ? "text-white/40 hover:text-amber-300" : "text-slate-300 hover:bg-amber-50 hover:text-amber-500"}`} onClick={(event) => { event.stopPropagation(); onToggleWatchlist(); }} type="button"><Star className={`h-4 w-4 ${lead.isWatchlisted ? "fill-current" : ""}`} /></button><span className={`min-w-0 truncate text-sm font-medium ${lost ? "text-white" : "text-[#111827]"}`}>{lead.companyName}</span></div>
       <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
       <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.industry || "未設定"}</div>
       <label className="relative inline-flex h-9 min-w-0 cursor-pointer items-center rounded-md border px-2.5 shadow-none" style={statusStyle} onClick={(event) => event.stopPropagation()}>
@@ -810,6 +821,7 @@ function buildMonthTabs(leads: Lead[], currentMonth: string) {
   const unset = counts.get(UNSET_MONTH);
   return [
     { value: ALL_MONTHS, label: "すべて", count: leads.length, sort: Number.MAX_SAFE_INTEGER },
+    { value: WATCHLIST, label: "追っかけ", count: leads.filter((lead) => lead.isWatchlisted).length, sort: Number.MAX_SAFE_INTEGER - 1 },
     ...monthTabs,
     ...(unset ? [{ value: UNSET_MONTH, label: "未設定", count: unset.count, sort: unset.sort }] : [])
   ];

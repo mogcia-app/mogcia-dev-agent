@@ -66,6 +66,7 @@ export function normalizeLead(id: string, data: DocumentData): Lead {
     notes: str(data.notes),
     lostReason: str(data.lostReason),
     companyId: optionalStr(data.companyId),
+    isWatchlisted: data.isWatchlisted === true,
     createdBy: str(data.createdBy),
     createdByName: str(data.createdByName),
     createdAt: ts(data.createdAt),
@@ -148,6 +149,13 @@ export async function updateLead(leadId: string, draft: LeadDraft, user: { id: s
       occurredAt: Timestamp.now()
     }, user);
   }
+}
+
+export async function setLeadWatchlisted(leadId: string, isWatchlisted: boolean): Promise<void> {
+  await businessApi<{ lead: Lead }>("/api/business/leads", {
+    method: "PATCH",
+    body: toJsonBody({ id: leadId, isWatchlisted })
+  });
 }
 
 export async function linkLeadToCompany(leadId: string, companyId: string, user: { id: string; name: string }): Promise<void> {

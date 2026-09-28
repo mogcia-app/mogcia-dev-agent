@@ -139,6 +139,7 @@ export function buildLeadPayload(auth: BusinessAuth, body: Record<string, unknow
     notes: optionalString(body.notes, 5000),
     lostReason: optionalString(body.lostReason, 2000),
     companyId: nullableString(body.companyId, 160),
+    isWatchlisted: body.isWatchlisted === true,
     ...defaultBusinessFields(auth)
   };
 }
@@ -155,7 +156,8 @@ export function serializeLead(id: string, data: DocumentData): DocumentData {
     assignedUserName: nullableString(data.assignedUserName, 160),
     preInfo: optionalString(data.preInfo ?? data.notes, 5000),
     nextActionTitle: nullableString(data.nextActionTitle, 200),
-    lostReason: optionalString(data.lostReason, 2000)
+    lostReason: optionalString(data.lostReason, 2000),
+    isWatchlisted: data.isWatchlisted === true
   };
 }
 
@@ -182,6 +184,7 @@ export function toDesktopLeadPayload(lead: DocumentData) {
     lastActivityAt: isoDate(lead.lastActivityAt),
     notes: String(lead.notes ?? ""),
     preInfo: String(lead.preInfo ?? lead.notes ?? ""),
+    isWatchlisted: lead.isWatchlisted === true,
     updatedAt: isoDate(lead.updatedAt)
   };
 }
@@ -211,6 +214,7 @@ function buildLeadUpdatePayload(auth: BusinessAuth, body: Record<string, unknown
     ...(body.notes !== undefined ? { notes: optionalString(body.notes, 5000) } : {}),
     ...(body.lostReason !== undefined ? { lostReason: optionalString(body.lostReason, 2000) } : {}),
     ...(body.companyId !== undefined ? { companyId: nullableString(body.companyId, 160) } : {}),
+    ...(body.isWatchlisted !== undefined ? { isWatchlisted: body.isWatchlisted === true } : {}),
     ...(body.tags !== undefined ? { tags: arrayOfStrings(body.tags) } : {}),
     id: FieldValue.delete(),
     leadId: FieldValue.delete(),

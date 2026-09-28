@@ -435,7 +435,6 @@ async function createActivityFromCommand(auth: DesktopAuth, body: Record<string,
     nextActionTitle: optionalString(body.nextActionTitle, "次回対応", 200) || null,
     force: body.force === true
   });
-  if (created.requiresConfirmation) return { handled: true, kind: "activity" as const, message: "同じ活動ログが既に登録されている可能性があります", items: created.duplicates ?? [], draft: { title } };
   return { handled: true, kind: "activity" as const, message: "営業ログを登録しました", items: [{ id: created.activityId, activityLogId: created.activityLogId, title }], draft: null, executedAction: "activity.create", refreshRequired: true };
 }
 

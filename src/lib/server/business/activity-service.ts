@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { timestampToIso } from "@/lib/desktop/format";
-import { assertFreshUpdate, BusinessApiError, cleanPatchBody, defaultBusinessFields, findTimeDuplicates, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, type BusinessAuth } from "@/lib/server/business/api";
+import { assertFreshUpdate, BusinessApiError, cleanPatchBody, defaultBusinessFields, nullableString, optionalString, parseDate, requireString, serializeDoc, updateBusinessFields, type BusinessAuth } from "@/lib/server/business/api";
 import { getCompanyById, updateCompanyProfile } from "@/lib/server/business/company-service";
 import { normalizeLeadStatus, updateLeadAfterActivity } from "@/lib/server/business/lead-service";
 import type { ActivityType } from "@/types/lead";
@@ -56,14 +56,6 @@ export async function listActivitiesByLeadId(auth: BusinessAuth, leadId: string,
 export async function createActivity(auth: BusinessAuth, body: Record<string, unknown>) {
   const title = requireString(body.title, "活動タイトル");
   const occurredAt = timestampFrom(body.occurredAt) ?? Timestamp.now();
-  const force = body.force === true;
-  const duplicates = await findTimeDuplicates(auth.db, COLLECTION, {
-    title,
-    companyId: nullableString(body.companyId, 160),
-    occurredAt: occurredAt.toDate()
-  });
-  if (duplicates.length && !force) return { id: null, activityId: null, activityLogId: null, requiresConfirmation: true, duplicates };
-
   const payload = await buildActivityPayload(auth, body, title, occurredAt);
   const activityRef = auth.db.collection(COLLECTION).doc();
   const companyId = nullableString(payload.companyId, 160);
