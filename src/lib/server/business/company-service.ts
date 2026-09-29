@@ -227,7 +227,7 @@ export function toDesktopCompanyDetailPayload(company: DocumentData) {
     productNames: Array.isArray(company.productNames) ? company.productNames : [],
     nextActionTitle: String(company.nextActionTitle ?? ""),
     nextActionAt: isoDate(company.nextActionAt),
-    targetURL: `/sales/companies?companyId=${String(company.id ?? "")}`,
+    targetURL: `/sales/companies?id=${encodeURIComponent(String(company.id ?? ""))}&tab=overview`,
     aiSuggestion: company.nextActionTitle ? "次回対応の期限を確認しておくとよさそうです。" : "次回対応を設定しておくとよさそうです。"
   };
 }

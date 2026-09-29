@@ -52,7 +52,7 @@ export async function searchCompanies(input: { query?: string; productName?: str
       id: String(company.id),
       name: String(company.name ?? "名称未設定"),
       subtitle: [company.status, company.customerRank, Array.isArray(company.productNames) ? company.productNames.join(" / ") : ""].filter(Boolean).join(" / "),
-      href: `/companies?companyId=${company.id}`,
+      href: `/sales/companies?id=${encodeURIComponent(String(company.id))}&tab=overview`,
       data: company
     }));
   return success("searchCompanies", `${results.length}件の会社候補を取得しました。`, results, "company");

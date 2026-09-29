@@ -4,4 +4,5 @@ export interface Memo {
   content: string;
   createdAt: string;
   updatedAt: string;
+  canEdit: boolean;
 }

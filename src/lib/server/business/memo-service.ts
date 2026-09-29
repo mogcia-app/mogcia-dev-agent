@@ -6,8 +6,8 @@ import { BusinessApiError, optionalString, requireString, type BusinessAuth } fr
 const COLLECTION = "userMemos";
 
 export async function listMemos(auth: BusinessAuth) {
-  const snapshot = await auth.db.collection(COLLECTION).where("createdBy", "==", auth.userId).limit(500).get();
-  return snapshot.docs.map((entry) => record(entry.id, entry.data())).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const snapshot = await auth.db.collection(COLLECTION).limit(500).get();
+  return snapshot.docs.map((entry) => record(entry.id, entry.data(), auth.userId)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function createMemo(auth: BusinessAuth, body: Record<string, unknown>) {
@@ -30,4 +30,4 @@ export async function deleteMemo(auth: BusinessAuth, body: Record<string, unknow
   await ref.delete(); return { ok: true as const };
 }
 
-function record(id: string, data: DocumentData) { const iso = (value: unknown) => value instanceof Timestamp ? value.toDate().toISOString() : new Date(0).toISOString(); return { id, title: String(data.title ?? ""), content: String(data.content ?? ""), createdAt: iso(data.createdAt), updatedAt: iso(data.updatedAt) }; }
+function record(id: string, data: DocumentData, userId: string) { const iso = (value: unknown) => value instanceof Timestamp ? value.toDate().toISOString() : new Date(0).toISOString(); return { id, title: String(data.title ?? ""), content: String(data.content ?? ""), createdAt: iso(data.createdAt), updatedAt: iso(data.updatedAt), canEdit: data.createdBy === userId }; }

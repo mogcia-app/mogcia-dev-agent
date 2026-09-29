@@ -454,7 +454,7 @@ async function resolveLeadOrCompany(context: ExecutionContext, entities: Record<
   }
   if (entities.selectedCompanyId) {
     const company = await runTool(context, tools.getCompany(entities.selectedCompanyId));
-    if (company) return { company: { id: String(company.id), name: String(company.name ?? "会社"), href: `/companies?companyId=${company.id}`, subtitle: String(company.status ?? ""), data: company } };
+    if (company) return { company: { id: String(company.id), name: String(company.name ?? "会社"), href: `/sales/companies?id=${encodeURIComponent(String(company.id))}&tab=overview`, subtitle: String(company.status ?? ""), data: company } };
   }
   const name = entities.leadName || entities.companyName || context.rawMessage;
   const leads = await runTool(context, tools.searchLeads({ query: name, limit: 8 }));
