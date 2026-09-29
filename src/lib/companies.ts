@@ -55,6 +55,8 @@ function normalizeCompany(id: string, data: DocumentData): Company {
     notes: data.notes ?? "",
     createdBy: data.createdBy ?? "",
     createdByName: data.createdByName ?? "",
+    updatedBy: data.updatedBy ?? "",
+    updatedByName: data.updatedByName ?? "",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : now,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : now,
     archivedAt: data.archivedAt instanceof Timestamp ? data.archivedAt : null
@@ -97,6 +99,15 @@ export function subscribeCompaniesMaster(onNext: (companies: Company[]) => void,
   const db = getFirebaseDb();
   if (!db) return () => undefined;
   return onSnapshot(query(collection(db, companiesCollection), orderBy("updatedAt", "desc")), (snapshot) => onNext(snapshot.docs.map((entry) => normalizeCompany(entry.id, entry.data()))), onError);
+}
+
+export async function getCompanyViews(): Promise<Record<string, string>> {
+  const result = await businessApi<{ views: Record<string, string> }>("/api/business/companies/views");
+  return result.views;
+}
+
+export async function markCompanyViewed(companyId: string): Promise<void> {
+  await businessApi<{ companyId: string }>("/api/business/companies/views", { method: "POST", body: toJsonBody({ companyId }) });
 }
 
 export function subscribeCompanyActivityLogs(companyId: string, count: number, onNext: (logs: CompanyActivityLog[]) => void, onError: (error: FirestoreError) => void): Unsubscribe {
@@ -290,18 +301,21 @@ export async function addCompanyMemo(companyId: string, user: { id: string; name
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await addDoc(collection(db, companiesCollection, companyId, "memos"), { ...input, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await updateCompany(companyId, user, {});
 }
 
-export async function updateCompanyMemo(companyId: string, memoId: string, input: { title: string; content: string; pinned: boolean }): Promise<void> {
+export async function updateCompanyMemo(companyId: string, memoId: string, user: { id: string; name: string }, input: { title: string; content: string; pinned: boolean }): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await updateDoc(doc(db, companiesCollection, companyId, "memos", memoId), { ...input, updatedAt: serverTimestamp() });
+  await updateCompany(companyId, user, {});
 }
 
-export async function deleteCompanyMemo(companyId: string, memoId: string): Promise<void> {
+export async function deleteCompanyMemo(companyId: string, memoId: string, user: { id: string; name: string }): Promise<void> {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebaseが未設定です。");
   await deleteDoc(doc(db, companiesCollection, companyId, "memos", memoId));
+  await updateCompany(companyId, user, {});
 }
 
 export async function uploadCompanyFile(companyId: string, user: { id: string; name: string }, file: File, onProgress: (progress: number) => void): Promise<void> {
@@ -315,6 +329,7 @@ export async function uploadCompanyFile(companyId: string, user: { id: string; n
   const fileRef = await addDoc(collection(db, companiesCollection, companyId, "files"), { name: file.name, type: "other", url, storagePath: path, size: file.size, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp() });
   await addCompanyLog(companyId, user, { type: "file", title: "ファイルを追加しました", content: file.name, occurredAt: Timestamp.now(), source: "manual" });
   await updateDoc(doc(db, companiesCollection, companyId, "files", fileRef.id), { id: fileRef.id });
+  await updateCompany(companyId, user, {});
 }
 
 export async function deleteCompany(companyId: string): Promise<void> {

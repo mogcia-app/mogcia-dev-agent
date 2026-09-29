@@ -47,6 +47,8 @@ export interface Company {
   notes?: string;
   createdBy: string;
   createdByName?: string;
+  updatedBy?: string;
+  updatedByName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   archivedAt?: Timestamp | null;

@@ -48,9 +48,46 @@ export async function updateCompany(auth: BusinessAuth, body: Record<string, unk
   const ref = auth.db.collection(COLLECTION).doc(companyId);
   const snapshot = await assertFreshUpdate(ref, body.updatedAt);
   const previous = snapshot.data() ?? {};
-  await ref.set(buildCompanyUpdatePayload(auth, body, previous), { merge: true });
+  const nextStatus = companyStatuses.includes(body.status as CompanyStatus) ? body.status as CompanyStatus : null;
+  const statusChanged = nextStatus !== null && nextStatus !== previous.status;
+  const batch = auth.db.batch();
+  batch.set(ref, buildCompanyUpdatePayload(auth, body, previous), { merge: true });
+  if (statusChanged) {
+    const activityRef = auth.db.collection("activities").doc();
+    batch.set(activityRef, {
+      leadId: null,
+      companyId,
+      companyName: String(previous.name ?? ""),
+      dealId: null,
+      type: "status_change",
+      activityType: "status_change",
+      title: "ステータスを変更しました",
+      content: `${companyStatusLabel(previous.status)} → ${companyStatusLabel(nextStatus)}`,
+      productId: null,
+      productName: null,
+      audioId: null,
+      transcriptId: null,
+      analysisId: null,
+      legacyCompanyActivityLogId: null,
+      leadStatus: null,
+      nextActionAt: null,
+      nextActionTitle: null,
+      occurredAt: FieldValue.serverTimestamp(),
+      ...defaultBusinessFields(auth)
+    });
+  }
+  await batch.commit();
   const next = await ref.get();
   return { company: serializeCompany(next.id, next.data() ?? {}) };
+}
+
+function companyStatusLabel(status: unknown): string {
+  if (status === "lead") return "営業前";
+  if (status === "prospect") return "提案中";
+  if (status === "customer") return "運用中";
+  if (status === "inactive") return "停止中";
+  if (status === "archived") return "アーカイブ";
+  return "未設定";
 }
 
 export async function updateCompanyProfile(auth: BusinessAuth, companyId: string, profile: Record<string, unknown>) {

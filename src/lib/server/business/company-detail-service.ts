@@ -27,6 +27,7 @@ export async function createCompanyService(auth: BusinessAuth, companyId: string
   await assertCompanyExists(auth, companyId);
   const serviceName = requireString(body.serviceName, "サービス名", 200);
   const ref = await companyRef(auth, companyId).collection(SERVICES).add(buildCompanyServicePayload(auth, body, serviceName));
+  await touchCompany(auth, companyId);
   return { id: ref.id, service: serializeCompanyService(ref.id, (await ref.get()).data() ?? {}) };
 }
 
@@ -36,6 +37,7 @@ export async function updateCompanyService(auth: BusinessAuth, companyId: string
   const snapshot = await ref.get();
   if (!snapshot.exists) throw new BusinessApiError("NOT_FOUND", "サービスが見つかりません。", 404);
   await ref.set(buildCompanyServiceUpdatePayload(auth, body), { merge: true });
+  await touchCompany(auth, companyId);
   return { id: serviceId, service: serializeCompanyService(serviceId, (await ref.get()).data() ?? {}) };
 }
 
@@ -49,6 +51,7 @@ export async function deleteCompanyService(auth: BusinessAuth, companyId: string
   batch.delete(ref);
   credentials.docs.forEach((entry) => batch.delete(entry.ref));
   await batch.commit();
+  await touchCompany(auth, companyId);
   return { id: serviceId, deleted: true };
 }
 
@@ -63,6 +66,7 @@ export async function createCompanyCredential(auth: BusinessAuth, companyId: str
   const label = requireString(body.label, "名称", 200);
   const secret = requireString(body.secret, "パスワード / Secret", 5000);
   const ref = await companyRef(auth, companyId).collection(CREDENTIALS).add(buildCompanyCredentialPayload(auth, body, label, secret));
+  await touchCompany(auth, companyId);
   return { id: ref.id, credential: serializeCompanyCredential(ref.id, (await ref.get()).data() ?? {}) };
 }
 
@@ -72,6 +76,7 @@ export async function updateCompanyCredential(auth: BusinessAuth, companyId: str
   const snapshot = await ref.get();
   if (!snapshot.exists) throw new BusinessApiError("NOT_FOUND", "アクセス情報が見つかりません。", 404);
   await ref.set(buildCompanyCredentialUpdatePayload(auth, body), { merge: true });
+  await touchCompany(auth, companyId);
   return { id: credentialId, credential: serializeCompanyCredential(credentialId, (await ref.get()).data() ?? {}) };
 }
 
@@ -81,6 +86,7 @@ export async function deleteCompanyCredential(auth: BusinessAuth, companyId: str
   const snapshot = await ref.get();
   if (!snapshot.exists) throw new BusinessApiError("NOT_FOUND", "アクセス情報が見つかりません。", 404);
   await ref.delete();
+  await touchCompany(auth, companyId);
   return { id: credentialId, deleted: true };
 }
 
@@ -116,6 +122,10 @@ async function assertCompanyExists(auth: BusinessAuth, companyId: string) {
   if (!snapshot.exists) throw new BusinessApiError("NOT_FOUND", "会社が見つかりません。", 404);
 }
 
+async function touchCompany(auth: BusinessAuth, companyId: string) {
+  await companyRef(auth, companyId).set(updateBusinessFields(auth), { merge: true });
+}
+
 function buildCompanyServicePayload(auth: BusinessAuth, body: Record<string, unknown>, serviceName: string) {
   return {
     serviceName,
@@ -137,6 +147,7 @@ function buildCompanyServicePayload(auth: BusinessAuth, body: Record<string, unk
     maintenanceStatus: optionalString(body.maintenanceStatus, 300),
     renewedAt: parseDate(body.renewedAt),
     memo: optionalString(body.memo, 5000),
+    customFields: normalizeCustomFields(body.customFields),
     ...defaultBusinessFields(auth)
   };
 }
@@ -162,6 +173,7 @@ function buildCompanyServiceUpdatePayload(auth: BusinessAuth, body: Record<strin
     ...(body.maintenanceStatus !== undefined ? { maintenanceStatus: optionalString(body.maintenanceStatus, 300) } : {}),
     ...(body.renewedAt !== undefined ? { renewedAt: parseDate(body.renewedAt) } : {}),
     ...(body.memo !== undefined ? { memo: optionalString(body.memo, 5000) } : {}),
+    ...(body.customFields !== undefined ? { customFields: normalizeCustomFields(body.customFields) } : {}),
     ...updateBusinessFields(auth)
   };
 }
@@ -211,7 +223,8 @@ function serializeCompanyService(id: string, data: DocumentData) {
     domain: service.domain ?? "",
     maintenanceStatus: service.maintenanceStatus ?? "",
     renewedAt: service.renewedAt ?? null,
-    memo: service.memo ?? ""
+    memo: service.memo ?? "",
+    customFields: Array.isArray(service.customFields) ? service.customFields : []
   };
 }
 
@@ -241,4 +254,16 @@ function parsePrice(value: unknown) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) throw new BusinessApiError("VALIDATION_ERROR", "料金は0以上の数値で入力してください。", 400);
   return Math.round(number);
+}
+
+function normalizeCustomFields(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 50).map((item) => {
+    const field = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    return {
+      id: optionalString(field.id, 160) || crypto.randomUUID(),
+      label: optionalString(field.label, 200),
+      value: optionalString(field.value, 5000)
+    };
+  }).filter((field) => field.label || field.value);
 }

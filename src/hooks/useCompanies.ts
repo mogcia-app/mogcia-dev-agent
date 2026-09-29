@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { companyContactEvents, companyWithCalendarContact } from "@/lib/company-calendar";
-import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, deleteCompanyMemo, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, updateCompanyMemo, uploadCompanyFile } from "@/lib/companies";
+import { addCompanyLog, addCompanyMemo, addManualMeeting, createCompany, deleteCompany, deleteCompanyMemo, getCompanyViews, markCompanyViewed, subscribeCompaniesMaster, subscribeCompanyActivityLogs, subscribeCompanyFiles, subscribeCompanyMeetings, subscribeCompanyMemos, toggleCompanyFavorite, updateCompany, updateCompanyMemo, uploadCompanyFile } from "@/lib/companies";
 import { subscribeCompanyActivities } from "@/lib/leads";
 import { isAdminUser } from "@/lib/task-utils";
 import { subscribeTasks } from "@/lib/tasks";
@@ -18,6 +18,7 @@ import type { Task } from "@/types/task";
 export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
   const [user, setUser] = useState<User | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyViews, setCompanyViews] = useState<Record<string, string>>({});
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [logs, setLogs] = useState<CompanyActivityLog[]>([]);
@@ -40,6 +41,19 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     if (!user) return undefined;
     return subscribeCompaniesMaster((next) => { setCompanies(next); setLoading(false); }, (nextError) => { setError(nextError.message); setLoading(false); });
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void getCompanyViews().then((views) => setCompanyViews((current) => ({ ...views, ...current }))).catch(() => undefined);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !selectedCompanyId) return;
+    const viewedAt = new Date().toISOString();
+    void markCompanyViewed(selectedCompanyId)
+      .then(() => setCompanyViews((current) => ({ ...current, [selectedCompanyId]: viewedAt })))
+      .catch(() => undefined);
+  }, [selectedCompanyId, user]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -77,6 +91,7 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     currentUser,
     isAdmin,
     companies: companiesWithCalendar,
+    companyViews,
     calendarEvents: selectedCalendarEvents,
     now,
     logs,
@@ -94,8 +109,8 @@ export function useCompanies(selectedCompanyId?: string | null, logLimit = 30) {
     addLog: (companyId: string, input: Parameters<typeof addCompanyLog>[2]) => addCompanyLog(companyId, currentUser, input),
     addMeeting: (company: Company, input: Parameters<typeof addManualMeeting>[2]) => addManualMeeting(company, currentUser, input),
     addMemo: (companyId: string, input: Parameters<typeof addCompanyMemo>[2]) => addCompanyMemo(companyId, currentUser, input),
-    updateMemo: updateCompanyMemo,
-    deleteMemo: deleteCompanyMemo,
+    updateMemo: (companyId: string, memoId: string, input: Parameters<typeof updateCompanyMemo>[3]) => updateCompanyMemo(companyId, memoId, currentUser, input),
+    deleteMemo: (companyId: string, memoId: string) => deleteCompanyMemo(companyId, memoId, currentUser),
     uploadFile: (companyId: string, file: File, onProgress: (progress: number) => void) => uploadCompanyFile(companyId, currentUser, file, onProgress),
     deleteCompany
   };
