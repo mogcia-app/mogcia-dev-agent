@@ -73,11 +73,11 @@ export function SpreadsheetsPageClient() {
 
   return (
     <section className="pt-4 sm:pt-6">
-      <PageHeader title="月別の表" description="Excelファイルを月ごとに保管し、選んだ表だけを表示します。" actions={<button className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#D47A95] px-5 text-sm font-bold text-white" onClick={() => setUploadOpen(true)} type="button"><Plus className="h-4 w-4" />Excelを追加</button>} />
+      <PageHeader title="Excel" description="Excelファイルを対象月ごとに整理し、選んだ資料だけを表示します。1か月に複数のファイルを登録できます。" actions={<button className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#D47A95] px-5 text-sm font-bold text-white" onClick={() => setUploadOpen(true)} type="button"><Plus className="h-4 w-4" />Excelを追加</button>} />
       <StatusToast message={toast} onClose={() => setToast(null)} />
       <div className="mt-4"><StatusBanner message={error} type="error" /></div>
 
-      {items.length === 0 ? <div className="mt-5 rounded-xl border border-[#E2E8F0] bg-white p-8"><EmptyState icon={FileSpreadsheet} title="Excelはまだありません" description="毎月のExcelファイルを追加すると、月タブで切り替えて確認できます。" /></div> : (
+      {items.length === 0 ? <div className="mt-5 rounded-xl border border-[#E2E8F0] bg-white p-8"><EmptyState icon={FileSpreadsheet} title="Excelはまだありません" description="Excelファイルを追加すると、対象月と資料名で切り替えて確認できます。同じ月に何件でも登録できます。" /></div> : (
         <div className="mt-5 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
           <div className="flex gap-1 overflow-x-auto border-b border-[#E2E8F0] px-4 pt-3">
             {months.map((month) => <button className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold ${activeMonth === month ? "border-[#D47A95] text-[#9B4862]" : "border-transparent text-[#64748B]"}`} key={month} onClick={() => { setSelectedMonth(month); setSelectedId(""); }} type="button">{formatMonth(month)} <span className="ml-1 text-xs text-[#94A3B8]">{items.filter((item) => item.month === month).length}</span></button>)}

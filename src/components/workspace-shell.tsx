@@ -15,7 +15,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 const groups: Array<{ label: string | null; items: NavItem[] }> = [
   { label: "仕事", items: [{ href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] },
   { label: "営業", items: [{ href: "/leads", label: "営業リスト", icon: UserRoundSearch }, { href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/products", label: "商材", icon: Package }] },
-  { label: null, items: [{ href: "/memos", label: "メモ", icon: FileText }, { href: "/knowledge", label: "ナレッジ", icon: BookOpenText }, { href: "/spreadsheets", label: "月別の表", icon: FileSpreadsheet }] }
+  { label: null, items: [{ href: "/memos", label: "メモ", icon: FileText }, { href: "/knowledge", label: "ナレッジ", icon: BookOpenText }, { href: "/spreadsheets", label: "Excel", icon: FileSpreadsheet }] }
 ];
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
