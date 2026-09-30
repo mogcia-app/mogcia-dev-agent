@@ -13,6 +13,7 @@ import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
 import { activityTypeLabels as commonActivityTypeLabels } from "@/lib/lead-utils";
+import { deleteActivity } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask, deleteTask, setTaskCompleted } from "@/lib/tasks";
@@ -172,6 +173,12 @@ export function CompaniesPageClient() {
     catch (error) { flash(error instanceof Error ? error.message : "タスクを削除できませんでした"); }
   };
 
+  const removeActivity = async (activity: Activity) => {
+    if (!window.confirm(`「${activity.title || commonActivityTypeLabels[activity.type]}」を削除しますか？`)) return;
+    try { await deleteActivity(activity.id); flash("活動ログを削除しました"); }
+    catch (error) { flash(error instanceof Error ? error.message : "活動ログを削除できませんでした"); }
+  };
+
   return (
     <div className="">
       {!selectedCompany ? (
@@ -213,7 +220,7 @@ export function CompaniesPageClient() {
               <CompanyDetailTabs selectedTab={selectedTab} onSelect={selectDetailTab} />
               <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none"}>
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => selectDetailTab("timeline")} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onNextAction={openNextAction} onCreateTask={async (title) => { await createTask(companyTaskDraft(selectedCompany, title, store.currentUser.id, store.currentUser.name), { id: store.currentUser.id, uid: store.currentUser.id, name: store.currentUser.name }); flash("タスクを追加しました"); }} onToggleTask={toggleCompanyTask} onDeleteTask={deleteCompanyTask} /> : null}
-                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onMore={() => setLogLimit((current) => current + 30)} /> : null}
+                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onDeleteActivity={(activity) => void removeActivity(activity)} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "projects" ? <CompanyProjectsTab companyId={selectedCompany.id} companyName={selectedCompany.name} tasks={store.tasks} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} onToggle={toggleCompanyTask} onDelete={deleteCompanyTask} /> : null}
@@ -384,7 +391,7 @@ type UnifiedCompanyTimelineItem =
   | { id: string; occurredAt: Timestamp; kind: "calendar"; event: CalendarEvent }
   | { id: string; occurredAt: Timestamp; kind: "analysis"; record: TeleapoRecord };
 
-function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, hasMore, onMore }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; hasMore: boolean; onMore: () => void }) {
+function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, hasMore, onMore, onDeleteActivity }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; hasMore: boolean; onMore: () => void; onDeleteActivity: (activity: Activity) => void }) {
   const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
   const legacyItems: UnifiedCompanyTimelineItem[] = logs
     .filter((log) => log.source !== "system" && log.type !== "status_change" && log.type !== "memo" && !commonLegacyIds.has(log.id))
@@ -412,7 +419,7 @@ function TimelineTab({ logs, calendarEvents, now, commonActivities, records, com
               <span className="absolute bottom-4 left-3 top-3 w-px bg-[#E2E8F0]" />
               <div className="grid gap-4">
                 {items.map((item) => {
-                  if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} />;
+                  if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} onDelete={() => onDeleteActivity(item.activity)} />;
                   if (item.kind === "calendar") return <CalendarActivityTimelineItem event={item.event} key={item.id} />;
                   if (item.kind === "analysis") return <AnalysisTimelineItem key={item.id} record={item.record} />;
                   return <ActivityTimelineItem key={item.id} log={item.log} />;
@@ -437,14 +444,14 @@ function CalendarActivityTimelineItem({ event }: { event: CalendarEvent }) {
   </article>;
 }
 
-function CommonActivityTimelineItem({ activity }: { activity: Activity }) {
+function CommonActivityTimelineItem({ activity, onDelete }: { activity: Activity; onDelete: () => void }) {
   const occurredAt = activity.occurredAt.toDate();
   return (
     <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{commonActivityTypeLabels[activity.type]}</span>
-        {activity.type !== "status_change" ? <span className="text-xs font-medium text-[#64748B]">{occurredAt.toLocaleDateString("ja-JP")}</span> : null}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{commonActivityTypeLabels[activity.type]}</span>{activity.type !== "status_change" ? <span className="text-xs font-medium text-[#64748B]">{occurredAt.toLocaleDateString("ja-JP")}</span> : null}</div>
+        <button aria-label="活動ログを削除" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#94A3B8] hover:bg-red-50 hover:text-[#9B4862]" onClick={onDelete} type="button"><Trash2 className="h-4 w-4" /></button>
       </div>
       <h3 className="mt-2 text-base font-semibold text-[#111827]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-semibold leading-6 text-[#111827]">{activity.content}</p> : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Search, Sparkles, Star, StickyNote, Target, UploadCloud, X, type LucideIcon } from "lucide-react";
+import { Archive, Building2, CalendarDays, CheckCircle2, Edit2, LinkIcon, Mail, MessageSquarePlus, Mic2, Phone, Plus, Search, Sparkles, Star, StickyNote, Target, Trash2, UploadCloud, X, type LucideIcon } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -12,7 +12,7 @@ import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, toDatetimeLocalInput } from "@/lib/lead-utils";
-import { createLead, createManualActivity, setLeadWatchlisted, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
+import { createLead, createManualActivity, deleteActivity, setLeadWatchlisted, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
@@ -241,6 +241,20 @@ export function LeadsPageClient() {
     }
   };
 
+  const removeActivity = async (activity: Activity) => {
+    if (!window.confirm(`「${activity.title || activityTypeLabels[activity.type]}」を削除しますか？`)) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteActivity(activity.id);
+      setToast("活動ログを削除しました");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "活動ログを削除できませんでした。");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const processAndSummarizeRecord = async (recordId: string, forceProcess = false) => {
     if (!user) return;
     const token = await user.getIdToken();
@@ -379,7 +393,7 @@ export function LeadsPageClient() {
                 {tabs.map(([value, label]) => <button className={`h-12 shrink-0 px-5 text-sm font-bold ${selectedTab === value ? "border-b-2 border-[#D47A95] text-[#D47A95]" : "text-[#475569]"}`} key={value} onClick={() => setRoute({ id: selectedLead.id, tab: value })} type="button">{label}</button>)}
               </div>
               <div className="pt-5">
-                {selectedTab === "activity" ? <ActivityTab activities={activities} /> : null}
+                {selectedTab === "activity" ? <ActivityTab activities={activities} deleting={saving} onDelete={(activity) => void removeActivity(activity)} /> : null}
                 {selectedTab === "meetings" ? <MeetingsTab records={selectedRecords} summarizingRecordId={summarizingRecordId} onSummarizeRecord={summarizeRecord} /> : null}
                 {selectedTab === "tasks" ? <TasksTab tasks={selectedTasks} /> : null}
                 {selectedTab === "files" ? <EmptyState icon={UploadCloud} title="ファイルはまだありません" description="会社化後も参照できるファイル基盤として次フェーズで接続します。" /> : null}
@@ -554,7 +568,7 @@ function LeadNotesTab({ activities, lead }: { activities: Activity[]; lead: Lead
   );
 }
 
-function ActivityTab({ activities }: { activities: Activity[] }) {
+function ActivityTab({ activities, deleting, onDelete }: { activities: Activity[]; deleting: boolean; onDelete: (activity: Activity) => void }) {
   const items = activities.filter((activity) =>
     activity.title !== "見込み客を登録しました" &&
     activity.title !== "営業リストを登録しました" &&
@@ -566,18 +580,19 @@ function ActivityTab({ activities }: { activities: Activity[] }) {
     <div className="relative pl-9">
       <span className="absolute bottom-4 left-3 top-3 w-px bg-[#E2E8F0]" />
       <div className="grid gap-4">
-        {items.map((activity) => <ActivityItem activity={activity} key={activity.id} />)}
+        {items.map((activity) => <ActivityItem activity={activity} deleting={deleting} key={activity.id} onDelete={() => onDelete(activity)} />)}
       </div>
     </div>
   );
 }
 
-function ActivityItem({ activity }: { activity: Activity }) {
+function ActivityItem({ activity, deleting, onDelete }: { activity: Activity; deleting: boolean; onDelete: () => void }) {
   return (
     <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
       <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="rounded-xl bg-[#FDF0F4] px-2.5 py-1 text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type]}</span>
+        <button aria-label="活動ログを削除" className="grid h-8 w-8 place-items-center rounded-lg text-[#94A3B8] hover:bg-red-50 hover:text-[#9B4862] disabled:opacity-50" disabled={deleting} onClick={onDelete} type="button"><Trash2 className="h-4 w-4" /></button>
       </div>
       <h3 className="mt-2 text-sm font-medium text-[#111827]">{activity.title || activityTypeLabels[activity.type]}</h3>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-normal leading-6 text-[#475569]">{activity.content}</p> : null}

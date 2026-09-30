@@ -139,6 +139,15 @@ service cloud.firestore {
         && data.occurredAt is timestamp;
     }
 
+    function validSpreadsheet(data) {
+      return data.name is string
+        && data.month is string
+        && data.originalFileName is string
+        && data.url is string
+        && data.storagePath is string
+        && data.createdBy is string;
+    }
+
     match /tasks/{taskId} {
       allow read: if signedIn();
       allow create: if signedIn()
@@ -164,6 +173,15 @@ service cloud.firestore {
         && (isAdmin() || isCalendarParticipant(resource.data))
         && (isAdmin() || request.resource.data.createdBy == resource.data.createdBy);
       allow delete: if isAdmin();
+    }
+
+    match /spreadsheets/{spreadsheetId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validSpreadsheet(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
     }
 
     match /companies/{companyId} {

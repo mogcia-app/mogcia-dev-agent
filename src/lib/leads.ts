@@ -196,6 +196,13 @@ export async function createManualActivity(target: { leadId?: string | null; com
   }, user);
 }
 
+export async function deleteActivity(activityId: string): Promise<void> {
+  await businessApi<{ id: string; deleted: boolean }>("/api/business/activities", {
+    method: "DELETE",
+    body: toJsonBody({ id: activityId })
+  });
+}
+
 export async function createActivity(input: Omit<Activity, "id" | "createdBy" | "createdByName" | "createdAt" | "updatedAt">, user: { id: string; name: string }): Promise<string> {
   const result = await businessApi<{ id: string; activityId?: string }>("/api/business/activities", {
     method: "POST",

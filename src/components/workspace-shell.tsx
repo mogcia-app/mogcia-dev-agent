@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, Building2, CalendarDays, ChevronRight, FileText, LayoutTemplate, LogOut, Package, Settings, UserRoundSearch, type LucideIcon } from "lucide-react";
+import { BookOpenText, Building2, CalendarDays, ChevronRight, FileSpreadsheet, FileText, LayoutTemplate, LogOut, Package, Settings, UserRoundSearch, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
@@ -15,7 +15,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 const groups: Array<{ label: string | null; items: NavItem[] }> = [
   { label: "仕事", items: [{ href: "/calendar", label: "カレンダー", icon: CalendarDays }, { href: "/templates", label: "テンプレート", icon: LayoutTemplate }] },
   { label: "営業", items: [{ href: "/leads", label: "営業リスト", icon: UserRoundSearch }, { href: "/sales/companies", label: "会社", icon: Building2 }, { href: "/products", label: "商材", icon: Package }] },
-  { label: null, items: [{ href: "/memos", label: "メモ", icon: FileText }, { href: "/knowledge", label: "ナレッジ", icon: BookOpenText }] }
+  { label: null, items: [{ href: "/memos", label: "メモ", icon: FileText }, { href: "/knowledge", label: "ナレッジ", icon: BookOpenText }, { href: "/spreadsheets", label: "月別の表", icon: FileSpreadsheet }] }
 ];
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
