@@ -1,5 +1,3 @@
-import type { Timestamp } from "firebase/firestore";
-
 export type WorkspaceSpreadsheet = {
   id: string;
   name: string;
@@ -10,6 +8,6 @@ export type WorkspaceSpreadsheet = {
   size: number;
   createdBy: string;
   createdByName: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: string;
+  updatedAt: string;
 };

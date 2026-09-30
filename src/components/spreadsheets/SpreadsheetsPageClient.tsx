@@ -2,11 +2,11 @@
 
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Download, FileSpreadsheet, Plus, Trash2, UploadCloud, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { deleteSpreadsheet, subscribeSpreadsheets, uploadSpreadsheet } from "@/lib/spreadsheets";
+import { deleteSpreadsheet, getSpreadsheets, uploadSpreadsheet } from "@/lib/spreadsheets";
 import { getUserDisplayName } from "@/lib/user-display";
 import type { WorkspaceSpreadsheet } from "@/types/spreadsheet";
 
@@ -24,6 +24,7 @@ export function SpreadsheetsPageClient() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const reload = useCallback(async () => setItems(await getSpreadsheets()), []);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -33,8 +34,8 @@ export function SpreadsheetsPageClient() {
 
   useEffect(() => {
     if (!user) return;
-    return subscribeSpreadsheets(setItems, (nextError) => setError(nextError.message));
-  }, [user]);
+    void Promise.resolve().then(reload).catch((nextError) => setError(nextError instanceof Error ? nextError.message : "Excelを読み込めませんでした。"));
+  }, [reload, user]);
 
   const months = useMemo(() => Array.from(new Set(items.map((item) => item.month))).sort().reverse(), [items]);
   const activeMonth = months.includes(selectedMonth) ? selectedMonth : months[0] ?? "";
@@ -65,6 +66,7 @@ export function SpreadsheetsPageClient() {
     if (!window.confirm(`「${item.name}」を削除しますか？`)) return;
     try {
       await deleteSpreadsheet(item);
+      await reload();
       setToast("表を削除しました");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "表を削除できませんでした。");
@@ -98,7 +100,7 @@ export function SpreadsheetsPageClient() {
           </div>
         </div>
       )}
-      {uploadOpen && user ? <UploadModal user={user} onClose={() => setUploadOpen(false)} onError={setError} onUploaded={(month) => { setSelectedMonth(month); setUploadOpen(false); setToast("Excelを追加しました"); }} /> : null}
+      {uploadOpen && user ? <UploadModal user={user} onClose={() => setUploadOpen(false)} onError={setError} onUploaded={(month) => { setSelectedMonth(month); setUploadOpen(false); setToast("Excelを追加しました"); void reload(); }} /> : null}
     </section>
   );
 }
