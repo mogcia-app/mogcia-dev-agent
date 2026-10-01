@@ -127,7 +127,7 @@ function buildText(input: {
     input.taskDescription ? `内容: ${input.taskDescription}` : "",
     "",
     `依頼者: ${input.actorName}`,
-    input.appUrl ? `確認: ${input.appUrl}/projects` : ""
+    input.appUrl ? `確認: ${input.appUrl}/home` : ""
   ].filter((line) => line !== "").join("\n");
 }
 

@@ -1,19 +1,19 @@
 "use client";
 
-import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Edit2, FileUp, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Archive, Bookmark, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Download, Edit2, ExternalLink, FileSpreadsheet, FileText, FileUp, ImageIcon, Mail, MoreHorizontal, Phone, Plus, Search, Target, Trash2, UserRound, X } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CompanyProjectsTab } from "@/components/projects/CompanyProjectsTab";
 import { SkeletonList } from "@/components/ui/loading";
 import { MultiSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { useCompanies } from "@/hooks/useCompanies";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { activityTone, activityTypeLabels, monthKey } from "@/lib/company-utils";
-import { activityTypeLabels as commonActivityTypeLabels } from "@/lib/lead-utils";
-import { deleteActivity } from "@/lib/leads";
+import { activityDisplayLabel } from "@/lib/lead-utils";
+import { deleteActivity, updateActivity } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { subscribeTeleapoRecords } from "@/lib/teleapo";
 import { createTask, deleteTask, setTaskCompleted } from "@/lib/tasks";
@@ -26,10 +26,10 @@ import type { Task, TaskDraft } from "@/types/task";
 import type { TeleapoRecord } from "@/types/teleapo";
 
 type SortKey = "lastContact" | "updated" | "name";
-type TabKey = "overview" | "timeline" | "projects" | "services" | "tasks" | "files" | "notes";
+type TabKey = "overview" | "timeline" | "services" | "tasks" | "files" | "notes";
 type NextActionDraft = { nextActionTitle: string };
 
-const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["projects", "プロジェクト"], ["tasks", "タスク"], ["files", "ファイル"], ["services", "サービス"], ["notes", "メモ"]];
+const tabs: Array<[TabKey, string]> = [["overview", "概要"], ["timeline", "活動"], ["tasks", "タスク"], ["files", "ファイル"], ["services", "サービス"], ["notes", "メモ"]];
 const sortOptions: Array<[SortKey, string]> = [["lastContact", "最終接触日が新しい順"], ["updated", "更新日が新しい順"], ["name", "会社名順"]];
 
 const contactMethodOptions: Array<[ContactMethod, string]> = [["phone", "電話"], ["email", "メール"], ["chat", "チャット"]];
@@ -51,6 +51,7 @@ export function CompaniesPageClient() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [memoOpen, setMemoOpen] = useState(false);
   const [nextActionOpen, setNextActionOpen] = useState(false);
   const [nextActionDraft, setNextActionDraft] = useState<NextActionDraft>({ nextActionTitle: "" });
@@ -174,7 +175,7 @@ export function CompaniesPageClient() {
   };
 
   const removeActivity = async (activity: Activity) => {
-    if (!window.confirm(`「${activity.title || commonActivityTypeLabels[activity.type]}」を削除しますか？`)) return;
+    if (!window.confirm(`「${activity.title || activityDisplayLabel(activity.type, activity.activityType)}」を削除しますか？`)) return;
     try { await deleteActivity(activity.id); flash("活動ログを削除しました"); }
     catch (error) { flash(error instanceof Error ? error.message : "活動ログを削除できませんでした"); }
   };
@@ -220,11 +221,10 @@ export function CompaniesPageClient() {
               <CompanyDetailTabs selectedTab={selectedTab} onSelect={selectDetailTab} />
               <div className={selectedTab === "overview" ? "" : "rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-none"}>
                   {selectedTab === "overview" ? <OverviewTab company={selectedCompany} calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} logs={store.logs} records={analysisRecords} tasks={store.tasks} onActivity={() => selectDetailTab("timeline")} onEdit={() => setEditCompany(selectedCompany)} onLog={() => setLogOpen(true)} onNextAction={openNextAction} onCreateTask={async (title) => { await createTask(companyTaskDraft(selectedCompany, title, store.currentUser.id, store.currentUser.name), { id: store.currentUser.id, uid: store.currentUser.id, name: store.currentUser.name }); flash("タスクを追加しました"); }} onToggleTask={toggleCompanyTask} onDeleteTask={deleteCompanyTask} /> : null}
-                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onDeleteActivity={(activity) => void removeActivity(activity)} onMore={() => setLogLimit((current) => current + 30)} /> : null}
-                  {selectedTab === "projects" ? <CompanyProjectsTab companyId={selectedCompany.id} companyName={selectedCompany.name} tasks={store.tasks} /> : null}
+                  {selectedTab === "timeline" ? <TimelineTab calendarEvents={store.calendarEvents} now={store.now} commonActivities={store.commonActivities} hasMore={store.hasMoreLogs} logs={store.logs} records={analysisRecords} company={selectedCompany} onDeleteActivity={(activity) => void removeActivity(activity)} onEditActivity={setEditingActivity} onMore={() => setLogLimit((current) => current + 30)} /> : null}
                   {selectedTab === "services" ? <ServicesTab company={selectedCompany} products={products} user={store.user} /> : null}
                   {selectedTab === "tasks" ? <TasksTab tasks={store.tasks} onToggle={toggleCompanyTask} onDelete={deleteCompanyTask} /> : null}
-                  {selectedTab === "files" ? <FilesTab files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
+                  {selectedTab === "files" ? <FilesTab companyId={selectedCompany.id} files={store.files} onUpload={(file, onProgress) => store.uploadFile(selectedCompany.id, file, onProgress)} /> : null}
                   {selectedTab === "notes" ? <NotesTab commonActivities={store.commonActivities} currentUserId={store.user?.uid ?? ""} hasMore={store.hasMoreLogs} isAdmin={store.isAdmin} logs={store.logs} memos={store.memos} onCreate={() => setMemoOpen(true)} onDelete={async (memoId) => { await store.deleteMemo(selectedCompany.id, memoId); flash("メモを削除しました"); }} onMore={() => setLogLimit(500)} onUpdate={async (memoId, input) => { await store.updateMemo(selectedCompany.id, memoId, input); flash("メモを更新しました"); }} /> : null}
               </div>
             </div>
@@ -234,6 +234,7 @@ export function CompaniesPageClient() {
       {createOpen ? <CompanyFormModal mode="create" products={products} onClose={() => setCreateOpen(false)} onSubmit={async (patch) => { const id = await store.createCompany(patch); setCreateOpen(false); flash("会社を作成しました"); setRoute({ id, tab: "overview" }); }} /> : null}
       {editCompany ? <CompanyFormModal company={editCompany} mode="edit" products={products} onClose={() => setEditCompany(null)} onSubmit={async (patch) => { await store.updateCompany(editCompany.id, patch); setEditCompany(null); flash("会社情報を更新しました"); }} /> : null}
       {selectedCompany && logOpen ? <LogFormModal company={selectedCompany} currentUser={store.currentUser} existingTasks={store.tasks} members={members} onClose={() => setLogOpen(false)} onSubmit={async (input, generateTasks) => { await store.addLog(selectedCompany.id, input); setLogOpen(false); flash("ログを追加しました"); if (generateTasks) await createSuggestedTasks(selectedCompany, input, store.currentUser); }} /> : null}
+      {selectedCompany && editingActivity ? <LogFormModal company={selectedCompany} currentUser={store.currentUser} existingTasks={store.tasks} initial={editingActivity} members={members} onClose={() => setEditingActivity(null)} onSubmit={async (input) => { await updateActivity(editingActivity.id, { type: toCommonActivityTypeForEdit(input.type), activityType: input.type, direction: input.direction, actorUserIds: input.actorUserIds, actorNames: input.actorNames, contactIds: input.contactIds, contactNames: input.contactNames, contactNote: input.contactNote, title: input.title, content: input.content, occurredAt: input.occurredAt }); setEditingActivity(null); flash("活動ログを更新しました"); }} /> : null}
       {selectedCompany && memoOpen ? <MemoFormModal onClose={() => setMemoOpen(false)} onSubmit={async (input) => { await store.addMemo(selectedCompany.id, input); setMemoOpen(false); flash("メモを追加しました"); }} /> : null}
       {selectedCompany && nextActionOpen ? <NextActionModal draft={nextActionDraft} saving={nextActionSaving} onChange={setNextActionDraft} onClose={() => setNextActionOpen(false)} onSave={saveNextAction} /> : null}
     </div>
@@ -320,7 +321,7 @@ function OverviewTab({ company, tasks, calendarEvents, now, commonActivities, lo
   const commonLegacyIds = new Set(commonActivities.map((item) => item.legacyCompanyActivityLogId).filter(Boolean));
   const recent = [
     ...calendarEvents.filter((event) => (event.endAt ?? event.startAt).toMillis() <= now).map((event) => ({ id: `c-${event.id}`, date: event.startAt.toDate(), hideDate: false, type: "カレンダー", title: event.title, content: event.description ?? "" })),
-    ...commonActivities.filter((item) => item.type !== "note").map((item) => ({ id: `a-${item.id}`, date: item.occurredAt.toDate(), hideDate: item.type === "status_change", type: commonActivityTypeLabels[item.type], title: item.title, content: item.content })),
+    ...commonActivities.filter((item) => item.type !== "note").map((item) => ({ id: `a-${item.id}`, date: item.occurredAt.toDate(), hideDate: item.type === "status_change", type: activityDisplayLabel(item.type, item.activityType), title: item.title, content: item.content })),
     ...logs.filter((item) => item.type !== "memo" && !commonLegacyIds.has(item.id)).map((item) => ({ id: `l-${item.id}`, date: item.occurredAt.toDate(), hideDate: item.type === "status_change", type: activityTypeLabels[item.type], title: item.title, content: item.content })),
     ...records.filter((item) => item.companyId === company.id || (!item.companyId && item.customerName === company.name)).map((item) => ({ id: `r-${item.id}`, date: item.recordedAt.toDate(), hideDate: false, type: item.salesDomain === "teleapo" ? "テレアポ" : "商談", title: item.meetingTitle || item.productName || "音声分析", content: item.aiAdvice?.summary || "" }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
@@ -391,7 +392,7 @@ type UnifiedCompanyTimelineItem =
   | { id: string; occurredAt: Timestamp; kind: "calendar"; event: CalendarEvent }
   | { id: string; occurredAt: Timestamp; kind: "analysis"; record: TeleapoRecord };
 
-function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, hasMore, onMore, onDeleteActivity }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; hasMore: boolean; onMore: () => void; onDeleteActivity: (activity: Activity) => void }) {
+function TimelineTab({ logs, calendarEvents, now, commonActivities, records, company, hasMore, onMore, onDeleteActivity, onEditActivity }: { logs: CompanyActivityLog[]; calendarEvents: CalendarEvent[]; now: number; commonActivities: Activity[]; records: TeleapoRecord[]; company: Company; hasMore: boolean; onMore: () => void; onDeleteActivity: (activity: Activity) => void; onEditActivity: (activity: Activity) => void }) {
   const commonLegacyIds = new Set(commonActivities.map((activity) => activity.legacyCompanyActivityLogId).filter(Boolean));
   const legacyItems: UnifiedCompanyTimelineItem[] = logs
     .filter((log) => log.source !== "system" && log.type !== "status_change" && log.type !== "memo" && !commonLegacyIds.has(log.id))
@@ -419,7 +420,7 @@ function TimelineTab({ logs, calendarEvents, now, commonActivities, records, com
               <span className="absolute bottom-4 left-3 top-3 w-px bg-[#E2E8F0]" />
               <div className="grid gap-4">
                 {items.map((item) => {
-                  if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} onDelete={() => onDeleteActivity(item.activity)} />;
+                  if (item.kind === "common") return <CommonActivityTimelineItem activity={item.activity} key={item.id} onDelete={() => onDeleteActivity(item.activity)} onEdit={() => onEditActivity(item.activity)} />;
                   if (item.kind === "calendar") return <CalendarActivityTimelineItem event={item.event} key={item.id} />;
                   if (item.kind === "analysis") return <AnalysisTimelineItem key={item.id} record={item.record} />;
                   return <ActivityTimelineItem key={item.id} log={item.log} />;
@@ -444,16 +445,20 @@ function CalendarActivityTimelineItem({ event }: { event: CalendarEvent }) {
   </article>;
 }
 
-function CommonActivityTimelineItem({ activity, onDelete }: { activity: Activity; onDelete: () => void }) {
+function CommonActivityTimelineItem({ activity, onDelete, onEdit }: { activity: Activity; onDelete: () => void; onEdit: () => void }) {
   const occurredAt = activity.occurredAt.toDate();
+  const label = activityDisplayLabel(activity.type, activity.activityType);
+  const actors = activity.actorNames?.length ? activity.actorNames.join(" / ") : activity.createdByName || "担当者未設定";
+  const contacts = activity.contactNames?.length ? activity.contactNames.join(" / ") : "先方未設定";
   return (
     <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">{commonActivityTypeLabels[activity.type]?.slice(0, 1) ?? "・"}</span>
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-semibold text-[#D47A95]">{label.slice(0, 1) || "・"}</span>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{commonActivityTypeLabels[activity.type]}</span>{activity.type !== "status_change" ? <span className="text-xs font-medium text-[#64748B]">{occurredAt.toLocaleDateString("ja-JP")}</span> : null}</div>
-        <button aria-label="活動ログを削除" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#94A3B8] hover:bg-red-50 hover:text-[#9B4862]" onClick={onDelete} type="button"><Trash2 className="h-4 w-4" /></button>
+        <div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-[#FDF0F4] px-3 py-1 text-xs font-medium text-[#D47A95]">{label}</span>{activity.type !== "status_change" ? <span className="text-xs font-medium text-[#64748B]">{occurredAt.toLocaleDateString("ja-JP")}</span> : null}</div>
+        <div className="flex shrink-0 gap-1"><button aria-label="活動ログを編集" className="grid h-8 w-8 place-items-center rounded-lg text-[#64748B] hover:bg-[#FDF0F4] hover:text-[#D47A95]" onClick={onEdit} type="button"><Edit2 className="h-4 w-4" /></button><button aria-label="活動ログを削除" className="grid h-8 w-8 place-items-center rounded-lg text-[#94A3B8] hover:bg-red-50 hover:text-[#9B4862]" onClick={onDelete} type="button"><Trash2 className="h-4 w-4" /></button></div>
       </div>
-      <h3 className="mt-2 text-base font-semibold text-[#111827]">{activity.title || commonActivityTypeLabels[activity.type]}</h3>
+      <h3 className="mt-2 text-base font-semibold text-[#111827]">{activity.title || label}</h3>
+      <p className="mt-2 text-sm font-medium text-[#64748B]">対応者: {actors} / 相手先: {contacts}</p>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-semibold leading-6 text-[#111827]">{activity.content}</p> : null}
       {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#9B4862]">次回予定: {activity.nextActionTitle}</p> : null}
     </article>
@@ -618,9 +623,123 @@ function InfoPair({ label, value }: { label: string; value: string }) {
   return <div><p className="text-xs font-medium text-[#64748B]">{label}</p><p className="mt-1 text-sm font-medium text-[#111827]">{value}</p></div>;
 }
 
-function FilesTab({ files, onUpload }: { files: Array<{ id: string; name: string; url: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number }>; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
+type PreviewCell = string | number | boolean | Date | null;
+type PreviewSheet = { name: string; rows: PreviewCell[][] };
+type CompanyFileItem = { id: string; name: string; url: string; storagePath?: string; createdAt: { toDate: () => Date }; createdByName?: string; size?: number };
+
+function FilesTab({ companyId, files, onUpload }: { companyId: string; files: CompanyFileItem[]; onUpload: (file: File, onProgress: (progress: number) => void) => Promise<void> }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  return <div><label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white"><FileUp className="h-4 w-4" />ファイル追加<input className="hidden" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void onUpload(file, setProgress); }} /></label>{progress > 0 ? <span className="ml-3 text-sm font-medium text-[#D47A95]">{progress}%</span> : null}<div className="mt-4 grid gap-3">{files.length === 0 ? <p className="text-sm font-medium text-[#8A8A8A]">ファイルはまだありません。</p> : files.map((file) => <a className="rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] p-4 text-sm font-medium text-[#111827]" href={file.url} key={file.id} rel="noreferrer" target="_blank">{file.name}{file.createdByName ? <span className="ml-3 text-xs text-[#64748B]">{file.createdByName}</span> : null}</a>)}</div></div>;
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [uploadedName, setUploadedName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<PreviewSheet[]>([]);
+  const [sheetName, setSheetName] = useState("");
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const selected = files.find((file) => file.id === selectedId) ?? files[0] ?? null;
+  const kind = selected ? companyFileKind(selected.name) : "other";
+
+  useEffect(() => {
+    if (!selected || kind !== "excel") return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return [];
+      setLoadingPreview(true);
+      setError(null);
+      return loadCompanyWorkbook(companyId, selected);
+    })
+      .then((nextSheets) => {
+        if (cancelled) return;
+        setSheets(nextSheets);
+        setSheetName(nextSheets[0]?.name ?? "");
+      })
+      .catch((nextError) => !cancelled && setError(nextError instanceof Error ? nextError.message : "Excelを読み込めませんでした。"))
+      .finally(() => !cancelled && setLoadingPreview(false));
+    return () => { cancelled = true; };
+  }, [companyId, kind, selected]);
+
+  const upload = async (file: File) => {
+    const nextKind = companyFileKind(file.name);
+    if (nextKind === "other") {
+      setError("PDF、Excel（.xlsx）、CSV、画像ファイルを選んでください。");
+      return;
+    }
+    setUploading(true);
+    setProgress(0);
+    setError(null);
+    setUploadedName("");
+    try {
+      await onUpload(file, setProgress);
+      setUploadedName(file.name);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "ファイルをアップロードできませんでした。");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  };
+
+  const activeSheet = sheets.find((sheet) => sheet.name === sheetName) ?? sheets[0] ?? null;
+  return <div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div><div className="flex items-center gap-2"><h3 className="text-base font-semibold text-[#111827]">会社ファイル</h3>{files.length ? <span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#64748B]">{files.length}件</span> : null}</div><p className="mt-1 text-sm text-[#64748B]">見積書や契約書、管理表などを会社ごとにまとめて確認できます。</p></div>
+      {files.length ? <label className={`inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white ${uploading ? "pointer-events-none opacity-60" : ""}`}><FileUp className="h-4 w-4" />{uploading ? `${progress}%` : "ファイルを追加"}<input accept=".pdf,.xlsx,.csv,image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" className="hidden" disabled={uploading} type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.currentTarget.value = ""; }} /></label> : null}
+    </div>
+    {!files.length ? <label
+        aria-busy={uploading}
+        className={`mt-4 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${dragging ? "border-[#D47A95] bg-[#FDF0F4]" : "border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#E79AB0] hover:bg-[#FFF8FA]"} ${uploading ? "pointer-events-none" : ""}`}
+        onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragLeave={(event) => { event.preventDefault(); setDragging(false); }}
+        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        onDrop={(event) => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files?.[0]; if (file) void upload(file); }}
+      >
+        <span className={`grid h-12 w-12 place-items-center rounded-full ${uploading ? "bg-[#FDF0F4] text-[#D47A95]" : "bg-white text-[#D47A95] shadow-sm ring-1 ring-[#E2E8F0]"}`}><FileUp className="h-5 w-5" /></span>
+        {uploading ? <><p className="mt-3 text-sm font-semibold text-[#111827]">アップロードしています… {progress}%</p><div className="mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-[#E2E8F0]"><div className="h-full rounded-full bg-[#D47A95] transition-all" style={{ width: `${progress}%` }} /></div></> : <><p className="mt-3 text-sm font-semibold text-[#111827]">ここにファイルをドロップ</p><p className="mt-1 text-sm text-[#64748B]">または <span className="font-semibold text-[#D47A95]">ファイルを選択</span></p><p className="mt-3 text-xs text-[#94A3B8]">PDF・Excel（.xlsx）・CSV・画像 / 100MB未満</p></>}
+        <input accept=".pdf,.xlsx,.csv,image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" className="hidden" disabled={uploading} type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.currentTarget.value = ""; }} />
+      </label> : null}
+    {files.length && uploading ? <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E2E8F0]"><div className="h-full rounded-full bg-[#D47A95] transition-all" style={{ width: `${progress}%` }} /></div> : null}
+    {uploadedName ? <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><CheckCircle2 className="h-4 w-4 shrink-0" /><span className="truncate">{uploadedName} を追加しました</span><button aria-label="完了メッセージを閉じる" className="ml-auto shrink-0" onClick={() => setUploadedName("")} type="button"><X className="h-4 w-4" /></button></div> : null}
+    {error ? <div className="mt-4"><StatusBanner message={error} type="error" /></div> : null}
+    {files.length ? <div className="mt-5 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white">
+      <div className="flex gap-2 overflow-x-auto border-b border-[#E2E8F0] bg-[#F8FAFC] p-3">
+        {files.map((file) => { const fileKind = companyFileKind(file.name); const Icon = fileKind === "excel" || fileKind === "csv" ? FileSpreadsheet : fileKind === "image" ? ImageIcon : FileText; const active = selected?.id === file.id; return <button className={`inline-flex h-11 max-w-[320px] shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${active ? "bg-white text-[#9B4862] shadow-sm ring-1 ring-[#F1C2D0]" : "text-[#475569] hover:bg-white"}`} key={file.id} onClick={() => setSelectedId(file.id)} type="button"><Icon className="h-4 w-4 shrink-0" /><span className="truncate">{file.name}</span></button>; })}
+      </div>
+      {selected ? <section className="min-w-0 overflow-hidden bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-[#E2E8F0] px-5 py-4"><p className="min-w-0 truncate text-base font-semibold text-[#111827]">{selected.name}</p><div className="flex shrink-0 gap-2"><a aria-label="ダウンロード" className="grid h-9 w-9 place-items-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]" download href={selected.url}><Download className="h-4 w-4" /></a><a aria-label="別タブで開く" className="grid h-9 w-9 place-items-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]" href={selected.url} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" /></a></div></div>
+        {kind === "pdf" ? <iframe className="h-[760px] w-full bg-[#F8FAFC]" src={selected.url} title={selected.name} /> : null}
+        {kind === "image" ? <iframe className="h-[760px] w-full bg-[#F8FAFC]" src={selected.url} title={selected.name} /> : null}
+        {kind === "excel" ? <div>{sheets.length > 1 ? <div className="flex gap-2 overflow-x-auto border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">{sheets.map((sheet) => <button className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${activeSheet?.name === sheet.name ? "bg-white text-[#9B4862] shadow-sm ring-1 ring-[#E2E8F0]" : "text-[#64748B]"}`} key={sheet.name} onClick={() => setSheetName(sheet.name)} type="button">{sheet.name}</button>)}</div> : null}<div className="max-h-[760px] min-h-[560px] overflow-auto">{loadingPreview ? <div className="grid min-h-[560px] place-items-center text-sm text-[#64748B]">Excelを読み込んでいます…</div> : activeSheet ? <CompanySpreadsheetPreview sheet={activeSheet} /> : null}</div></div> : null}
+        {kind === "csv" ? <iframe className="h-[760px] w-full bg-white" src={selected.url} title={selected.name} /> : null}
+        {kind === "other" ? <div className="grid min-h-[460px] place-items-center p-8 text-center"><div><FileText className="mx-auto h-10 w-10 text-[#CBD5E1]" /><p className="mt-3 text-sm text-[#64748B]">この形式は画面内プレビューに対応していません。</p><a className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[#D47A95] px-4 text-sm font-medium text-white" href={selected.url} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" />ファイルを開く</a></div></div> : null}
+      </section> : null}
+    </div> : null}
+  </div>;
+}
+
+function companyFileKind(name: string): "pdf" | "excel" | "csv" | "image" | "other" {
+  const extension = name.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return "pdf";
+  if (extension === "xlsx") return "excel";
+  if (extension === "csv") return "csv";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(extension ?? "")) return "image";
+  return "other";
+}
+
+async function loadCompanyWorkbook(companyId: string, file: CompanyFileItem): Promise<PreviewSheet[]> {
+  const auth = getFirebaseAuth();
+  const token = await auth?.currentUser?.getIdToken();
+  if (!token) throw new Error("ログインが必要です。");
+  const response = await fetch(`/api/companies/${encodeURIComponent(companyId)}/files/${encodeURIComponent(file.id)}/content`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error("Excelファイルを取得できませんでした。");
+  const { default: readXlsxFile } = await import("read-excel-file/browser");
+  const workbook = await readXlsxFile(await response.blob());
+  return workbook.map((sheet) => ({ name: sheet.sheet, rows: sheet.data as PreviewCell[][] }));
+}
+
+function CompanySpreadsheetPreview({ sheet }: { sheet: PreviewSheet }) {
+  if (!sheet.rows.length) return <div className="grid min-h-80 place-items-center text-sm text-[#64748B]">このシートには表示できるデータがありません。</div>;
+  return <table className="min-w-full border-collapse text-sm"><tbody>{sheet.rows.map((row, rowIndex) => <tr className={rowIndex === 0 ? "sticky top-0 z-10 bg-[#F8FAFC] font-semibold text-[#334155]" : "bg-white text-[#475569]"} key={rowIndex}>{row.map((cell, columnIndex) => <td className="max-w-[360px] whitespace-pre-wrap border-b border-r border-[#E2E8F0] px-3 py-2 align-top" key={columnIndex}>{cell instanceof Date ? cell.toLocaleDateString("ja-JP") : String(cell ?? "")}</td>)}</tr>)}</tbody></table>;
 }
 
 function NotesTab({
@@ -852,10 +971,10 @@ function CompanyFormModal({ mode, company, products, onClose, onSubmit }: { mode
   );
 }
 
-function LogFormModal({ company, currentUser, existingTasks, members, onClose, onSubmit }: { company: Company; currentUser: { id: string; name: string }; existingTasks: Array<{ title: string; status: string }>; members: Array<{ uid: string; name: string; email: string }>; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addLog"]>[1], generateTasks: boolean) => Promise<void> }) {
+function LogFormModal({ company, currentUser, existingTasks, members, initial, onClose, onSubmit }: { company: Company; currentUser: { id: string; name: string }; existingTasks: Array<{ title: string; status: string }>; members: Array<{ uid: string; name: string; email: string }>; initial?: Activity; onClose: () => void; onSubmit: (input: Parameters<ReturnType<typeof useCompanies>["addLog"]>[1], generateTasks: boolean) => Promise<void> }) {
   const contacts = company.contacts?.length ? company.contacts.map(normalizeContactPerson) : [normalizeContactPerson({ id: "primary", name: company.primaryContactName ?? "", role: "", email: company.email ?? "", phone: company.phone ?? "" })].filter((contact) => contact.name || contact.email || contact.phone);
   const now = new Date();
-  const [form, setForm] = useState({ type: "phone" as ActivityLogType, occurredDate: toDateInputValue(now), title: "", actorUserIds: [currentUser.id].filter(Boolean), contactIds: contacts[0]?.id ? [contacts[0].id] : [], content: "", aiTaskRequested: false });
+  const [form, setForm] = useState({ type: initial ? legacyActivityTypeForEdit(initial) : "phone" as ActivityLogType, occurredDate: toDateInputValue(initial?.occurredAt.toDate() ?? now), title: initial?.title ?? "", actorUserIds: initial ? initial.actorUserIds ?? [] : [currentUser.id].filter(Boolean), contactIds: initial ? initial.contactIds ?? [] : contacts[0]?.id ? [contacts[0].id] : [], content: initial?.content ?? "", aiTaskRequested: false });
   const [saving, setSaving] = useState(false);
   const selectedActors = members.filter((member) => form.actorUserIds.includes(member.uid));
   const selectedContacts = contacts.filter((contact) => form.contactIds.includes(contact.id));
@@ -879,7 +998,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
     setSaving(false);
   };
   return (
-    <Modal title={`${company.name} のログを追加`} onClose={onClose}>
+    <Modal title={`${company.name} のログを${initial ? "編集" : "追加"}`} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="ログ種類" value={form.type} options={(["phone", "email", "chat", "visit", "meeting", "file", "other"] as ActivityLogType[]).map((type) => [type, activityTypeLabels[type]])} onChange={(type) => setForm({ ...form, type: type as ActivityLogType })} />
         <Input label="日付" value={form.occurredDate} type="date" onChange={(occurredDate) => setForm({ ...form, occurredDate })} />
@@ -903,7 +1022,7 @@ function LogFormModal({ company, currentUser, existingTasks, members, onClose, o
         <div className="sm:col-span-2">
           <Text label={form.type === "email" ? "メール本文 / 内容" : "内容"} value={form.content} minHeight="min-h-[28rem]" onChange={(content) => setForm({ ...form, content })} />
         </div>
-        <label className="flex items-center gap-2 text-sm font-medium text-[#655D62]"><input checked={form.aiTaskRequested} onChange={(event) => setForm({ ...form, aiTaskRequested: event.target.checked })} type="checkbox" />この内容からAIにタスクを作成してもらう</label>
+        {!initial ? <label className="flex items-center gap-2 text-sm font-medium text-[#655D62]"><input checked={form.aiTaskRequested} onChange={(event) => setForm({ ...form, aiTaskRequested: event.target.checked })} type="checkbox" />この内容からAIにタスクを作成してもらう</label> : null}
         <p className="text-xs font-semibold text-[#8A8A8A]">未完了タスク: {existingTasks.filter((task) => task.status !== "completed").map((task) => task.title).join(" / ") || "なし"}</p>
       </div>
       <Actions saving={saving} onClose={onClose} onSave={save} disabled={!form.title.trim() || form.actorUserIds.length === 0} />
@@ -1051,6 +1170,24 @@ function formatActivityParties(log: CompanyActivityLog): string {
   const actors = log.actorNames?.length ? log.actorNames.join(" / ") : getUserDisplayNameById(log.userId, log.userName);
   const contacts = log.contactNames?.length ? log.contactNames.join(" / ") : "先方未設定";
   return `対応者: ${actors} / 相手先: ${contacts}`;
+}
+
+function legacyActivityTypeForEdit(activity: Activity): ActivityLogType {
+  const type = activity.activityType;
+  if (type === "phone" || type === "email" || type === "chat" || type === "visit" || type === "meeting" || type === "file" || type === "other") return type;
+  if (activity.type === "call" || activity.type === "telemarketing") return "phone";
+  if (activity.type === "document") return "file";
+  if (activity.type === "meeting") return "meeting";
+  if (activity.type === "email") return "email";
+  return "other";
+}
+
+function toCommonActivityTypeForEdit(type: ActivityLogType): Activity["type"] {
+  if (type === "phone") return "call";
+  if (type === "email") return "email";
+  if (type === "visit" || type === "meeting") return "meeting";
+  if (type === "file") return "document";
+  return "other";
 }
 
 function FormSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {

@@ -265,6 +265,14 @@ export async function addCompanyLog(companyId: string, user: { id: string; name:
       companyId,
       dealId: input.dealId ?? null,
       type: toCommonActivityType(input.type),
+      activityType: input.type,
+      direction: input.direction ?? "unknown",
+      actorUserIds: input.actorUserIds ?? [],
+      actorNames: input.actorNames ?? [],
+      contactIds: input.contactIds ?? [],
+      contactNames: input.contactNames ?? [],
+      contactNote: input.contactNote ?? "",
+      aiTaskRequested: Boolean(input.aiTaskRequested),
       title: input.title,
       content: input.content ?? "",
       productId: null,
@@ -322,14 +330,29 @@ export async function uploadCompanyFile(companyId: string, user: { id: string; n
   const db = getFirebaseDb();
   const storage = getFirebaseStorageClient();
   if (!db || !storage) throw new Error("Firebaseが未設定です。");
-  const path = `companies/${companyId}/files/${Date.now()}-${file.name}`;
-  const task = uploadBytesResumable(ref(storage, path), file, { contentType: file.type });
-  await new Promise<void>((resolve, reject) => task.on("state_changed", (snapshot) => onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)), reject, () => resolve()));
-  const url = await getDownloadURL(ref(storage, path));
+  if (file.size > 100 * 1024 * 1024) throw new Error("ファイルサイズは100MB未満にしてください。");
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `companies/${companyId}/files/${Date.now()}-${safeName || "file"}`;
+  const storageRef = ref(storage, path);
+  const task = uploadBytesResumable(storageRef, file, { contentType: file.type || "application/octet-stream" });
+  try {
+    await new Promise<void>((resolve, reject) => task.on("state_changed", (snapshot) => onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)), reject, () => resolve()));
+  } catch (error) {
+    throw new Error(companyFileUploadError(error));
+  }
+  const url = await getDownloadURL(storageRef);
   const fileRef = await addDoc(collection(db, companiesCollection, companyId, "files"), { name: file.name, type: "other", url, storagePath: path, size: file.size, createdBy: user.id, createdByName: user.name, createdAt: serverTimestamp() });
-  await addCompanyLog(companyId, user, { type: "file", title: "ファイルを追加しました", content: file.name, occurredAt: Timestamp.now(), source: "manual" });
   await updateDoc(doc(db, companiesCollection, companyId, "files", fileRef.id), { id: fileRef.id });
-  await updateCompany(companyId, user, {});
+  await updateCompany(companyId, user, {}).catch(() => undefined);
+}
+
+function companyFileUploadError(error: unknown): string {
+  const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+  if (code.includes("unauthorized")) return "ファイルを保存する権限がありません。ログインし直してから再度お試しください。";
+  if (code.includes("canceled")) return "ファイルのアップロードをキャンセルしました。";
+  if (code.includes("quota-exceeded")) return "Firebase Storageの保存容量を超えています。";
+  if (code.includes("retry-limit-exceeded")) return "通信が安定しません。時間をおいて再度お試しください。";
+  return error instanceof Error ? error.message : "ファイルをアップロードできませんでした。";
 }
 
 export async function deleteCompany(companyId: string): Promise<void> {

@@ -11,7 +11,7 @@ import { SearchSelect, SingleSelect } from "@/components/ui/select";
 import { EmptyState, StatusBanner, StatusToast } from "@/components/ui/status";
 import { subscribeCalendarEvents } from "@/lib/calendar";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { createEmptyLeadDraft, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, toDatetimeLocalInput } from "@/lib/lead-utils";
+import { createEmptyLeadDraft, activityDisplayLabel, activityTypeLabels, activityTypeOptions, formatMaybeDate, leadCreateStatusOptions, leadStatusLabels, leadStatusOptions, toDatetimeLocalInput } from "@/lib/lead-utils";
 import { createLead, createManualActivity, deleteActivity, setLeadWatchlisted, subscribeLeadActivities, subscribeLeads, updateLead } from "@/lib/leads";
 import { subscribeProductsMaster } from "@/lib/products";
 import { generateTemplateContent, subscribeBusinessTemplates } from "@/lib/templates";
@@ -30,9 +30,11 @@ type TabKey = "activity" | "meetings" | "tasks" | "files" | "notes";
 const tabs: Array<[TabKey, string]> = [["activity", "活動ログ"], ["meetings", "商談"], ["tasks", "タスク"], ["files", "ファイル"], ["notes", "メモ"]];
 const sortOptions: Array<[LeadSort, string]> = [["updated", "更新日が新しい順"], ["nextAction", "次回予定が近い順"], ["lastActivity", "最終活動日が新しい順"], ["companyName", "会社名順"]];
 const industryOptions = ["ホテル", "ゴルフ", "政治関係", "ホテル協会", "ゴルフ協会"].map((value) => ({ value, label: value }));
+const prefectureOptions = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"].map((value) => ({ value, label: value }));
 const ALL_MONTHS = "all";
 const UNSET_MONTH = "unset";
 const WATCHLIST = "watchlist";
+const leadDefaultsStorageKey = "mogcia-lead-entry-defaults";
 
 type NextActionDraft = {
   nextActionTitle: string;
@@ -58,7 +60,7 @@ export function LeadsPageClient() {
   const [records, setRecords] = useState<TeleapoRecord[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [query, setQuery] = useState("");
-  const [monthFilter, setMonthFilter] = useState(ALL_MONTHS);
+  const [monthFilter, setMonthFilter] = useState(() => japanMonthKey(new Date()));
   const [productId, setProductId] = useState("all");
   const [assigneeId, setAssigneeId] = useState("all");
   const [sort, setSort] = useState<LeadSort>("updated");
@@ -155,7 +157,7 @@ export function LeadsPageClient() {
       .filter((lead) => monthFilter === ALL_MONTHS || (monthFilter === WATCHLIST ? lead.isWatchlisted : leadMonthKey(lead) === monthFilter))
       .filter((lead) => productId === "all" || lead.productId === productId)
       .filter((lead) => assigneeId === "all" || lead.assignedUserId === assigneeId)
-      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.productName, lead.preInfo, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
+      .filter((lead) => !needle || [lead.companyName, lead.contactName, lead.contactRole, lead.phone, lead.email, lead.industry, lead.prefecture, lead.productName, lead.preInfo, lead.notes].filter(Boolean).join(" ").toLowerCase().includes(needle))
       .sort((a, b) => compareLeads(a, b, sort));
   }, [assigneeId, leads, monthFilter, productId, query, sort]);
 
@@ -188,6 +190,7 @@ export function LeadsPageClient() {
     setError(null);
     try {
       const id = await createLead(draft, currentUser);
+      saveLeadEntryDefaults(draft);
       setDraft(createEmptyLeadDraft());
       setCreateOpen(false);
       setToast("営業リストを登録しました");
@@ -200,7 +203,7 @@ export function LeadsPageClient() {
   };
 
   const openCreateLead = () => {
-    setDraft(createEmptyLeadDraft());
+    setDraft(createLeadDraftWithDefaults(products));
     setCreateOpen(true);
   };
 
@@ -363,13 +366,13 @@ export function LeadsPageClient() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <label className="flex h-10 w-full max-w-xl items-center gap-2 rounded-xl border border-[#E5E0DD] bg-[#FCFBFA] px-3 text-sm font-medium text-[#64748B]">
                 <Search className="h-4 w-4" />
-                <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
+                <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="会社・担当者・電話・メール・県名・商材を検索" value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
             </div>
           </div>
           <div className="overflow-x-auto pb-1">
             <div className="grid min-w-[1080px] grid-cols-[70px_1fr_1.25fr_0.95fr_0.8fr_0.9fr_1.6fr] gap-4 border-b border-[#E5E7EB] bg-[#FAF9F8] py-3 pl-8 pr-6 text-xs font-medium text-neutral-400">
-              <span>実施月</span><span>商材</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
+              <span>実施月</span><span>県名</span><span>会社</span><span>担当者</span><span>業種</span><span>ステータス</span><span>次回予定</span>
             </div>
             {loading ? <SkeletonList count={6} media={false} /> : null}
             {!loading && filtered.length === 0 ? <EmptyState title="営業対象はありません" description="条件に一致する営業対象はありません。" /> : null}
@@ -424,7 +427,7 @@ function LeadRow({ lead, nextAction, saving, onSelect, onStatusChange, onToggleW
           <span className="truncate">{formatLeadMonth(lead)}</span>
         </span>
       </div>
-      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.productName || "未設定"}</div>
+      <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.prefecture || "未設定"}</div>
       <div className="flex min-w-0 items-center gap-2 text-left"><button aria-label={lead.isWatchlisted ? `${lead.companyName}を追っかけリストから外す` : `${lead.companyName}を追っかけリストに追加`} className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${lead.isWatchlisted ? "text-amber-500" : lost ? "text-white/40 hover:text-amber-300" : "text-slate-300 hover:bg-amber-50 hover:text-amber-500"}`} onClick={(event) => { event.stopPropagation(); onToggleWatchlist(); }} type="button"><Star className={`h-4 w-4 ${lead.isWatchlisted ? "fill-current" : ""}`} /></button><span className={`min-w-0 truncate text-sm font-medium ${lost ? "text-white" : "text-[#111827]"}`}>{lead.companyName}</span></div>
       <div className="min-w-0 text-left"><span className={`block truncate text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.contactName || "未設定"}</span>{lead.contactRole ? <span className={`mt-1 block truncate text-xs ${lost ? "text-[#AAA]" : "text-[#999]"}`}>{lead.contactRole}</span> : null}</div>
       <div className={`min-w-0 truncate text-left text-sm font-medium ${lost ? "text-[#E8E8E8]" : "text-[#475569]"}`}>{lead.industry || "未設定"}</div>
@@ -496,6 +499,7 @@ function NextActionPanel({ lead, nextAction, onNextAction }: { lead: Lead; nextA
 function LeadSummaryStrip({ lead }: { lead: Lead }) {
   const items: Array<{ label: string; value?: string | null; Icon: LucideIcon }> = [
     { label: "実施月", value: formatLeadMonth(lead), Icon: CalendarDays },
+    { label: "県名", value: lead.prefecture, Icon: Building2 },
     { label: "会社名", value: lead.companyName, Icon: Building2 },
     { label: "担当者", value: lead.contactName, Icon: Building2 },
     { label: "役職", value: lead.contactRole, Icon: Archive },
@@ -587,14 +591,15 @@ function ActivityTab({ activities, deleting, onDelete }: { activities: Activity[
 }
 
 function ActivityItem({ activity, deleting, onDelete }: { activity: Activity; deleting: boolean; onDelete: () => void }) {
+  const label = activityDisplayLabel(activity.type, activity.activityType);
   return (
     <article className="relative rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-none">
-      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type].slice(0, 1)}</span>
+      <span className="absolute -left-[34px] top-4 grid h-7 w-7 place-items-center rounded-xl border border-[#F1C2D0] bg-[#FDF0F4] text-xs font-medium text-[#D47A95]">{label.slice(0, 1)}</span>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded-xl bg-[#FDF0F4] px-2.5 py-1 text-xs font-medium text-[#D47A95]">{activityTypeLabels[activity.type]}</span>
+        <span className="rounded-xl bg-[#FDF0F4] px-2.5 py-1 text-xs font-medium text-[#D47A95]">{label}</span>
         <button aria-label="活動ログを削除" className="grid h-8 w-8 place-items-center rounded-lg text-[#94A3B8] hover:bg-red-50 hover:text-[#9B4862] disabled:opacity-50" disabled={deleting} onClick={onDelete} type="button"><Trash2 className="h-4 w-4" /></button>
       </div>
-      <h3 className="mt-2 text-sm font-medium text-[#111827]">{activity.title || activityTypeLabels[activity.type]}</h3>
+      <h3 className="mt-2 text-sm font-medium text-[#111827]">{activity.title || label}</h3>
       {activity.content ? <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#FFFFFF] p-3 text-sm font-normal leading-6 text-[#475569]">{activity.content}</p> : null}
       {activity.nextActionTitle ? <p className="mt-3 text-sm font-medium text-[#9B4862]">次回予定: {activity.nextActionTitle}</p> : null}
     </article>
@@ -643,8 +648,10 @@ function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }:
         <Input label="メール" value={draft.email} onChange={(email) => onChange({ ...draft, email })} />
         <Input label="HP URL" type="url" value={draft.website} onChange={(website) => onChange({ ...draft, website })} />
         <IndustrySelect label="業種" value={draft.industry} onChange={(industry) => onChange({ ...draft, industry })} />
+        <SearchBox label="県名" value={draft.prefecture} options={prefectureOptions} onChange={(prefecture) => onChange({ ...draft, prefecture })} />
         <SearchBox label="関連商材" value={draft.productId} options={products.map((product) => ({ value: product.id, label: product.name }))} onChange={(nextProductId) => { const product = products.find((item) => item.id === nextProductId); onChange({ ...draft, productId: nextProductId, productName: product?.name ?? "" }); }} />
         <MonthSelect label="実施月" value={draft.appointmentAt} onChange={(appointmentAt) => onChange({ ...draft, appointmentAt })} />
+        {mode === "create" ? <p className="-mt-2 text-xs font-medium text-[#64748B] sm:col-span-2">業種・関連商材・実施月は、次回の新規登録にも引き継がれます。</p> : null}
         <SelectBox label="ステータス" value={leadCreateStatusOptions.some(([status]) => status === draft.status) ? draft.status : "appointment"} options={leadCreateStatusOptions} onChange={(status) => onChange({ ...draft, status: status as LeadStatus })} />
         <div className="sm:col-span-2"><Text label="事前情報" value={draft.preInfo} onChange={(preInfo) => onChange({ ...draft, preInfo })} /></div>
         <div className="sm:col-span-2"><Text label="メモ" value={draft.notes} onChange={(notes) => onChange({ ...draft, notes })} /></div>
@@ -655,6 +662,38 @@ function LeadModal({ draft, mode, products, saving, onChange, onSave, onClose }:
       </div>
     </Modal>
   );
+}
+
+function createLeadDraftWithDefaults(products: Product[]): LeadDraft {
+  const empty = createEmptyLeadDraft();
+  const currentMonth = new Date();
+  const appointmentAt = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}-01`;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(leadDefaultsStorageKey) ?? "{}") as Partial<Pick<LeadDraft, "industry" | "productId" | "productName" | "appointmentAt">>;
+    const product = products.find((item) => item.id === saved.productId);
+    return {
+      ...empty,
+      industry: typeof saved.industry === "string" ? saved.industry : "",
+      productId: product?.id ?? "",
+      productName: product?.name ?? "",
+      appointmentAt: typeof saved.appointmentAt === "string" && saved.appointmentAt ? saved.appointmentAt : appointmentAt
+    };
+  } catch {
+    return { ...empty, appointmentAt };
+  }
+}
+
+function saveLeadEntryDefaults(draft: LeadDraft): void {
+  try {
+    window.localStorage.setItem(leadDefaultsStorageKey, JSON.stringify({
+      industry: draft.industry,
+      productId: draft.productId,
+      productName: draft.productName,
+      appointmentAt: draft.appointmentAt
+    }));
+  } catch {
+    // ブラウザの保存領域を利用できない場合も、登録自体は継続する。
+  }
 }
 
 function ActivityModal({ draft, saving, onChange, onSave, onClose }: { draft: ActivityDraft; saving: boolean; onChange: (draft: ActivityDraft) => void; onSave: () => void; onClose: () => void }) {
@@ -836,9 +875,9 @@ function buildMonthTabs(leads: Lead[], currentMonth: string) {
   const unset = counts.get(UNSET_MONTH);
   return [
     { value: ALL_MONTHS, label: "すべて", count: leads.length, sort: Number.MAX_SAFE_INTEGER },
-    { value: WATCHLIST, label: "追っかけ", count: leads.filter((lead) => lead.isWatchlisted).length, sort: Number.MAX_SAFE_INTEGER - 1 },
     ...monthTabs,
-    ...(unset ? [{ value: UNSET_MONTH, label: "未設定", count: unset.count, sort: unset.sort }] : [])
+    ...(unset ? [{ value: UNSET_MONTH, label: "未設定", count: unset.count, sort: unset.sort }] : []),
+    { value: WATCHLIST, label: "追っかけ", count: leads.filter((lead) => lead.isWatchlisted).length, sort: -2 }
   ];
 }
 
@@ -920,6 +959,7 @@ function leadToDraft(lead: Lead): LeadDraft {
     email: lead.email ?? "",
     website: lead.website ?? "",
     industry: lead.industry ?? "",
+    prefecture: lead.prefecture ?? "",
     source: lead.source ?? "",
     productId: lead.productId ?? "",
     productName: lead.productName ?? "",

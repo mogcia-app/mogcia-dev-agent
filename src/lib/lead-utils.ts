@@ -38,6 +38,26 @@ export const activityTypeLabels: Record<ActivityType, string> = {
   other: "その他"
 };
 
+const legacyActivityTypeLabels: Record<string, string> = {
+  phone: "電話",
+  email: "メール",
+  chat: "チャット",
+  visit: "訪問",
+  meeting: "打ち合わせ",
+  deal: "商談",
+  memo: "メモ",
+  task_created: "タスク作成",
+  task_completed: "タスク完了",
+  file: "ファイル",
+  status_change: "ステータス変更",
+  ai_task: "AIタスク",
+  other: "その他"
+};
+
+export function activityDisplayLabel(type: ActivityType, activityType?: string): string {
+  return activityType && legacyActivityTypeLabels[activityType] ? legacyActivityTypeLabels[activityType] : activityTypeLabels[type];
+}
+
 export const leadStatusOptions = Object.entries(leadStatusLabels) as Array<[LeadStatus, string]>;
 export const leadCreateStatusOptions: Array<[LeadStatus, string]> = [
   ["prospect", leadStatusLabels.prospect],
@@ -58,6 +78,7 @@ export function createEmptyLeadDraft(): LeadDraft {
     email: "",
     website: "",
     industry: "",
+    prefecture: "",
     source: "",
     productId: "",
     productName: "",

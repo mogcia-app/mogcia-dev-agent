@@ -14,6 +14,7 @@ export interface Lead {
   email?: string;
   website?: string;
   industry?: string;
+  prefecture?: string;
   source?: string;
   productId?: string | null;
   productName?: string | null;
@@ -44,6 +45,7 @@ export interface LeadDraft {
   email: string;
   website: string;
   industry: string;
+  prefecture: string;
   source: string;
   productId: string;
   productName: string;
@@ -66,6 +68,13 @@ export interface Activity {
   companyId?: string | null;
   dealId?: string | null;
   type: ActivityType;
+  activityType?: "phone" | "email" | "chat" | "visit" | "meeting" | "deal" | "memo" | "task_created" | "task_completed" | "file" | "status_change" | "ai_task" | "other";
+  direction?: "inbound" | "outbound" | "internal" | "unknown";
+  actorUserIds?: string[];
+  actorNames?: string[];
+  contactIds?: string[];
+  contactNames?: string[];
+  contactNote?: string;
   leadStatus?: LeadStatus | null;
   title?: string;
   content?: string;

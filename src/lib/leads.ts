@@ -51,6 +51,7 @@ export function normalizeLead(id: string, data: DocumentData): Lead {
     email: str(data.email),
     website: str(data.website),
     industry: str(data.industry),
+    prefecture: str(data.prefecture),
     source: str(data.source),
     productId: optionalStr(data.productId),
     productName: optionalStr(data.productName),
@@ -81,6 +82,13 @@ export function normalizeActivity(id: string, data: DocumentData): Activity {
     companyId: optionalStr(data.companyId),
     dealId: optionalStr(data.dealId),
     type: isActivityType(data.type) ? data.type : "other",
+    activityType: isLegacyActivityType(data.activityType) ? data.activityType : undefined,
+    direction: data.direction === "inbound" || data.direction === "outbound" || data.direction === "internal" ? data.direction : "unknown",
+    actorUserIds: stringArray(data.actorUserIds),
+    actorNames: stringArray(data.actorNames),
+    contactIds: stringArray(data.contactIds),
+    contactNames: stringArray(data.contactNames),
+    contactNote: str(data.contactNote),
     leadStatus: isLeadStatus(data.leadStatus) ? data.leadStatus : null,
     title: str(data.title),
     content: str(data.content),
@@ -203,6 +211,13 @@ export async function deleteActivity(activityId: string): Promise<void> {
   });
 }
 
+export async function updateActivity(activityId: string, input: Pick<Activity, "type" | "activityType" | "direction" | "actorUserIds" | "actorNames" | "contactIds" | "contactNames" | "contactNote" | "title" | "content" | "occurredAt">): Promise<void> {
+  await businessApi<{ activity: Activity }>("/api/business/activities", {
+    method: "PATCH",
+    body: toJsonBody({ id: activityId, ...input })
+  });
+}
+
 export async function createActivity(input: Omit<Activity, "id" | "createdBy" | "createdByName" | "createdAt" | "updatedAt">, user: { id: string; name: string }): Promise<string> {
   const result = await businessApi<{ id: string; activityId?: string }>("/api/business/activities", {
     method: "POST",
@@ -211,6 +226,13 @@ export async function createActivity(input: Omit<Activity, "id" | "createdBy" | 
       companyId: input.companyId ?? null,
       dealId: input.dealId ?? null,
       type: input.type,
+      activityType: input.activityType ?? null,
+      direction: input.direction ?? "unknown",
+      actorUserIds: input.actorUserIds ?? [],
+      actorNames: input.actorNames ?? [],
+      contactIds: input.contactIds ?? [],
+      contactNames: input.contactNames ?? [],
+      contactNote: input.contactNote ?? "",
       leadStatus: input.leadStatus ?? null,
       title: input.title ?? activityTypeLabels[input.type],
       content: input.content ?? "",
@@ -239,6 +261,7 @@ function leadDraftPayload(draft: LeadDraft) {
     email: draft.email.trim(),
     website: draft.website.trim(),
     industry: draft.industry.trim(),
+    prefecture: draft.prefecture.trim(),
     source: draft.source.trim(),
     productId: draft.productId || null,
     productName: draft.productName.trim() || null,
@@ -262,4 +285,12 @@ function isLeadStatus(value: unknown): value is LeadStatus {
 
 function isActivityType(value: unknown): value is ActivityType {
   return value === "call" || value === "email" || value === "document" || value === "meeting" || value === "telemarketing" || value === "note" || value === "status_change" || value === "other";
+}
+
+function isLegacyActivityType(value: unknown): value is NonNullable<Activity["activityType"]> {
+  return value === "phone" || value === "email" || value === "chat" || value === "visit" || value === "meeting" || value === "deal" || value === "memo" || value === "task_created" || value === "task_completed" || value === "file" || value === "status_change" || value === "ai_task" || value === "other";
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())) : [];
 }

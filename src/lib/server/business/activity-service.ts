@@ -124,6 +124,13 @@ export async function buildActivityPayload(auth: BusinessAuth, body: Record<stri
     dealId: nullableString(body.dealId, 160),
     type,
     activityType: legacyType ?? commonToLegacyActivityType(type),
+    direction: body.direction === "inbound" || body.direction === "outbound" || body.direction === "internal" ? body.direction : "unknown",
+    actorUserIds: stringArray(body.actorUserIds),
+    actorNames: stringArray(body.actorNames),
+    contactIds: stringArray(body.contactIds),
+    contactNames: stringArray(body.contactNames),
+    contactNote: optionalString(body.contactNote, 1000),
+    aiTaskRequested: Boolean(body.aiTaskRequested),
     title,
     content: optionalString(body.content ?? body.description, 10000),
     productId: nullableString(body.productId, 160),
@@ -146,6 +153,10 @@ export function serializeActivity(id: string, data: DocumentData): DocumentData 
     ...serializeDoc(id, data),
     type: normalizeActivityType(data.type),
     activityType: legacyType,
+    actorUserIds: stringArray(data.actorUserIds),
+    actorNames: stringArray(data.actorNames),
+    contactIds: stringArray(data.contactIds),
+    contactNames: stringArray(data.contactNames),
     leadId: nullableString(data.leadId, 160),
     companyId: nullableString(data.companyId, 160),
     companyName: nullableString(data.companyName, 200),
@@ -259,6 +270,12 @@ function buildLegacyMirrorPayload(auth: BusinessAuth, companyId: string, activit
     userId: String(activity.createdBy ?? auth.userId),
     userName: String(activity.createdByName ?? auth.userName),
     attachments: Array.isArray(activity.attachments) ? activity.attachments : [],
+    direction: activity.direction === "inbound" || activity.direction === "outbound" || activity.direction === "internal" ? activity.direction : "unknown",
+    actorUserIds: stringArray(activity.actorUserIds),
+    actorNames: stringArray(activity.actorNames),
+    contactIds: stringArray(activity.contactIds),
+    contactNames: stringArray(activity.contactNames),
+    contactNote: optionalString(activity.contactNote, 1000),
     nextAction: activity.nextActionTitle || activity.nextActionAt ? { title: activity.nextActionTitle ?? "", dueAt: timestampFrom(activity.nextActionAt) } : null,
     aiTaskRequested: Boolean(activity.aiTaskRequested),
     aiTaskGeneratedIds: Array.isArray(activity.aiTaskGeneratedIds) ? activity.aiTaskGeneratedIds : [],
@@ -337,6 +354,10 @@ function dateMillis(value: unknown) {
     return Number.isNaN(date.getTime()) ? 0 : date.getTime();
   }
   return 0;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).slice(0, 100) : [];
 }
 
 function matchesActivity(activity: DocumentData, keyword: string) {
